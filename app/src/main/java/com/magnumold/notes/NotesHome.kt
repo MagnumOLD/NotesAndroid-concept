@@ -149,15 +149,11 @@ internal fun NotesHome(
         listState = listState,
         density = density,
         canSwap = { movingKey, neighbourKey ->
-            val movingNotes = dragBaseRows[movingKey]?.notes.orEmpty()
-            val neighbourNotes = dragBaseRows[neighbourKey]?.notes.orEmpty()
-            val movingPinStates = movingNotes.map { it.pinned }.distinct()
-            val neighbourPinStates = neighbourNotes.map { it.pinned }.distinct()
-            val movingDay = movingNotes.firstOrNull()?.let { timelineDayKey(it) }
-            val neighbourDay = neighbourNotes.firstOrNull()?.let { timelineDayKey(it) }
-            movingPinStates.size == 1 && neighbourPinStates.size == 1 &&
-                movingPinStates.single() == neighbourPinStates.single() &&
-                movingDay == neighbourDay
+            NoteReorderModel.canSwapRows(
+                moving = dragBaseRows[movingKey]?.notes.orEmpty(),
+                neighbour = dragBaseRows[neighbourKey]?.notes.orEmpty(),
+                timelineMode = timelineMode
+            )
         },
         onSessionChange = { reorderSession = it },
         onFinishDrag = { finishDrag() }
