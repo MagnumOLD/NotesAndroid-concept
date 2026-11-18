@@ -64,6 +64,15 @@ internal fun vaultToJson(items: List<VaultNote>): JSONArray {
 private fun JSONObject.optionalArray(key: String): JSONArray =
     if (!has(key) || isNull(key)) JSONArray() else getJSONArray(key)
 
+private fun JSONObject.nonNegativeFiniteDouble(
+    key: String,
+    default: Double,
+    maximum: Double
+): Double {
+    val value = optDouble(key, default)
+    return if (value.isFinite()) value.coerceIn(0.0, maximum) else default
+}
+
 private fun parseNoteObject(obj: JSONObject, index: Int): Note {
     val blocksJson = obj.optionalArray("blocks")
     var blocks = (0 until blocksJson.length()).map { blockIndex ->
@@ -96,16 +105,16 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         timerDurationSeconds = obj.optLong("timerDurationSeconds", 300L).coerceIn(1L, 86_400L),
         timerEndsAtMillis = if (obj.isNull("timerEndsAtMillis")) null else obj.optLong("timerEndsAtMillis"),
         timerRemainingSeconds = if (obj.isNull("timerRemainingSeconds")) null else obj.optLong("timerRemainingSeconds").coerceIn(0L, 86_400L),
-        nutritionGrams = obj.optDouble("nutritionGrams", 0.0).coerceAtLeast(0.0),
-        nutritionCalories = obj.optDouble("nutritionCalories", 0.0).coerceAtLeast(0.0),
-        nutritionProtein = obj.optDouble("nutritionProtein", 0.0).coerceAtLeast(0.0),
-        nutritionFat = obj.optDouble("nutritionFat", 0.0).coerceAtLeast(0.0),
-        nutritionCarbs = obj.optDouble("nutritionCarbs", 0.0).coerceAtLeast(0.0),
-        purchaseQuantity = obj.optDouble("purchaseQuantity", 1.0).coerceAtLeast(0.0),
-        purchaseUnitPrice = obj.optDouble("purchaseUnitPrice", 0.0).coerceAtLeast(0.0),
+        nutritionGrams = obj.nonNegativeFiniteDouble("nutritionGrams", 0.0, 9_999_999_999.0),
+        nutritionCalories = obj.nonNegativeFiniteDouble("nutritionCalories", 0.0, 9_999_999_999.0),
+        nutritionProtein = obj.nonNegativeFiniteDouble("nutritionProtein", 0.0, 9_999_999_999.0),
+        nutritionFat = obj.nonNegativeFiniteDouble("nutritionFat", 0.0, 9_999_999_999.0),
+        nutritionCarbs = obj.nonNegativeFiniteDouble("nutritionCarbs", 0.0, 9_999_999_999.0),
+        purchaseQuantity = obj.nonNegativeFiniteDouble("purchaseQuantity", 1.0, 999_999_999_999.0),
+        purchaseUnitPrice = obj.nonNegativeFiniteDouble("purchaseUnitPrice", 0.0, 999_999_999_999.0),
         workoutSets = obj.optInt("workoutSets", 3).coerceIn(1, 100),
         workoutReps = obj.optInt("workoutReps", 10).coerceIn(1, 1000),
-        workoutWeightKg = obj.optDouble("workoutWeightKg", 0.0).coerceAtLeast(0.0),
+        workoutWeightKg = obj.nonNegativeFiniteDouble("workoutWeightKg", 0.0, 1_000.0),
         dateMode = dateMode,
         dateAt = if (obj.isNull("dateAt")) null else obj.optLong("dateAt"),
         titleEnabled = obj.optBoolean("titleEnabled", false), titleText = obj.optString("titleText"),
