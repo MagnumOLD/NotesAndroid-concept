@@ -109,6 +109,14 @@ internal class NotesViewModel(
         updateSnapshot { HomeTimelineOperations.togglePinned(it, ids) }
     }
 
+    fun toggleRecordsFavorite(ids: Set<Long>) {
+        updateSnapshot { HomeTimelineOperations.toggleFavorite(it, ids) }
+    }
+
+    fun setRecordsShowOnHome(ids: Set<Long>, show: Boolean) {
+        updateSnapshot { HomeTimelineOperations.setShowOnHome(it, ids, show) }
+    }
+
     fun changeHomeRecordColor(noteId: Long, colorIndex: Int) {
         updateSnapshot { HomeTimelineOperations.changeColor(it, noteId, colorIndex) }
     }
