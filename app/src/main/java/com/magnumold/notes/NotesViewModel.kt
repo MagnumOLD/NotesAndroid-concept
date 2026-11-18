@@ -159,7 +159,7 @@ internal class NotesViewModel(
         updateSnapshot { merge.snapshot }
         try {
             flush()
-        } catch (failure: Throwable) {
+        } catch (failure: Exception) {
             _snapshot.value = before
             runCatching { repository.flushSnapshot(before) }
                 .exceptionOrNull()?.let(failure::addSuppressed)
