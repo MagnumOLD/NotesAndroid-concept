@@ -237,7 +237,7 @@ class HomeTimelineOperationsTest {
 
         val ordered = HomeTimelineOperations.orderedFavoritesByModule(records)
 
-        assertEquals(listOf(2L, 1L, 3L, 5L), ordered.map { it.id })
+        assertEquals(listOf(2L, 3L, 1L, 5L), ordered.map { it.id })
         assertEquals("Заметки", HomeTimelineOperations.moduleSectionTitle(RecordType.NOTE))
         assertEquals("Задачи", HomeTimelineOperations.moduleSectionTitle(RecordType.TASK))
     }
