@@ -20,14 +20,17 @@ internal fun WorkoutRecordEditor(
     onChange: (Note) -> Unit
 ) {
     @Composable
-    fun IntegerField(label: String, value: Int, update: (Int) -> Unit) {
+    fun IntegerField(label: String, value: Int, minimum: Int, maximum: Int, update: (Int) -> Unit) {
         var input by remember(note.id, label) { mutableStateOf(value.toString()) }
         OutlinedTextField(
             value = input,
             onValueChange = { raw ->
                 if (raw.length <= 4 && raw.all(Char::isDigit)) {
-                    input = raw
-                    raw.toIntOrNull()?.let(update)
+                    raw.toIntOrNull()?.let { parsed ->
+                        val normalized = parsed.coerceIn(minimum, maximum)
+                        input = normalized.toString()
+                        update(normalized)
+                    } ?: run { input = raw }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -71,20 +74,24 @@ internal fun WorkoutRecordEditor(
                 label = { Text("Упражнение") },
                 placeholder = { Text("Например, подтягивания") }
             )
-            IntegerField("Подходы", note.workoutSets) {
-                onChange(note.copy(workoutSets = WorkoutOperations.normalizeSets(it)))
+            IntegerField("Подходы", note.workoutSets, 1, 100) {
+                onChange(note.copy(workoutSets = it))
             }
-            IntegerField("Повторения", note.workoutReps) {
-                onChange(note.copy(workoutReps = WorkoutOperations.normalizeReps(it)))
+            IntegerField("Повторения", note.workoutReps, 1, 1_000) {
+                onChange(note.copy(workoutReps = it))
             }
             OutlinedTextField(
                 value = weightInput,
                 onValueChange = { raw ->
                     if (raw.length <= 10 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
-                        weightInput = raw
-                        onChange(note.copy(workoutWeightKg = WorkoutOperations.normalizeWeight(
-                            raw.replace(',', '.').toDoubleOrNull() ?: 0.0
-                        )))
+                        val parsed = raw.replace(',', '.').toDoubleOrNull()
+                        val normalized = WorkoutOperations.normalizeWeight(parsed ?: 0.0)
+                        weightInput = when {
+                            raw.isBlank() -> ""
+                            parsed != null && normalized != parsed -> normalized.toString()
+                            else -> raw
+                        }
+                        onChange(note.copy(workoutWeightKg = normalized))
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
