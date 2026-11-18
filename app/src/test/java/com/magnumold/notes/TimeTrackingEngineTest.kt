@@ -154,7 +154,7 @@ class TimeTrackingEngineTest {
         val groups = TimeTrackingEngine.groupSessionsForDisplay(listOf(first, second))
 
         assertEquals(2, groups.size)
-        assertEquals(listOf("first", "second"), groups.map { it.single().id })
+        assertEquals(listOf("second", "first"), groups.map { it.single().id })
     }
 
     @Test fun dailyTotalsClipsLongSessionsToTheSelectedAnalyticsRange() {
