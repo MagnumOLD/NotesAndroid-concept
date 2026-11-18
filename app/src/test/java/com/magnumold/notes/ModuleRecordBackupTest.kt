@@ -68,6 +68,51 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importingNestedRecordsRekeysIdsThatCollideAnywhereInTheTree() {
+        val existing = Note(
+            id = 1L,
+            title = "",
+            blocks = listOf(NoteBlock("Existing parent")),
+            updated = 1L,
+            children = listOf(
+                Note(2L, "", listOf(NoteBlock("Existing child")), 2L)
+            )
+        )
+        val imported = Note(
+            id = 3L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported parent")),
+            updated = 3L,
+            children = listOf(
+                Note(
+                    2L,
+                    "",
+                    listOf(NoteBlock("Imported child")),
+                    4L,
+                    children = listOf(Note(3L, "", listOf(NoteBlock("Grandchild")), 5L))
+                )
+            )
+        )
+
+        val merged = mergeImportedNotes(listOf(existing), listOf(imported))
+        val ids = mutableListOf<Long>()
+        fun collect(notes: List<Note>) {
+            notes.forEach { note ->
+                ids += note.id
+                collect(note.children)
+            }
+        }
+        collect(merged)
+
+        assertEquals(5, ids.size)
+        assertEquals(5, ids.toSet().size)
+        assertEquals("Imported child", merged.last().children.single().blocks.single().text)
+        assertEquals("Grandchild", merged.last().children.single().children.single().blocks.single().text)
+        assertNotEquals(2L, merged.last().children.single().id)
+        assertNotEquals(3L, merged.last().children.single().children.single().id)
+    }
+
+    @Test
     fun importingDifferentShoppingQuantitiesDoesNotMergeThem() {
         val base = Note(10, "", listOf(NoteBlock()), 100L, type = RecordType.PURCHASE,
             titleText = "Кофе", purchaseQuantity = 1.0, purchaseUnitPrice = 5.0)
