@@ -68,6 +68,28 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun backupWithDuplicateNestedRecordIdsIsRejectedBeforeImport() {
+        val malformed = """{"format":"notes_backup","version":12,"notes":[{"id":1,"blocks":[{"text":"Parent"}],"children":[{"id":1,"blocks":[{"text":"Child"}]}]}],"collections":[],"archive":[],"trash":[]}"""
+        try {
+            parseBackupJson(malformed)
+            fail("Duplicate IDs make tracking references ambiguous and must reject the backup")
+        } catch (_: IllegalArgumentException) {
+            // Expected: a malformed backup must not be partially imported.
+        }
+    }
+
+    @Test
+    fun backupWithDuplicateCollectionIdsIsRejected() {
+        val malformed = """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"A","notes":[]},{"id":7,"name":"B","notes":[]}],"archive":[],"trash":[]}"""
+        try {
+            parseBackupJson(malformed)
+            fail("Duplicate collection IDs must reject the backup")
+        } catch (_: IllegalArgumentException) {
+            // Expected.
+        }
+    }
+
+    @Test
     fun importingNestedRecordsRekeysIdsThatCollideAnywhereInTheTree() {
         val existing = Note(
             id = 1L,
