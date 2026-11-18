@@ -27,9 +27,7 @@ internal fun NotesApp(
             val cardPreviewStore = remember(activity) {
                 CardPreviewSettingsStore(activity.getSharedPreferences("notes_card_previews", Context.MODE_PRIVATE))
             }
-            var cardPreviewModules by remember(cardPreviewStore) {
-                androidx.compose.runtime.mutableStateOf(cardPreviewStore.load())
-            }
+            var cardPreviewFields by remember(cardPreviewStore) { androidx.compose.runtime.mutableStateOf(cardPreviewStore.load()) }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
             }
@@ -174,10 +172,7 @@ internal fun NotesApp(
                         trashRetentionDays = trashRetentionDays,
                         interactiveCardsEnabled = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
-                        onCardPreviewModulesChange = { modules ->
-                            cardPreviewModules = modules
-                            cardPreviewStore.save(modules)
-                        },
+                        onCardPreviewFieldsChange = { fields -> cardPreviewFields = fields; cardPreviewStore.save(fields) },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)

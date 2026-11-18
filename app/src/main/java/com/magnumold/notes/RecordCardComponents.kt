@@ -428,6 +428,7 @@ internal fun NoteRow(
     interactiveCards: Boolean = false,
     onQuickAction: () -> Unit = {},
     showSecondaryPreview: Boolean = true,
+    previewFields: Set<String> = CardPreviewField.defaults,
     onMeasuredHeight: (Int) -> Unit = {}
 ) {
     val firstLine = recordCardPrimaryText(note)

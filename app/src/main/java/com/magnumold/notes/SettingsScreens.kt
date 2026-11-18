@@ -137,8 +137,8 @@ internal fun SettingsScreen(
     trashRetentionDays: Int,
     interactiveCardsEnabled: Boolean = false,
     onInteractiveCardsEnabledChange: (Boolean) -> Unit = {},
-    cardPreviewModules: Set<AppModule> = AppModule.entries.filter { it.recordType != null }.toSet(),
-    onCardPreviewModulesChange: (Set<AppModule>) -> Unit = {},
+    cardPreviewFields: Set<String> = CardPreviewField.defaults,
+    onCardPreviewFieldsChange: (Set<String>) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
