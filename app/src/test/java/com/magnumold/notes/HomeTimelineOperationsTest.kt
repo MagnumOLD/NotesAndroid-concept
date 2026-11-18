@@ -112,6 +112,22 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun homeTimelineSortsByScheduledDayAndHidesExcludedRecords() {
+        val yesterday = note(1, order = 100, created = 86_400_000L)
+        val today = note(2, order = 10, created = 2 * 86_400_000L)
+            .copy(scheduledAt = 3 * 86_400_000L)
+        val hidden = note(3, order = 200, created = 3 * 86_400_000L)
+            .copy(showOnHome = false)
+        val sameDayLater = note(4, order = 20, created = 3 * 86_400_000L)
+
+        val ordered = HomeTimelineOperations.orderedVisibleRecords(
+            listOf(yesterday, today, hidden, sameDayLater)
+        )
+
+        assertEquals(listOf(4L, 2L, 1L), ordered.map { it.id })
+    }
+
+    @Test
     fun unknownRecordUpdateIsNoOp() {
         val snapshot = PersistenceSnapshot(listOf(note(1)), emptyList(), emptyList(), emptyList())
 
