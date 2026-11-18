@@ -58,7 +58,12 @@ internal data class ActiveWorkSession(
     val taskTitle: String,
     val subtaskTitle: String?,
     val startedAtMillis: Long
-)
+) {
+    init {
+        require(id.isNotBlank())
+        require(taskTitle.isNotBlank())
+    }
+}
 
 internal data class TimeTrackingState(
     val sessions: List<WorkSession> = emptyList(),
