@@ -10,17 +10,55 @@ internal object RecordOperations {
             snapshot.archived.sumOf { 1 + countNotes(it.note.children) } +
             snapshot.trash.sumOf { 1 + countNotes(it.note.children) }
 
-    fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot {
-        val collectionMerge = mergeImportedCollectionsWithIdMap(current.collections, imported.collections)
+    data class BackupMergeResult(
+        val snapshot: PersistenceSnapshot,
+        val importedNoteIdMap: Map<Long, Long>
+    )
+
+    fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot =
+        mergeBackupWithIdMap(current, imported).snapshot
+
+    fun mergeBackupWithIdMap(current: PersistenceSnapshot, imported: BackupData): BackupMergeResult {
+        val usedNoteIds = mutableSetOf<Long>()
+        fun collectNotes(notes: List<Note>) {
+            notes.forEach { note ->
+                usedNoteIds += note.id
+                collectNotes(note.children)
+            }
+        }
+        fun collectVault(entries: List<VaultNote>) = entries.forEach { collectNotes(listOf(it.note)) }
+        collectNotes(current.notes)
+        current.collections.forEach { collectNotes(it.notes) }
+        collectVault(current.archived)
+        collectVault(current.trash)
+
+        val importedNoteIdMap = linkedMapOf<Long, Long>()
+        val collectionMerge = mergeImportedCollectionsWithIdMap(
+            current.collections,
+            imported.collections,
+            usedNoteIds,
+            importedNoteIdMap
+        )
         fun remapVaultCollection(entry: VaultNote): VaultNote = entry.copy(
             collectionId = entry.collectionId?.let { collectionMerge.importedIdMap[it] ?: it }
         )
-        return current.copy(
-            notes = mergeImportedNotes(current.notes, imported.notes),
+        val merged = current.copy(
+            notes = mergeImportedNotes(current.notes, imported.notes, usedNoteIds, importedNoteIdMap),
             collections = collectionMerge.collections,
-            archived = mergeImportedVault(current.archived, imported.archived.map(::remapVaultCollection)),
-            trash = mergeImportedVault(current.trash, imported.trash.map(::remapVaultCollection))
+            archived = mergeImportedVault(
+                current.archived,
+                imported.archived.map(::remapVaultCollection),
+                usedNoteIds,
+                importedNoteIdMap
+            ),
+            trash = mergeImportedVault(
+                current.trash,
+                imported.trash.map(::remapVaultCollection),
+                usedNoteIds,
+                importedNoteIdMap
+            )
         )
+        return BackupMergeResult(merged, importedNoteIdMap)
     }
 
     fun restoreVaultEntry(
