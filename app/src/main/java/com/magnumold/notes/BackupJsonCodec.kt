@@ -238,6 +238,36 @@ private fun Note.sameRecordContent(other: Note): Boolean =
 
 internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): List<Note> {
     val result = existing.toMutableList()
+    val usedIds = mutableSetOf<Long>()
+
+    fun collectIds(notes: List<Note>) {
+        notes.forEach { note ->
+            usedIds += note.id
+            collectIds(note.children)
+        }
+    }
+    collectIds(existing)
+
+    fun nextUniqueId(): Long {
+        var candidate = System.currentTimeMillis().coerceAtLeast(0L)
+        while (!usedIds.add(candidate)) {
+            candidate = if (candidate == Long.MAX_VALUE) Long.MIN_VALUE else candidate + 1L
+        }
+        return candidate
+    }
+
+    fun copyWithUniqueTreeIds(note: Note): Note {
+        val safeId = if (usedIds.add(note.id)) note.id else nextUniqueId()
+        val idChanged = safeId != note.id
+        return note.copy(
+            id = safeId,
+            blocks = if (idChanged) note.blocks.map {
+                it.copy(id = java.util.UUID.randomUUID().toString())
+            } else note.blocks,
+            children = note.children.map(::copyWithUniqueTreeIds)
+        )
+    }
+
     imported.forEach { incoming ->
         val sameIndex = result.indexOfFirst { it.sameRecordContent(incoming) }
         if (sameIndex >= 0) {
@@ -247,16 +277,7 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
             )
             return@forEach
         }
-        val collision = result.any { it.id == incoming.id }
-        val safeId = if (!collision) incoming.id else {
-            var candidate = System.currentTimeMillis()
-            while (result.any { it.id == candidate }) candidate++
-            candidate
-        }
-        val blocks = if (collision) incoming.blocks.map {
-            it.copy(id = java.util.UUID.randomUUID().toString())
-        } else incoming.blocks
-        result.add(incoming.copy(id = safeId, blocks = blocks))
+        result.add(copyWithUniqueTreeIds(incoming))
     }
     return result
 }
