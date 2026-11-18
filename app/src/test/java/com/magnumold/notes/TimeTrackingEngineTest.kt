@@ -142,8 +142,9 @@ class TimeTrackingEngineTest {
             active, 7L, Long.MAX_VALUE, WorkSessionEndReason.STOP
         )
 
+        assertEquals(Long.MIN_VALUE, finished.sessions.single().startedAtMillis)
+        assertEquals(Long.MAX_VALUE, finished.sessions.single().endedAtMillis)
         assertEquals(Long.MAX_VALUE, finished.sessions.single().durationMillis)
-        assertEquals(Long.MAX_VALUE, finished.sessions.single().endedAtMillis - finished.sessions.single().startedAtMillis.coerceAtLeast(0L))
     }
 
     @Test fun displayGroupingDoesNotMergeWhenGapSubtractionWouldOverflow() {
