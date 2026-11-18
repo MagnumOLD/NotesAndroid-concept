@@ -98,7 +98,10 @@ internal fun NotesApp(
                 homeTimelineMode -> HomeTimelineOperations.records(snapshot)
                 else -> notes.toList()
             }
-            val activeNotes = sourceNotes.filter { navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType }
+            val enabledSourceNotes = ModuleVisibilityOperations.visibleRecords(sourceNotes, moduleConfiguration.enabled)
+            val activeNotes = enabledSourceNotes.filter {
+                navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType
+            }
             val autoFocusNewNote = navigation.autoFocusNewNote
             val search = navigation.search
             val searchVisible = navigation.searchVisible

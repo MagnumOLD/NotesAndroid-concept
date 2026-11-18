@@ -57,4 +57,32 @@ class AppModulesTest {
     fun disablingEveryModuleLeavesNoQuickCreateTarget() {
         assertTrue(ModuleConfiguration(enabled = emptySet()).enabledInOrder().isEmpty())
     }
+    @Test
+    fun disabledModuleRecordsAreHiddenWithoutDeletingTheirSourceData() {
+        val records = listOf(
+            Note(1L, "", listOf(NoteBlock("note")), 1L, type = RecordType.NOTE),
+            Note(2L, "", listOf(NoteBlock("task")), 2L, type = RecordType.TASK),
+            Note(3L, "", listOf(NoteBlock("purchase")), 3L, type = RecordType.PURCHASE)
+        )
+        val enabled = setOf(AppModule.NOTES, AppModule.TASKS)
+
+        val visible = ModuleVisibilityOperations.visibleRecords(records, enabled)
+
+        assertEquals(listOf(1L, 2L), visible.map { it.id })
+        assertEquals(3, records.size)
+    }
+
+    @Test
+    fun reenablingModuleMakesItsExistingRecordsVisibleAgain() {
+        val records = listOf(
+            Note(4L, "", listOf(NoteBlock("timer")), 4L, type = RecordType.TIMER),
+            Note(5L, "", listOf(NoteBlock("nutrition")), 5L, type = RecordType.NUTRITION)
+        )
+
+        assertTrue(ModuleVisibilityOperations.visibleRecords(records, setOf(AppModule.TIMERS)).none { it.id == 5L })
+        assertEquals(
+            listOf(4L, 5L),
+            ModuleVisibilityOperations.visibleRecords(records, setOf(AppModule.TIMERS, AppModule.NUTRITION)).map { it.id }
+        )
+    }
 }
