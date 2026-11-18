@@ -216,6 +216,36 @@ class TimeTrackingJsonCodecTest {
         }
     }
 
+
+    @Test fun duplicateSavedSessionIdsInvalidateTrackingState() {
+        val session = WorkSession(
+            "duplicate", 1L, null, "Task", null, 10L, 20L, 10L, WorkSessionEndReason.STOP
+        )
+        val json = timeTrackingToJson(TimeTrackingState(sessions = listOf(session, session.copy(taskId = 2L))))
+        try {
+            parseTimeTrackingJson(json)
+            fail("Duplicate saved session IDs must invalidate the tracking state")
+        } catch (_: IllegalArgumentException) {
+            // Duplicate IDs would make edits and deletion ambiguous.
+        }
+    }
+
+    @Test fun activeSessionIdsMustBeUniqueAcrossSavedAndActiveHistory() {
+        val saved = WorkSession(
+            "shared", 1L, null, "Task", null, 10L, 20L, 10L, WorkSessionEndReason.STOP
+        )
+        val active = ActiveWorkSession("shared", 2L, null, "Another task", null, 30L)
+        val json = timeTrackingToJson(
+            TimeTrackingState(sessions = listOf(saved), activeSessions = mapOf(2L to active))
+        )
+        try {
+            parseTimeTrackingJson(json)
+            fail("An active session must not reuse a saved session ID")
+        } catch (_: IllegalArgumentException) {
+            // A session ID identifies one logical interval across its lifecycle.
+        }
+    }
+
     @Test fun missingTrackingObjectIsNotTreatedAsAnImportedEmptyHistory() {
         val backup = parseBackupJson(
             """{"format":"notes_backup","version":6,"notes":[],"collections":[]}"""
