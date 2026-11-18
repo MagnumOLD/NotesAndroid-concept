@@ -5,13 +5,18 @@ internal object RecordOperations {
         snapshot.notes.size + snapshot.collections.sumOf { it.notes.size } +
             snapshot.archived.size + snapshot.trash.size
 
-    fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot =
-        current.copy(
-            notes = mergeImportedNotes(current.notes, imported.notes),
-            collections = mergeImportedCollections(current.collections, imported.collections),
-            archived = mergeImportedVault(current.archived, imported.archived),
-            trash = mergeImportedVault(current.trash, imported.trash)
+    fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot {
+        val collectionMerge = mergeImportedCollectionsWithIdMap(current.collections, imported.collections)
+        fun remapVaultCollection(entry: VaultNote): VaultNote = entry.copy(
+            collectionId = entry.collectionId?.let { collectionMerge.importedIdMap[it] ?: it }
         )
+        return current.copy(
+            notes = mergeImportedNotes(current.notes, imported.notes),
+            collections = collectionMerge.collections,
+            archived = mergeImportedVault(current.archived, imported.archived.map(::remapVaultCollection)),
+            trash = mergeImportedVault(current.trash, imported.trash.map(::remapVaultCollection))
+        )
+    }
 
     fun restoreVaultEntry(
         snapshot: PersistenceSnapshot,

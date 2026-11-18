@@ -100,7 +100,11 @@ class ModuleRecordBackupTest {
 
     @Test
     fun vaultNeighborLinksSurviveBackupRoundTrip() {
-        val records = listOf(note(101L, "A"), note(102L, "B"), note(103L, "C"))
+        val records = listOf(
+            Note(101L, "A", listOf(NoteBlock("A")), 101L),
+            Note(102L, "B", listOf(NoteBlock("B")), 102L),
+            Note(103L, "C", listOf(NoteBlock("C")), 103L)
+        )
         val snapshot = PersistenceSnapshot(
             notes = listOf(records.first()),
             collections = emptyList(),

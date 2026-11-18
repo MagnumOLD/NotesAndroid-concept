@@ -219,16 +219,32 @@ internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultN
     return result
 }
 
-internal fun mergeImportedCollections(existing: List<NoteCollection>, imported: List<NoteCollection>): List<NoteCollection> {
+internal data class ImportedCollectionsMerge(
+    val collections: List<NoteCollection>,
+    val importedIdMap: Map<Long, Long>
+)
+
+internal fun mergeImportedCollectionsWithIdMap(
+    existing: List<NoteCollection>,
+    imported: List<NoteCollection>
+): ImportedCollectionsMerge {
     val result = existing.toMutableList()
+    val idMap = linkedMapOf<Long, Long>()
     imported.forEach { incoming ->
         val sameName = result.indexOfFirst { it.name.equals(incoming.name, true) }
-        if (sameName >= 0) result[sameName] = result[sameName].copy(notes = mergeImportedNotes(result[sameName].notes, incoming.notes))
-        else {
+        if (sameName >= 0) {
+            val target = result[sameName]
+            result[sameName] = target.copy(notes = mergeImportedNotes(target.notes, incoming.notes))
+            idMap[incoming.id] = target.id
+        } else {
             var id = incoming.id
             while (result.any { it.id == id }) id++
             result.add(incoming.copy(id = id))
+            idMap[incoming.id] = id
         }
     }
-    return result
+    return ImportedCollectionsMerge(result, idMap)
 }
+
+internal fun mergeImportedCollections(existing: List<NoteCollection>, imported: List<NoteCollection>): List<NoteCollection> =
+    mergeImportedCollectionsWithIdMap(existing, imported).collections

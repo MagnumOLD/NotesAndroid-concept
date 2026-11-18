@@ -139,4 +139,46 @@ class RecordOperationsTest {
 
         assertEquals(listOf(11L, 12L, 13L, 14L, 15L), afterB.collections.single().notes.map { it.id })
     }
+    @Test
+    fun backupMapsArchivedCollectionReferencesWhenCollectionsMergeByName() {
+        val current = PersistenceSnapshot(
+            emptyList(),
+            listOf(NoteCollection(10L, "Work", listOf(note(1L, "first")))),
+            emptyList(),
+            emptyList()
+        )
+        val imported = BackupData(
+            emptyList(),
+            listOf(NoteCollection(20L, "work", listOf(note(2L, "second")))),
+            listOf(VaultNote(note(3L, "third"), 20L, 2, 100L, previousRecordId = 2L)),
+            emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackup(current, imported)
+        assertEquals(10L, merged.archived.single().collectionId)
+        val restored = RecordOperations.restoreVaultEntry(merged, merged.archived.single(), fromArchive = true)
+        assertEquals(listOf(1L, 2L, 3L), restored.collections.single().notes.map { it.id })
+    }
+
+    @Test
+    fun backupMapsArchivedCollectionReferencesWhenCollectionIdCollides() {
+        val current = PersistenceSnapshot(
+            emptyList(),
+            listOf(NoteCollection(20L, "Work", listOf(note(1L, "first")))),
+            emptyList(),
+            emptyList()
+        )
+        val imported = BackupData(
+            emptyList(),
+            listOf(NoteCollection(20L, "Home", listOf(note(2L, "second")))),
+            listOf(VaultNote(note(3L, "third"), 20L, 1, 100L, previousRecordId = 2L)),
+            emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackup(current, imported)
+        val importedCollection = merged.collections.first { it.name == "Home" }
+        assertEquals(importedCollection.id, merged.archived.single().collectionId)
+        val restored = RecordOperations.restoreVaultEntry(merged, merged.archived.single(), fromArchive = true)
+        assertEquals(listOf(2L, 3L), restored.collections.first { it.name == "Home" }.notes.map { it.id })
+    }
 }
