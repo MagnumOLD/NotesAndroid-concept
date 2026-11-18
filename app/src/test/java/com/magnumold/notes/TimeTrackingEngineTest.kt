@@ -157,6 +157,39 @@ class TimeTrackingEngineTest {
         assertEquals(listOf("first", "second"), groups.map { it.single().id })
     }
 
+    @Test fun dailyTotalsClipsLongSessionsToTheSelectedAnalyticsRange() {
+        val calendar = java.util.Calendar.getInstance().apply {
+            clear()
+            set(2026, java.util.Calendar.NOVEMBER, 18, 0, 0, 0)
+        }
+        val start = calendar.timeInMillis
+        calendar.add(java.util.Calendar.DAY_OF_MONTH, 1)
+        val end = calendar.timeInMillis
+        val session = WorkSession(
+            id = "long",
+            taskId = 7L,
+            parentTaskId = null,
+            taskTitle = "Task",
+            subtaskTitle = null,
+            startedAtMillis = Long.MIN_VALUE,
+            endedAtMillis = Long.MAX_VALUE,
+            durationMillis = Long.MAX_VALUE,
+            endReason = WorkSessionEndReason.STOP
+        )
+
+        val totals = TimeTrackingEngine.dailyTotals(
+            TimeTrackingState(sessions = listOf(session)),
+            nowMillis = end,
+            startInclusive = start,
+            endExclusive = end
+        )
+        val key = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+            .format(java.util.Date(start))
+
+        assertEquals(setOf(key), totals.keys)
+        assertEquals(end - start, totals[key])
+    }
+
     @Test fun protectionTimerIsIndependentAndOnlyOneCanRun() {
         val timer = ProtectionTimerEngine.start(null, 1, "Task", "Child", 0, 60_000, ProtectionEndMode.SIGNAL_ONLY, null, false)
         assertEquals(30_000L, ProtectionTimerEngine.remainingMillis(timer, 30_000))
