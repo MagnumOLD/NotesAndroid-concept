@@ -28,7 +28,7 @@ class PersistenceArchitectureTest {
     )
 
     @Test
-    fun backupRoundTripPreservesRecordsAndVersionSevenSchema() {
+    fun backupRoundTripPreservesRecordsAndCurrentSchema() {
         val childTask = record(2, RecordType.TASK)
         val task = record(1, RecordType.TASK, listOf(childTask))
         val purchase = record(3, RecordType.PURCHASE)
@@ -50,7 +50,7 @@ class PersistenceArchitectureTest {
 
         assertEquals("notes_backup", root.getString("format"))
         // Keep this assertion aligned with the current exported backup schema.
-        assertEquals(7, root.getInt("version"))
+        assertEquals(10, root.getInt("version"))
         assertEquals(snapshot.notes, decoded.notes)
         assertEquals(snapshot.collections, decoded.collections)
         assertEquals(snapshot.archived, decoded.archived)
