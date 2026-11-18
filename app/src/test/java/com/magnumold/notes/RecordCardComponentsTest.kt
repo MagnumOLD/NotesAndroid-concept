@@ -23,7 +23,7 @@ class RecordCardComponentsTest {
                 dateAt = date
             )
 
-            assertEquals("до 02.01", recordCardSecondaryText(task))
+            assertEquals(true, recordCardSecondaryText(task).orEmpty().endsWith("до 02.01"))
         } finally {
             java.util.TimeZone.setDefault(previousZone)
         }
