@@ -275,6 +275,45 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun repeatedVaultImportDoesNotRewriteExistingNeighborLinks() {
+        val localNeighbor = Note(200L, "", listOf(NoteBlock("Local")), 100L)
+        val archivedNote = Note(300L, "", listOf(NoteBlock("Archived")), 300L)
+        val current = PersistenceSnapshot(
+            notes = listOf(localNeighbor),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = archivedNote,
+                    collectionId = null,
+                    position = 0,
+                    movedAt = 400L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+        val imported = BackupData(
+            notes = listOf(Note(200L, "", listOf(NoteBlock("Imported")), 200L)),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = archivedNote.copy(id = 400L),
+                    collectionId = null,
+                    position = 0,
+                    movedAt = 500L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(current, imported)
+
+        assertEquals(1, merged.snapshot.archived.size)
+        assertEquals(200L, merged.snapshot.archived.single().previousRecordId)
+    }
+
+    @Test
     fun moduleCardTitlesHaveUsefulFallbacks() {
         val base = Note(1, "", listOf(NoteBlock()), 100L)
         assertEquals("Таймер", recordCardPrimaryText(base.copy(type = RecordType.TIMER)))
