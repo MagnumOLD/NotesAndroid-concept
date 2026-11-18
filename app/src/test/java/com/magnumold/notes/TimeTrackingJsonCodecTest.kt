@@ -76,6 +76,40 @@ class TimeTrackingJsonCodecTest {
         assertEquals(false, merged.soundEnabled)
     }
 
+
+    @Test fun collidingSessionIdsFromDifferentTasksArePreservedDuringBackupMerge() {
+        val local = WorkSession(
+            "same-id", 1L, null, "Local", null, 10L, 20L, 10L, WorkSessionEndReason.STOP
+        )
+        val imported = WorkSession(
+            "same-id", 2L, null, "Imported", null, 30L, 50L, 20L, WorkSessionEndReason.STOP
+        )
+        val merged = mergeTimeTrackingBackup(
+            TimeTrackingState(sessions = listOf(local)),
+            TimeTrackingState(sessions = listOf(imported))
+        )
+
+        assertEquals(2, merged.sessions.size)
+        assertEquals(setOf(1L, 2L), merged.sessions.map { it.taskId }.toSet())
+        assertEquals(2, merged.sessions.map { it.id }.toSet().size)
+    }
+
+    @Test fun importedActiveSessionIdCollisionIsRekeyedInsteadOfOverwritingHistory() {
+        val saved = WorkSession(
+            "shared-id", 1L, null, "Saved", null, 10L, 20L, 10L, WorkSessionEndReason.STOP
+        )
+        val importedActive = ActiveWorkSession("shared-id", 2L, null, "Active", null, 30L)
+        val merged = mergeTimeTrackingBackup(
+            TimeTrackingState(sessions = listOf(saved)),
+            TimeTrackingState(activeSessions = mapOf(2L to importedActive))
+        )
+
+        assertEquals(1, merged.sessions.size)
+        assertEquals(2L, merged.activeSessions.keys.single())
+        assertNotEquals("shared-id", merged.activeSessions.getValue(2L).id)
+        assertEquals(2, (merged.sessions.map { it.id } + merged.activeSessions.values.map { it.id }).toSet().size)
+    }
+
     @Test
     fun orphanedImportedTrackingIdsCannotAttachToUnrelatedLocalRecords() {
         val localTask = Note(55L, "", listOf(NoteBlock("Local task")), 55L, type = RecordType.TASK)
