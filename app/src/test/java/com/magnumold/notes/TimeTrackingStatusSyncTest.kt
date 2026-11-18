@@ -43,6 +43,67 @@ class TimeTrackingStatusSyncTest {
         assertEquals(setOf(11L), state.activeSessions.keys)
     }
 
+    @Test fun movingActiveSubtaskToAnotherParentClosesAndRestartsItsSession() {
+        val child = task(11, "Child", RecordStatus.IN_PROGRESS)
+        val before = listOf(
+            task(10, "First parent", RecordStatus.IN_PROGRESS, listOf(child)),
+            task(20, "Second parent", RecordStatus.WAITING)
+        )
+        val active = syncWorkSessionsForTaskChanges(
+            emptyList(), before, TimeTrackingState(), 100L
+        )
+        val after = listOf(
+            task(10, "First parent", RecordStatus.IN_PROGRESS),
+            task(20, "Second parent", RecordStatus.WAITING, listOf(child))
+        )
+
+        val updated = syncWorkSessionsForTaskChanges(before, after, active, 600L)
+
+        assertEquals(WorkSessionEndReason.STOP, updated.sessions.single().endReason)
+        assertEquals(500L, updated.sessions.single().durationMillis)
+        assertEquals(20L, updated.activeSessions[11L]?.parentTaskId)
+        assertEquals(600L, updated.activeSessions[11L]?.startedAtMillis)
+        assertTrue(updated.activeSessions[11L]?.id != active.activeSessions[11L]?.id)
+    }
+
+    @Test fun protectionTimerContinueResumesSubtaskWithoutLegacyOptInFlag() {
+        val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE, parentTaskId = 10L)
+        val initial = TimeTrackingState(
+            activeSessions = mapOf(11L to ActiveWorkSession("old", 11L, 10L, "Parent", "Child", 100L)),
+            protectionTimer = timer
+        )
+        val paused = TimeTrackingEngine.finish(initial, 11L, 200L, WorkSessionEndReason.AUTOMATIC_PAUSE)
+
+        val resumed = resumeWorkAfterProtectionTimer(
+            state = paused,
+            taskId = 11L,
+            parentTaskId = 10L,
+            taskTitle = "Parent",
+            subtaskTitle = "Child",
+            nowMillis = 300L
+        )
+
+        assertEquals(200L, resumed.sessions.single().endedAtMillis)
+        assertEquals(300L, resumed.activeSessions[11L]?.startedAtMillis)
+        assertEquals(10L, resumed.activeSessions[11L]?.parentTaskId)
+        assertTrue(resumed.activeSessions[11L]?.id != "old")
+        assertEquals(null, resumed.protectionTimer)
+    }
+
+    @Test fun protectionTimerContinueDoesNotStartStopwatchForParentTask() {
+        val timer = ProtectionTimer(10L, "Parent", null, 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        val resumed = resumeWorkAfterProtectionTimer(
+            state = TimeTrackingState(protectionTimer = timer),
+            taskId = 10L,
+            parentTaskId = null,
+            taskTitle = "Parent",
+            subtaskTitle = null,
+            nowMillis = 300L
+        )
+        assertTrue(resumed.activeSessions.isEmpty())
+        assertEquals(null, resumed.protectionTimer)
+    }
+
     @Test fun pausingSubtaskSavesSessionWithPauseReason() {
         val before = task(10, "Parent", RecordStatus.WAITING, listOf(task(11, "Child", RecordStatus.IN_PROGRESS)))
         val active = syncWorkSessionsForTaskChanges(emptyList(), listOf(before), TimeTrackingState(), 100L)

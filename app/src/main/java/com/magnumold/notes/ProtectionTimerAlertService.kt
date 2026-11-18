@@ -96,7 +96,7 @@ internal class ProtectionTimerAlertService : Service() {
             status = RecordStatus.COMPLETED,
             updated = now
         )
-        repository.saveSnapshot(HomeTimelineOperations.update(snapshot, completed))
+        repository.flushSnapshot(HomeTimelineOperations.update(snapshot, completed))
         sendTaskStatusChanged()
 
         val notificationManager = getSystemService(NotificationManager::class.java)
@@ -177,13 +177,10 @@ internal class ProtectionTimerAlertService : Service() {
             val taskTitle = intent.getStringExtra(ProtectionTimerContract.EXTRA_TASK_TITLE) ?: "Задача"
             val subtaskTitle = intent.getStringExtra(ProtectionTimerContract.EXTRA_SUBTASK_TITLE)
             val notes = notesRepository()
-            val trackingEnabled = notes.findTask(taskId)?.timeTrackingEnabled == true
             if (notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)) {
                 timeRepository().update { state ->
-                    val clean = state.copy(protectionTimer = null)
-                    if (!trackingEnabled || taskId in clean.activeSessions) clean
-                    else TimeTrackingEngine.start(
-                        state = clean,
+                    resumeWorkAfterProtectionTimer(
+                        state = state,
                         taskId = taskId,
                         parentTaskId = parentId,
                         taskTitle = taskTitle,

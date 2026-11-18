@@ -83,3 +83,27 @@ internal fun syncWorkSessionsForTaskChanges(
     }
     return state
 }
+
+/**
+ * Resumes a stopwatch after the protection timer action. Only subtasks own
+ * work sessions; the old per-record opt-in flag is intentionally ignored.
+ */
+internal fun resumeWorkAfterProtectionTimer(
+    state: TimeTrackingState,
+    taskId: Long,
+    parentTaskId: Long?,
+    taskTitle: String,
+    subtaskTitle: String?,
+    nowMillis: Long
+): TimeTrackingState {
+    val clean = state.copy(protectionTimer = null)
+    if (parentTaskId == null || taskId in clean.activeSessions) return clean
+    return TimeTrackingEngine.start(
+        state = clean,
+        taskId = taskId,
+        parentTaskId = parentTaskId,
+        taskTitle = taskTitle,
+        subtaskTitle = subtaskTitle,
+        nowMillis = nowMillis
+    )
+}

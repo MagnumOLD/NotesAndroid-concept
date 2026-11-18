@@ -63,7 +63,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             collection.copy(notes = updateTree(collection.notes))
         }
         if (found) {
-            saveSnapshot(current.copy(notes = updatedNotes, collections = updatedCollections))
+            flushSnapshot(current.copy(notes = updatedNotes, collections = updatedCollections))
             preferences.edit().putLong(KEY_EXTERNAL_STATUS_UPDATE, System.currentTimeMillis()).apply()
         }
         return found
