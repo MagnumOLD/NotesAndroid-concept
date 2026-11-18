@@ -50,7 +50,8 @@ internal fun NotesHome(
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
     onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
     screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false,
-    interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {}
+    interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
+    cardPreviewModules: Set<AppModule> = AppModule.entries.filter { it.recordType != null }.toSet()
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -565,6 +566,7 @@ internal fun NotesHome(
                                         onChangeColor = { next -> onChangeNoteColor(note.id, next) },
                                         interactiveCards = interactiveCards,
                                         onQuickAction = { onQuickAction(note) },
+                                        showSecondaryPreview = AppModule.entries.firstOrNull { it.recordType == note.type } in cardPreviewModules,
                                         onMeasuredHeight = { heightPx ->
                                             if (measuredNoteCardHeights[note.id] != heightPx) {
                                                 measuredNoteCardHeights[note.id] = heightPx

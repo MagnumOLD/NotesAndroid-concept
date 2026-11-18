@@ -431,6 +431,7 @@ internal fun NoteRow(
     colorSwipeEnabled: Boolean, onChangeColor: (Int) -> Unit,
     interactiveCards: Boolean = false,
     onQuickAction: () -> Unit = {},
+    showSecondaryPreview: Boolean = true,
     onMeasuredHeight: (Int) -> Unit = {}
 ) {
     val firstLine = recordCardPrimaryText(note)
@@ -560,7 +561,7 @@ internal fun NoteRow(
                     pinned = false,
                     showDragHandle = false
                 )
-                recordCardSecondaryText(note)?.let { preview ->
+                if (showSecondaryPreview) recordCardSecondaryText(note)?.let { preview ->
                     Text(
                         preview,
                         style = MaterialTheme.typography.bodySmall,

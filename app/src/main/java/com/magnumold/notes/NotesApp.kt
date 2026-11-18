@@ -24,6 +24,12 @@ internal fun NotesApp(
             val cardInteractionStore = remember(activity) {
                 CardInteractionSettingsStore(activity.getSharedPreferences("notes_card_behavior", Context.MODE_PRIVATE))
             }
+            val cardPreviewStore = remember(activity) {
+                CardPreviewSettingsStore(activity.getSharedPreferences("notes_card_previews", Context.MODE_PRIVATE))
+            }
+            var cardPreviewModules by remember(cardPreviewStore) {
+                androidx.compose.runtime.mutableStateOf(cardPreviewStore.load())
+            }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
             }
@@ -167,6 +173,11 @@ internal fun NotesApp(
                         onOpenTrash = { navigation.openVault("trash") },
                         trashRetentionDays = trashRetentionDays,
                         interactiveCardsEnabled = interactiveCardsEnabled,
+                        cardPreviewModules = cardPreviewModules,
+                        onCardPreviewModulesChange = { modules ->
+                            cardPreviewModules = modules
+                            cardPreviewStore.save(modules)
+                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -236,6 +247,7 @@ internal fun NotesApp(
                         onOpenModules = { navigation.openModules() },
                         timelineMode = homeTimelineMode,
                         interactiveCards = interactiveCardsEnabled,
+                        cardPreviewModules = cardPreviewModules,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome

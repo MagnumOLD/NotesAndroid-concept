@@ -137,6 +137,8 @@ internal fun SettingsScreen(
     trashRetentionDays: Int,
     interactiveCardsEnabled: Boolean = false,
     onInteractiveCardsEnabledChange: (Boolean) -> Unit = {},
+    cardPreviewModules: Set<AppModule> = AppModule.entries.filter { it.recordType != null }.toSet(),
+    onCardPreviewModulesChange: (Set<AppModule>) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -280,6 +282,27 @@ internal fun SettingsScreen(
                     },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                ListItem(
+                    headlineContent = { Text("Дополнительные данные на карточках") },
+                    supportingContent = { Text("Выберите, какие модули показывают сводку под основным текстом") },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                AppModule.entries.filter { it.recordType != null && it != AppModule.NOTES }.forEach { module ->
+                    ListItem(
+                        headlineContent = { Text(module.title) },
+                        trailingContent = {
+                            Switch(
+                                checked = module in cardPreviewModules,
+                                onCheckedChange = { enabled ->
+                                    onCardPreviewModulesChange(
+                                        if (enabled) cardPreviewModules + module else cardPreviewModules - module
+                                    )
+                                }
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
