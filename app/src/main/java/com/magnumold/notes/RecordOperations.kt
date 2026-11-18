@@ -31,6 +31,7 @@ internal object RecordOperations {
         current.collections.forEach { collectNotes(it.notes) }
         collectVault(current.archived)
         collectVault(current.trash)
+        val existingNoteIds = usedNoteIds.toSet()
 
         val importedNoteIdMap = linkedMapOf<Long, Long>()
         val collectionMerge = mergeImportedCollectionsWithIdMap(
@@ -58,6 +59,36 @@ internal object RecordOperations {
                 importedNoteIdMap
             )
         )
+
+        // Time-tracking history may outlive a deleted task. If such an orphan
+        // ID collides with a local record, give the imported reference its own
+        // reserved ID rather than accidentally attaching history to that record.
+        val tracking = imported.timeTracking
+        if (tracking != null) {
+            val referencedIds = buildSet {
+                tracking.sessions.forEach { session ->
+                    add(session.taskId)
+                    session.parentTaskId?.let(::add)
+                }
+                tracking.activeSessions.values.forEach { session ->
+                    add(session.taskId)
+                    session.parentTaskId?.let(::add)
+                }
+                tracking.protectionTimer?.let { timer ->
+                    add(timer.taskId)
+                    timer.parentTaskId?.let(::add)
+                }
+            }
+            referencedIds.forEach { id ->
+                if (id in existingNoteIds && id !in importedNoteIdMap) {
+                    var candidate = System.currentTimeMillis().coerceAtLeast(0L)
+                    while (!usedNoteIds.add(candidate)) {
+                        candidate = if (candidate == Long.MAX_VALUE) Long.MIN_VALUE else candidate + 1L
+                    }
+                    importedNoteIdMap[id] = candidate
+                }
+            }
+        }
         return BackupMergeResult(merged, importedNoteIdMap)
     }
 
