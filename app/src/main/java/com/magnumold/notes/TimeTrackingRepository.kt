@@ -32,6 +32,36 @@ internal fun mergeTimeTrackingBackup(
     )
 }
 
+internal fun remapTimeTrackingTaskIds(
+    state: TimeTrackingState,
+    importedNoteIdMap: Map<Long, Long>
+): TimeTrackingState {
+    if (importedNoteIdMap.isEmpty()) return state
+    fun mapped(id: Long): Long = importedNoteIdMap[id] ?: id
+    fun mappedParent(id: Long?): Long? = id?.let(::mapped)
+    return state.copy(
+        sessions = state.sessions.map { session ->
+            session.copy(
+                taskId = mapped(session.taskId),
+                parentTaskId = mappedParent(session.parentTaskId)
+            )
+        },
+        activeSessions = state.activeSessions.values.associate { session ->
+            val taskId = mapped(session.taskId)
+            taskId to session.copy(
+                taskId = taskId,
+                parentTaskId = mappedParent(session.parentTaskId)
+            )
+        },
+        protectionTimer = state.protectionTimer?.let { timer ->
+            timer.copy(
+                taskId = mapped(timer.taskId),
+                parentTaskId = mappedParent(timer.parentTaskId)
+            )
+        }
+    )
+}
+
 internal class TimeTrackingRepository(
     private val preferences: SharedPreferences
 ) {
