@@ -30,7 +30,7 @@ internal object HomeTimelineOperations {
                 // not an arbitrary rolling 30-day window.
                 HomeTimelineRange.MONTH -> day in todayDay until monthEndExclusive
                 HomeTimelineRange.HISTORY -> day < todayDay
-                HomeTimelineRange.FAVORITES -> note.favorite
+                HomeTimelineRange.FAVORITES -> note.favorite && note.showOnHome
             }
         }
     }
@@ -46,7 +46,7 @@ internal object HomeTimelineOperations {
         )
 
     fun orderedFavoritesByModule(notes: List<Note>): List<Note> =
-        notes.filter { it.favorite }.sortedWith(
+        notes.filter { it.favorite && it.showOnHome }.sortedWith(
             compareBy<Note> { it.type.ordinal }
                 .thenByDescending { timelineDayKey(it) }
                 .thenByDescending { it.pinned }
