@@ -53,6 +53,9 @@ internal fun parseTimeTrackingJson(json: JSONObject?): TimeTrackingState {
             endReason = WorkSessionEndReason.valueOf(o.getString("endReason"))
         )
     }
+    require(sessions.map { it.id }.toSet().size == sessions.size) {
+        "Duplicate saved time-tracking session ID"
+    }
     val activeArray = arrayOrEmpty("activeSessions")
     val active = linkedMapOf<Long, ActiveWorkSession>()
     (0 until activeArray.length()).forEach { index ->
@@ -65,6 +68,9 @@ internal fun parseTimeTrackingJson(json: JSONObject?): TimeTrackingState {
             subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
             startedAtMillis = o.getLong("startedAt")
         )
+        require(item.id !in sessions.map { it.id } && active.values.none { it.id == item.id }) {
+            "Duplicate time-tracking session ID: ${item.id}"
+        }
         require(active.put(item.taskId, item) == null) {
             "Duplicate active time-tracking task: ${item.taskId}"
         }
