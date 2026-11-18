@@ -73,7 +73,7 @@ internal fun NotesHome(
     val density = LocalDensity.current
     val orderedNotes = if (timelineMode) {
         notes.filter { it.showOnHome }.sortedWith(
-            compareByDescending<Note> { it.scheduledAt ?: it.created }
+            compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
                 .thenByDescending { it.homeOrder }
         )
     } else notes.sortedByDescending { it.pinned }
