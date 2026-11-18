@@ -164,6 +164,67 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importingTaskDoesNotReuseIdFromOrphanedLocalTimeTracking() {
+        val currentTracking = TimeTrackingState(
+            activeSessions = mapOf(
+                77L to ActiveWorkSession(
+                    id = "local-active",
+                    taskId = 77L,
+                    parentTaskId = null,
+                    taskTitle = "Previously deleted task",
+                    subtaskTitle = null,
+                    startedAtMillis = 100L
+                )
+            )
+        )
+        val importedTask = Note(
+            id = 77L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported task")),
+            updated = 200L,
+            type = RecordType.TASK
+        )
+        val importedTracking = TimeTrackingState(
+            sessions = listOf(
+                WorkSession(
+                    id = "imported-session",
+                    taskId = 77L,
+                    parentTaskId = null,
+                    taskTitle = "Imported task",
+                    subtaskTitle = null,
+                    startedAtMillis = 200L,
+                    endedAtMillis = 300L,
+                    durationMillis = 100L,
+                    endReason = WorkSessionEndReason.STOP
+                )
+            )
+        )
+        val imported = BackupData(
+            notes = listOf(importedTask),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList(),
+            timeTracking = importedTracking
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(emptyList(), emptyList(), emptyList(), emptyList()),
+            imported,
+            currentTracking
+        )
+        val importedRecord = merged.snapshot.notes.single()
+        val remappedTracking = remapTimeTrackingTaskIds(
+            importedTracking,
+            merged.importedNoteIdMap
+        )
+
+        assertNotEquals(77L, importedRecord.id)
+        assertEquals(importedRecord.id, remappedTracking.sessions.single().taskId)
+        assertEquals(77L, currentTracking.activeSessions.keys.single())
+        assertEquals("Previously deleted task", currentTracking.activeSessions[77L]?.taskTitle)
+    }
+
+    @Test
     fun moduleCardTitlesHaveUsefulFallbacks() {
         val base = Note(1, "", listOf(NoteBlock()), 100L)
         assertEquals("Таймер", recordCardPrimaryText(base.copy(type = RecordType.TIMER)))
