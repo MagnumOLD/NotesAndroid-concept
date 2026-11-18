@@ -52,6 +52,13 @@ class TimerOperationsTest {
         assertEquals(15_000L, TimerOperations.startAt(5_000L, 10L))
     }
 
+
+    @Test
+    fun startAtSaturatesInsteadOfWrappingAtTimestampLimit() {
+        assertEquals(Long.MAX_VALUE, TimerOperations.startAt(Long.MAX_VALUE - 500L, 1L))
+        assertEquals(Long.MIN_VALUE + 1_000L, TimerOperations.startAt(Long.MIN_VALUE, 1L))
+    }
+
     @Test
     fun formattingUsesHoursOnlyWhenNeeded() {
         assertEquals("04:09", TimerOperations.format(249L))
