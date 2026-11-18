@@ -16,6 +16,10 @@ internal object RecordTimerContract {
 internal class RecordTimerScheduler(private val context: Context) {
     private val alarmManager = context.getSystemService(AlarmManager::class.java)
 
+    fun cancel(recordId: Long) {
+        alarmManager.cancel(pendingIntent(recordId))
+    }
+
     fun sync(note: Note) {
         val pendingIntent = pendingIntent(note.id)
         val endAt = note.timerEndsAtMillis
