@@ -30,38 +30,44 @@ internal class AppThemeState(
     var noteColorOpacities by mutableStateOf(initialNoteColorOpacities)
         private set
 
-    val activeColors: CustomThemeColors
-        get() = themeColorsForMode(colorSets, mode)
+    private fun activePaletteMode(systemDark: Boolean): String =
+        if (mode == "system") {
+            if (systemDark) "dark" else "light"
+        } else mode
 
-    val isDark: Boolean
-        get() = when (mode) {
-            "dark" -> true
-            "custom" -> noteTextColor(activeColors.background) == Color.White
-            else -> false
-        }
+    fun activeColors(systemDark: Boolean): CustomThemeColors =
+        themeColorsForMode(colorSets, mode, systemDark)
 
-    val activeNoteColorOpacity: Float
-        get() = when (mode) {
+    fun isDark(systemDark: Boolean): Boolean = when (mode) {
+        "system" -> systemDark
+        "dark" -> true
+        "custom" -> noteTextColor(activeColors(systemDark).background) == Color.White
+        else -> false
+    }
+
+    fun activeNoteColorOpacity(systemDark: Boolean): Float =
+        when (activePaletteMode(systemDark)) {
             "light" -> noteColorOpacities.light
             "dark" -> noteColorOpacities.dark
             else -> noteColorOpacities.custom
         }
 
     fun changeMode(value: String) {
-        if (value in listOf("light", "dark", "custom")) mode = value
+        if (value in listOf("system", "light", "dark", "custom")) mode = value
     }
 
-    fun updateThemeColor(key: String, color: Color) {
-        colorSets = updateThemeColorSets(colorSets, mode, key, color)
+    fun updateThemeColor(key: String, color: Color, systemDark: Boolean) {
+        colorSets = updateThemeColorSets(colorSets, activePaletteMode(systemDark), key, color)
     }
 
-    fun resetThemeColors() {
-        val defaults = when (mode) {
+    fun resetThemeColors(systemDark: Boolean) {
+        val paletteMode = activePaletteMode(systemDark)
+        val defaults = when (paletteMode) {
             "light" -> ThemeColorSets().light
             "dark" -> ThemeColorSets().dark
             else -> defaultCustomThemeColors
         }
-        colorSets = when (mode) {
+        colorSets = when (paletteMode) {
             "light" -> colorSets.copy(light = defaults)
             "dark" -> colorSets.copy(dark = defaults)
             else -> colorSets.copy(custom = defaults)
@@ -72,9 +78,9 @@ internal class AppThemeState(
         noteColors = colors
     }
 
-    fun setNoteColorOpacity(opacity: Float) {
+    fun setNoteColorOpacity(opacity: Float, systemDark: Boolean) {
         val value = opacity.coerceIn(0f, 1f)
-        noteColorOpacities = when (mode) {
+        noteColorOpacities = when (activePaletteMode(systemDark)) {
             "light" -> noteColorOpacities.copy(light = value)
             "dark" -> noteColorOpacities.copy(dark = value)
             else -> noteColorOpacities.copy(custom = value)

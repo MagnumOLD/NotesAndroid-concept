@@ -3,6 +3,7 @@ package com.magnumold.notes
 import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.res.Configuration
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
@@ -76,15 +77,26 @@ class MainActivity : ComponentActivity() {
         ) {
             requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), NOTIFICATION_PERMISSION_REQUEST)
         }
-        val initialDark = getPreferences(Context.MODE_PRIVATE).getBoolean("dark_v2", true)
-        val savedThemeMode = getPreferences(Context.MODE_PRIVATE).getString("theme_mode", null)
-            ?.takeIf { it in listOf("light", "dark", "custom") } ?: if (initialDark) "dark" else "light"
+        val preferences = getPreferences(Context.MODE_PRIVATE)
+        val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+            Configuration.UI_MODE_NIGHT_YES
+        val savedThemeMode = preferences.getString("theme_mode", null)
+            ?.takeIf { it in listOf("system", "light", "dark", "custom") }
+            ?: if (preferences.contains("dark_v2")) {
+                if (preferences.getBoolean("dark_v2", systemDark)) "dark" else "light"
+            } else "system"
         val themeSettings = ThemeSettingsStore(getSharedPreferences("notes_settings", Context.MODE_PRIVATE))
         val initialThemeColorSets = themeSettings.loadThemeColorSets()
-        val initialThemeColors = themeColorsForMode(initialThemeColorSets, savedThemeMode)
+        val initialThemeColors = themeColorsForMode(initialThemeColorSets, savedThemeMode, systemDark)
+        val initialDark = when (savedThemeMode) {
+            "system" -> systemDark
+            "dark" -> true
+            "custom" -> noteTextColor(initialThemeColors.background) == androidx.compose.ui.graphics.Color.White
+            else -> false
+        }
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(
             if (savedThemeMode == "custom") initialThemeColors.background.toArgbInt()
-            else if (savedThemeMode == "dark") android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            else if (initialDark) android.graphics.Color.BLACK else android.graphics.Color.WHITE
         ))
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val repository = NotesRepository(getPreferences(Context.MODE_PRIVATE))

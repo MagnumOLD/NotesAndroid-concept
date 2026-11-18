@@ -123,6 +123,7 @@ private val colorPickerPresets = listOf(
 @Composable
 internal fun SettingsScreen(
     themeMode: String,
+    activeColorMode: String,
     onThemeModeChange: (String) -> Unit,
     themeColors: CustomThemeColors,
     onThemeColorChange: (String, Color) -> Unit,
@@ -171,11 +172,11 @@ internal fun SettingsScreen(
         ThemeColorEditorScreen(
             title = title,
             color = customThemeColor(themeColors, key),
-            resetColor = customThemeColor(when (themeMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key),
+            resetColor = customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key),
             topBarColor = themeColors.topBar,
             onBack = { customColorEditorKey = null },
             onColorChange = { onThemeColorChange(key, it) },
-            onReset = { onThemeColorChange(key, customThemeColor(when (themeMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key)) }
+            onReset = { onThemeColorChange(key, customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key)) }
         )
         return
     }
@@ -215,6 +216,12 @@ internal fun SettingsScreen(
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (personalizationVisible) {
                 ListItem(headlineContent = { Text("Внешний вид", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                ListItem(
+                    headlineContent = { Text("Системная тема") },
+                    supportingContent = { Text("Следовать настройкам устройства") },
+                    trailingContent = { RadioButton(selected = themeMode == "system", onClick = { onThemeModeChange("system") }) },
+                    modifier = Modifier.clickable { onThemeModeChange("system") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
                 ListItem(
                     headlineContent = { Text("Светлая тема") },
                     trailingContent = { RadioButton(selected = themeMode == "light", onClick = { onThemeModeChange("light") }) },

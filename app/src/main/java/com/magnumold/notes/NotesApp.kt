@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +71,7 @@ internal fun NotesApp(
                 )
                 if (updated != timeTrackingRepository.load()) timeTrackingRepository.save(updated)
             }
+            val systemDark = isSystemInDarkTheme()
             val themeState = remember(themeSettings, savedThemeMode, initialThemeColorSets) {
                 AppThemeState(
                     initialMode = savedThemeMode,
@@ -80,10 +82,10 @@ internal fun NotesApp(
             }
             val themeMode = themeState.mode
             val themeColorSets = themeState.colorSets
-            val activeThemeColors = themeState.activeColors
-            val dark = themeState.isDark
+            val activeThemeColors = themeState.activeColors(systemDark)
+            val dark = themeState.isDark(systemDark)
             val noteColors = themeState.noteColors
-            val activeNoteColorOpacity = themeState.activeNoteColorOpacity
+            val activeNoteColorOpacity = themeState.activeNoteColorOpacity(systemDark)
             val displayedNoteColors = remember(noteColors, activeNoteColorOpacity) {
                 noteColors.map { it.copy(alpha = activeNoteColorOpacity) }
             }
@@ -166,14 +168,15 @@ internal fun NotesApp(
                 } else if (settingsVisible && selected == null) {
                     SettingsScreen(
                         themeMode = themeMode,
+                        activeColorMode = if (themeMode == "system") if (dark) "dark" else "light" else themeMode,
                         onThemeModeChange = { themeState.changeMode(it) },
                         themeColors = activeThemeColors,
-                        onThemeColorChange = { key, color -> themeState.updateThemeColor(key, color) },
-                        onResetThemeColors = { themeState.resetThemeColors() },
+                        onThemeColorChange = { key, color -> themeState.updateThemeColor(key, color, systemDark) },
+                        onResetThemeColors = { themeState.resetThemeColors(systemDark) },
                         noteColors = noteColors,
                         noteColorOpacity = activeNoteColorOpacity,
                         onNoteColorsChange = { themeState.replaceNoteColors(it) },
-                        onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity) },
+                        onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity, systemDark) },
                         onExport = backupActions.exportBackup,
                         onImport = backupActions.importBackup,
                         onOpenArchive = { navigation.openVault("archive") },

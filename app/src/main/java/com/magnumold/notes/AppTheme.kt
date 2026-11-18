@@ -33,7 +33,12 @@ internal fun Color.toArgbInt(): Int = android.graphics.Color.argb(
     (alpha * 255).toInt(), (red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt()
 )
 internal fun colorToHex(color: Color): String = String.format("#%08X", color.toArgbInt())
-internal fun themeColorsForMode(sets: ThemeColorSets, mode: String): CustomThemeColors = when (mode) {
+internal fun themeColorsForMode(
+    sets: ThemeColorSets,
+    mode: String,
+    systemDark: Boolean = false
+): CustomThemeColors = when (mode) {
+    "system" -> if (systemDark) sets.dark else sets.light
     "light" -> sets.light
     "dark" -> sets.dark
     else -> sets.custom
