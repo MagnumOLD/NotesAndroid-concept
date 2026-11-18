@@ -160,8 +160,7 @@ internal fun TimerRecordEditor(
                     onClick = {
                         val duration = durationInput.toLongOrNull()?.let { TimerOperations.normalizeDuration(it) }
                             ?: note.timerDurationSeconds
-                        val left = if (note.timerRemainingSeconds == null) duration
-                            else note.timerRemainingSeconds.coerceIn(1L, duration)
+                        val left = TimerOperations.durationToStart(note.timerRemainingSeconds, duration)
                         val start = System.currentTimeMillis()
                         onChange(note.copy(
                             timerDurationSeconds = duration,
