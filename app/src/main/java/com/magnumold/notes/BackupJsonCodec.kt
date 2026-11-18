@@ -16,6 +16,9 @@ private fun noteToJson(note: Note): JSONObject {
         .put("type", note.type.name).put("status", note.status.name).put("timeTrackingEnabled", note.timeTrackingEnabled)
         .put("scheduledAt", note.scheduledAt ?: JSONObject.NULL).put("showOnHome", note.showOnHome)
         .put("favorite", note.favorite).put("homeOrder", note.homeOrder)
+        .put("timerDurationSeconds", note.timerDurationSeconds)
+        .put("timerEndsAtMillis", note.timerEndsAtMillis ?: JSONObject.NULL)
+        .put("timerRemainingSeconds", note.timerRemainingSeconds ?: JSONObject.NULL)
         .put("dateMode", note.dateMode?.name ?: JSONObject.NULL)
         .put("dateAt", note.dateAt ?: JSONObject.NULL)
         .put("titleEnabled", note.titleEnabled).put("titleText", note.titleText)
@@ -65,7 +68,11 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         timeTrackingEnabled = obj.optBoolean("timeTrackingEnabled", false),
         scheduledAt = if (obj.isNull("scheduledAt")) null else obj.optLong("scheduledAt"),
         showOnHome = obj.optBoolean("showOnHome", true), favorite = obj.optBoolean("favorite", false),
-        homeOrder = obj.optLong("homeOrder", created), dateMode = dateMode,
+        homeOrder = obj.optLong("homeOrder", created),
+        timerDurationSeconds = obj.optLong("timerDurationSeconds", 300L).coerceIn(1L, 86_400L),
+        timerEndsAtMillis = if (obj.isNull("timerEndsAtMillis")) null else obj.optLong("timerEndsAtMillis"),
+        timerRemainingSeconds = if (obj.isNull("timerRemainingSeconds")) null else obj.optLong("timerRemainingSeconds").coerceIn(0L, 86_400L),
+        dateMode = dateMode,
         dateAt = if (obj.isNull("dateAt")) null else obj.optLong("dateAt"),
         titleEnabled = obj.optBoolean("titleEnabled", false), titleText = obj.optString("titleText"),
         descriptionEnabled = obj.optBoolean("descriptionEnabled", false),

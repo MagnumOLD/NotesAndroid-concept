@@ -34,7 +34,7 @@ internal object HomeTimelineOperations {
         )
 
     fun orderedFavoritesByModule(notes: List<Note>): List<Note> =
-        notes.filter { it.favorite && it.showOnHome }.sortedWith(
+        notes.filter { it.favorite }.sortedWith(
             compareBy<Note> { it.type.ordinal }
                 .thenByDescending { timelineDayKey(it) }
                 .thenByDescending { it.pinned }

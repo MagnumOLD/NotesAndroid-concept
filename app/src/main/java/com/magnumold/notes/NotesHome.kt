@@ -76,7 +76,9 @@ internal fun NotesHome(
         HomeTimelineOperations.orderedVisibleRecords(notes)
     } else notes.sortedByDescending { it.pinned }
     val todayDay = currentTimelineDayKey()
-    val rangeNotes = if (timelineMode) {
+    val rangeNotes = if (timelineMode && timelineRange == HomeTimelineRange.FAVORITES) {
+        notes.filter { it.favorite }
+    } else if (timelineMode) {
         HomeTimelineOperations.filterByRange(orderedNotes, timelineRange, todayDay)
     } else orderedNotes
     val displayNotes = if (timelineMode && timelineRange == HomeTimelineRange.FAVORITES) {

@@ -52,7 +52,10 @@ internal data class Note(
     val scheduledAt: Long? = null,
     val showOnHome: Boolean = true,
     val favorite: Boolean = false,
-    val homeOrder: Long = created
+    val homeOrder: Long = created,
+    val timerDurationSeconds: Long = 300L,
+    val timerEndsAtMillis: Long? = null,
+    val timerRemainingSeconds: Long? = null
 )
 
 internal data class NoteCollection(val id: Long, val name: String, val notes: List<Note> = emptyList())
@@ -144,7 +147,7 @@ internal fun Note.matchesSearch(query: String): Boolean =
         children.any { it.matchesSearch(query) }
 
 internal fun Note.hasContent(): Boolean =
-    blocks.any { it.text.isNotBlank() } ||
+    (type == RecordType.TIMER) || blocks.any { it.text.isNotBlank() } ||
         titleText.isNotBlank() ||
         descriptionText.isNotBlank() ||
         children.any { it.hasContent() }
