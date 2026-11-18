@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -49,8 +50,8 @@ class TimerRecordEditorSmokeTest {
             state.value.status == RecordStatus.COMPLETED
         }
         composeRule.runOnIdle {
-            assert(state.value.titleText == "Updated title")
-            assert(state.value.timerEndsAtMillis == null)
+            assertEquals("Updated title", state.value.titleText)
+            assertEquals(null, state.value.timerEndsAtMillis)
         }
     }
 
