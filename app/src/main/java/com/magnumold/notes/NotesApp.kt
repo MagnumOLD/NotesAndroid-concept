@@ -34,6 +34,12 @@ internal fun NotesApp(
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
             }
+            val collectionVisibilityStore = remember(activity) {
+                CollectionVisibilitySettingsStore(activity.getSharedPreferences("notes_collection_visibility", Context.MODE_PRIVATE))
+            }
+            var collectionVisibleModules by remember(collectionVisibilityStore) {
+                androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
+            }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
             }
@@ -179,6 +185,14 @@ internal fun NotesApp(
                         interactiveCardsEnabled = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
                         onCardPreviewFieldsChange = { fields -> cardPreviewFields = fields; cardPreviewStore.save(fields) },
+                        collectionVisibleModules = collectionVisibleModules,
+                        onCollectionVisibilityChange = { module, visible ->
+                            collectionVisibleModules = if (visible) collectionVisibleModules + module else collectionVisibleModules - module
+                            collectionVisibilityStore.save(collectionVisibleModules)
+                            if (!visible && navigation.activeModule == module && navigation.activeCollectionId != null) {
+                                navigation.selectCollection(null)
+                            }
+                        },
                         collectionVisibleModules = collectionVisibleModules,
                         onCollectionVisibilityChange = { module, visible ->
                             collectionVisibleModules = if (visible) collectionVisibleModules + module else collectionVisibleModules - module

@@ -1,40 +1,22 @@
 package com.magnumold.notes
 
-import android.content.Context
-import org.junit.Assert.assertEquals
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.RuntimeEnvironment
-import org.robolectric.annotation.Config
+import android.content.SharedPreferences
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35])
-class CollectionVisibilitySettingsStoreTest {
-    private fun store(name: String = "collection_visibility_test"): CollectionVisibilitySettingsStore {
-        val preferences = RuntimeEnvironment.getApplication().getSharedPreferences(name, Context.MODE_PRIVATE)
-        preferences.edit().clear().commit()
-        return CollectionVisibilitySettingsStore(preferences)
+internal class CollectionVisibilitySettingsStore(private val preferences: SharedPreferences) {
+    fun load(): Set<AppModule> {
+        val stored = preferences.getStringSet(KEY_VISIBLE, null) ?: return DEFAULT_VISIBLE
+        return stored.mapNotNull { name -> runCatching { AppModule.valueOf(name) }.getOrNull() }
+            .filter { it != AppModule.ALL }.toSet()
     }
 
-    @Test
-    fun allModulesShowCollectionsByDefault() {
-        assertEquals(ModuleConfiguration().enabled, store().load())
+    fun save(visibleModules: Set<AppModule>) {
+        preferences.edit()
+            .putStringSet(KEY_VISIBLE, visibleModules.filter { it != AppModule.ALL }.map { it.name }.toSet())
+            .apply()
     }
 
-    @Test
-    fun visibilitySelectionPersistsAndExcludesTheAllModulesPseudoModule() {
-        val store = store()
-        val selected = setOf(AppModule.NOTES, AppModule.NUTRITION, AppModule.PURCHASES)
-        store.save(selected + AppModule.ALL)
-        assertEquals(selected, store.load())
-    }
-
-    @Test
-    fun unknownModuleNamesAreIgnored() {
-        val preferences = RuntimeEnvironment.getApplication()
-            .getSharedPreferences("collection_visibility_invalid_test", Context.MODE_PRIVATE)
-        preferences.edit().putStringSet("collection_visible_modules", setOf("UNKNOWN", "NOTES")).commit()
-        assertEquals(setOf(AppModule.NOTES), CollectionVisibilitySettingsStore(preferences).load())
+    private companion object {
+        const val KEY_VISIBLE = "collection_visible_modules"
+        val DEFAULT_VISIBLE = AppModule.entries.filter { it != AppModule.ALL }.toSet()
     }
 }
