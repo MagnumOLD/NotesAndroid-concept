@@ -566,7 +566,8 @@ internal fun NotesHome(
                                         onChangeColor = { next -> onChangeNoteColor(note.id, next) },
                                         interactiveCards = interactiveCards,
                                         onQuickAction = { onQuickAction(note) },
-                                        showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },\n                                        previewFields = cardPreviewFields,
+                                        showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },
+                                        previewFields = cardPreviewFields,
                                         onMeasuredHeight = { heightPx ->
                                             if (measuredNoteCardHeights[note.id] != heightPx) {
                                                 measuredNoteCardHeights[note.id] = heightPx
