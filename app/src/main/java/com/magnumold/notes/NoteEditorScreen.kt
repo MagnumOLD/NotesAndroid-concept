@@ -240,6 +240,9 @@ internal fun NoteEditor(
     var datePickerVisible by remember(note.id) { mutableStateOf(false) }
     var pendingDateMode by remember(note.id) { mutableStateOf(note.dateMode ?: RecordDateMode.DATE) }
     val datePickerState = rememberDatePickerState(initialSelectedDateMillis = note.dateAt)
+    var homeDateMenuExpanded by remember(note.id) { mutableStateOf(false) }
+    var homeDatePickerVisible by remember(note.id) { mutableStateOf(false) }
+    val homeDatePickerState = rememberDatePickerState(initialSelectedDateMillis = note.scheduledAt)
     val ringtonePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val pickedUri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
         val soundUri = pickedUri?.toString()
@@ -257,6 +260,9 @@ internal fun NoteEditor(
     }
     LaunchedEffect(note.id, note.dateAt) {
         datePickerState.selectedDateMillis = note.dateAt
+    }
+    LaunchedEffect(note.id, note.scheduledAt) {
+        homeDatePickerState.selectedDateMillis = note.scheduledAt
     }
     var selectedChildId by remember(note.id) { mutableStateOf<Long?>(null) }
     var autoFocusChildId by remember(note.id) { mutableStateOf<Long?>(null) }
@@ -556,6 +562,43 @@ internal fun NoteEditor(
                                     contentDescription = "Описание",
                                     tint = if (note.descriptionEnabled) MaterialTheme.colorScheme.primary else LocalContentColor.current
                                 )
+                            }
+                        }
+                        if (!isTaskListItem) {
+                            Box {
+                                IconButton(onClick = { homeDateMenuExpanded = true }) {
+                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Параметры карточки")
+                                }
+                                DropdownMenu(
+                                    expanded = homeDateMenuExpanded,
+                                    onDismissRequest = { homeDateMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(note.scheduledAt?.let { "Дата в ленте: ${formatRecordDate(it)}" } ?: "Назначить дату в ленте")
+                                        },
+                                        onClick = {
+                                            homeDateMenuExpanded = false
+                                            homeDatePickerVisible = true
+                                        }
+                                    )
+                                    if (note.scheduledAt != null) {
+                                        DropdownMenuItem(
+                                            text = { Text("Убрать дату из ленты") },
+                                            onClick = {
+                                                homeDateMenuExpanded = false
+                                                onChange(note.copy(scheduledAt = null))
+                                            }
+                                        )
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text(if (note.showOnHome) "Скрыть с главной" else "Показывать на главной") },
+                                        onClick = {
+                                            homeDateMenuExpanded = false
+                                            onChange(note.copy(showOnHome = !note.showOnHome))
+                                        }
+                                    )
+                                }
                             }
                         }
                         IconButton(
@@ -1043,6 +1086,24 @@ internal fun NoteEditor(
             }
         ) {
             DatePicker(state = datePickerState)
+        }
+    }
+    if (homeDatePickerVisible) {
+        DatePickerDialog(
+            onDismissRequest = { homeDatePickerVisible = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    homeDatePickerState.selectedDateMillis?.let { selectedDate ->
+                        onChange(note.copy(scheduledAt = selectedDate, showOnHome = true))
+                    }
+                    homeDatePickerVisible = false
+                }) { Text("Готово") }
+            },
+            dismissButton = {
+                TextButton(onClick = { homeDatePickerVisible = false }) { Text("Отмена") }
+            }
+        ) {
+            DatePicker(state = homeDatePickerState)
         }
     }
     if (manualSessionDialogVisible && isTaskListItem) {
