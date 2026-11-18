@@ -12,6 +12,14 @@ class TimerOperationsTest {
     }
 
     @Test
+    fun remainingSecondsRoundsLargeTimestampsWithoutOverflow() {
+        assertEquals(
+            Long.MAX_VALUE / 1_000L + 1L,
+            TimerOperations.remainingSeconds(Long.MAX_VALUE, 0L)
+        )
+    }
+
+    @Test
     fun durationIsClampedToOneDay() {
         assertEquals(1L, TimerOperations.normalizeDuration(0L))
         assertEquals(86_400L, TimerOperations.normalizeDuration(90_000L))
