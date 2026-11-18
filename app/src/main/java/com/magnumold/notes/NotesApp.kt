@@ -231,6 +231,23 @@ internal fun NotesApp(
                             navigation.openNewRecord(id)
                         }
                     )
+                } else if (selected.type == RecordType.NUTRITION) {
+                    NutritionRecordEditor(
+                        note = selected,
+                        topBarColor = activeThemeColors.topBar,
+                        onBack = {
+                            if (!selected.hasContent()) {
+                                if (homeTimelineMode) recordsViewModel.removeHomeRecord(selected.id)
+                                else recordsViewModel.removeActiveRecord(activeCollectionId, selected.id)
+                            }
+                            navigation.closeEditor()
+                        },
+                        onChange = { changed ->
+                            val updated = changed.copy(updated = System.currentTimeMillis())
+                            if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
+                            else recordsViewModel.updateActiveRecord(activeCollectionId, updated)
+                        }
+                    )
                 } else if (selected.type == RecordType.TIMER) {
                     TimerRecordEditor(
                         note = selected,

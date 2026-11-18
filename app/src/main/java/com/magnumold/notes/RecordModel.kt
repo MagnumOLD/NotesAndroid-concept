@@ -55,7 +55,12 @@ internal data class Note(
     val homeOrder: Long = created,
     val timerDurationSeconds: Long = 300L,
     val timerEndsAtMillis: Long? = null,
-    val timerRemainingSeconds: Long? = null
+    val timerRemainingSeconds: Long? = null,
+    val nutritionGrams: Double = 0.0,
+    val nutritionCalories: Double = 0.0,
+    val nutritionProtein: Double = 0.0,
+    val nutritionFat: Double = 0.0,
+    val nutritionCarbs: Double = 0.0
 )
 
 internal data class NoteCollection(val id: Long, val name: String, val notes: List<Note> = emptyList())
@@ -147,7 +152,7 @@ internal fun Note.matchesSearch(query: String): Boolean =
         children.any { it.matchesSearch(query) }
 
 internal fun Note.hasContent(): Boolean =
-    (type == RecordType.TIMER) || blocks.any { it.text.isNotBlank() } ||
+    (type == RecordType.TIMER) || (type == RecordType.NUTRITION && (titleText.isNotBlank() || nutritionGrams > 0.0 || nutritionCalories > 0.0 || nutritionProtein > 0.0 || nutritionFat > 0.0 || nutritionCarbs > 0.0)) || blocks.any { it.text.isNotBlank() } ||
         titleText.isNotBlank() ||
         descriptionText.isNotBlank() ||
         children.any { it.hasContent() }
