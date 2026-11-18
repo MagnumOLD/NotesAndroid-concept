@@ -251,6 +251,20 @@ class TimeTrackingJsonCodecTest {
     }
 
 
+    @Test fun activeSessionsRequireNonBlankIdsAndTaskTitles() {
+        listOf(
+            JSONObject("""{"activeSessions":[{"id":"","taskId":1,"taskTitle":"Task","startedAt":10}]}"""),
+            JSONObject("""{"activeSessions":[{"id":"active","taskId":1,"taskTitle":"","startedAt":10}]}""")
+        ).forEach { malformed ->
+            try {
+                parseTimeTrackingJson(malformed)
+                fail("Active sessions require a stable ID and task title")
+            } catch (_: IllegalArgumentException) {
+                // Expected: malformed active sessions are quarantined as one state.
+            }
+        }
+    }
+
     @Test fun duplicateSavedSessionIdsInvalidateTrackingState() {
         val session = WorkSession(
             "duplicate", 1L, null, "Task", null, 10L, 20L, 10L, WorkSessionEndReason.STOP
