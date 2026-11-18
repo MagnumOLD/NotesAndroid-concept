@@ -120,6 +120,19 @@ class TimeTrackingEngineTest {
         assertEquals(2, stats.sessionCount)
     }
 
+
+    @Test fun veryLargeDurationsSaturateInsteadOfWrappingNegative() {
+        val first = session("first", 7L, 9L, Long.MIN_VALUE, -1L)
+        val second = session("second", 7L, 9L, 0L, Long.MAX_VALUE)
+        val state = TimeTrackingState(sessions = listOf(first, second))
+
+        assertEquals(Long.MAX_VALUE, TimeTrackingEngine.taskDurationMillis(state, 7L, Long.MAX_VALUE))
+        assertEquals(Long.MAX_VALUE, TimeTrackingEngine.parentDurationMillis(state, 9L, Long.MAX_VALUE))
+        val stats = TimeTrackingEngine.statisticsBetween(state, Long.MIN_VALUE, Long.MAX_VALUE, Long.MAX_VALUE)
+        assertEquals(Long.MAX_VALUE, stats.totalMillis)
+        assertEquals(Long.MAX_VALUE, stats.taskTotalsMillis[7L])
+    }
+
     @Test fun protectionTimerIsIndependentAndOnlyOneCanRun() {
         val timer = ProtectionTimerEngine.start(null, 1, "Task", "Child", 0, 60_000, ProtectionEndMode.SIGNAL_ONLY, null, false)
         assertEquals(30_000L, ProtectionTimerEngine.remainingMillis(timer, 30_000))
