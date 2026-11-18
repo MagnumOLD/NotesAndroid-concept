@@ -18,7 +18,11 @@ internal object RecordOperations {
     fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot =
         mergeBackupWithIdMap(current, imported).snapshot
 
-    fun mergeBackupWithIdMap(current: PersistenceSnapshot, imported: BackupData): BackupMergeResult {
+    fun mergeBackupWithIdMap(
+        current: PersistenceSnapshot,
+        imported: BackupData,
+        currentTimeTracking: TimeTrackingState = TimeTrackingState()
+    ): BackupMergeResult {
         val usedNoteIds = mutableSetOf<Long>()
         fun collectNotes(notes: List<Note>) {
             notes.forEach { note ->
@@ -31,6 +35,20 @@ internal object RecordOperations {
         current.collections.forEach { collectNotes(it.notes) }
         collectVault(current.archived)
         collectVault(current.trash)
+        // Time-tracking records can outlive deleted tasks. Reserve those IDs too,
+        // otherwise an imported task could inherit an unrelated orphaned history.
+        currentTimeTracking.sessions.forEach { session ->
+            usedNoteIds += session.taskId
+            session.parentTaskId?.let { usedNoteIds += it }
+        }
+        currentTimeTracking.activeSessions.values.forEach { session ->
+            usedNoteIds += session.taskId
+            session.parentTaskId?.let { usedNoteIds += it }
+        }
+        currentTimeTracking.protectionTimer?.let { timer ->
+            usedNoteIds += timer.taskId
+            timer.parentTaskId?.let { usedNoteIds += it }
+        }
         val existingNoteIds = usedNoteIds.toSet()
 
         val importedNoteIdMap = linkedMapOf<Long, Long>()
