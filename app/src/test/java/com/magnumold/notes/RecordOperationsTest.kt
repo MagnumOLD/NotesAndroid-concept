@@ -103,6 +103,35 @@ class RecordOperationsTest {
         assertTrue(result.archived.isEmpty())
     }
     @Test
+    fun restoringUsesLatestStoredVaultRecordInsteadOfStaleUiCopy() {
+        val original = note(7L, "original")
+        val latest = original.copy(title = "latest", blocks = listOf(NoteBlock("latest content")))
+        val staleEntry = VaultNote(original, null, 0, 10L)
+        val storedEntry = staleEntry.copy(note = latest, movedAt = 20L)
+        val snapshot = PersistenceSnapshot(emptyList(), emptyList(), listOf(storedEntry), emptyList())
+
+        val restored = RecordOperations.restoreVaultEntry(snapshot, staleEntry, fromArchive = true)
+
+        assertEquals("latest", restored.notes.single().title)
+        assertEquals("latest content", restored.notes.single().blocks.single().text)
+    }
+
+    @Test
+    fun movingArchivedEntryUsesLatestStoredRecordInsteadOfStaleUiCopy() {
+        val original = note(8L, "original")
+        val latest = original.copy(title = "latest")
+        val staleEntry = VaultNote(original, null, 0, 10L)
+        val snapshot = PersistenceSnapshot(
+            emptyList(), emptyList(), listOf(staleEntry.copy(note = latest)), emptyList()
+        )
+
+        val moved = RecordOperations.moveArchivedToTrash(snapshot, staleEntry, now = 50L)
+
+        assertEquals("latest", moved.trash.single().note.title)
+        assertEquals(50L, moved.trash.single().movedAt)
+    }
+
+    @Test
     fun restoringVaultEntriesOutOfOrderPreservesOriginalRootOrder() {
         val original = listOf(note(1L, "A"), note(2L, "B"), note(3L, "C"), note(4L, "D"), note(5L, "E"))
         val snapshot = PersistenceSnapshot(original, emptyList(), emptyList(), emptyList())
