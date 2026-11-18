@@ -11,6 +11,7 @@ internal object HomeTimelineOperations {
     fun orderedVisibleRecords(notes: List<Note>): List<Note> =
         notes.filter { it.showOnHome }.sortedWith(
             compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
+                .thenByDescending { it.pinned }
                 .thenByDescending { it.homeOrder }
         )
 
@@ -49,20 +50,48 @@ internal object HomeTimelineOperations {
 
     fun reorder(snapshot: PersistenceSnapshot, ids: Set<Long>, afterId: Long?): PersistenceSnapshot {
         if (ids.isEmpty()) return snapshot
-        val ordered = records(snapshot).filter { it.showOnHome }.sortedWith(
-            compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
-                .thenByDescending { it.homeOrder }
-        )
-        val moved = NoteReorderModel.moveSelected(ordered, ids, afterId)
-        if (moved == ordered) return snapshot
+        val ordered = orderedVisibleRecords(records(snapshot))
+        val moving = ordered.filter { it.id in ids }
+        if (moving.isEmpty()) return snapshot
+        val movingDay = dayKey(moving.first())
+        if (moving.any { dayKey(it) != movingDay } || moving.map { it.pinned }.distinct().size != 1) {
+            return snapshot
+        }
+
+        val dayNotes = ordered.filter { dayKey(it) == movingDay }
+        val remaining = dayNotes.filterNot { it.id in ids }
+        val movingPinned = moving.first().pinned
+        val pinnedCount = remaining.count { it.pinned }
+        val anchorIndex = afterId?.let { id -> remaining.indexOfFirst { it.id == id } } ?: -1
+        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (movingPinned) 0 else pinnedCount
+        val insertAt = if (movingPinned) targetIndex.coerceIn(0, pinnedCount)
+            else targetIndex.coerceIn(pinnedCount, remaining.size)
+        val reorderedDay = remaining.toMutableList().apply { addAll(insertAt, moving) }
+
+        var dayInserted = false
+        val reordered = buildList {
+            ordered.forEach { note ->
+                if (dayKey(note) == movingDay) {
+                    if (!dayInserted) {
+                        addAll(reorderedDay)
+                        dayInserted = true
+                    }
+                } else add(note)
+            }
+        }
+        if (reordered == ordered) return snapshot
+
         val orderBase = System.currentTimeMillis()
-        val orderById = moved.mapIndexed { index, note ->
-            note.id to (orderBase + moved.size - index)
+        val orderById = reordered.mapIndexed { index, note ->
+            note.id to (orderBase + reordered.size - index)
         }.toMap()
         return mapAll(snapshot) { note ->
             orderById[note.id]?.let { note.copy(homeOrder = it) } ?: note
         }
     }
+
+    private fun dayKey(note: Note): Long =
+        (note.scheduledAt ?: note.created) / 86_400_000L
 
     fun moveToVault(
         snapshot: PersistenceSnapshot,
