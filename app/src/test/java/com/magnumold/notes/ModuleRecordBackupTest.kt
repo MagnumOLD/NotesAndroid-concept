@@ -78,6 +78,29 @@ class ModuleRecordBackupTest {
         }
     }
 
+
+    @Test
+    fun backupNormalizesNonFiniteAndOutOfRangeModuleNumbers() {
+        val raw = """{"format":"notes_backup","version":12,"notes":[
+            {"id":1,"type":"NUTRITION","nutritionCalories":1e309,"nutritionProtein":-4,"nutritionFat":99999999999,"blocks":[]},
+            {"id":2,"type":"PURCHASE","purchaseQuantity":1e309,"purchaseUnitPrice":-8,"blocks":[]},
+            {"id":3,"type":"WORKOUT","workoutWeightKg":1e309,"blocks":[]}
+        ],"collections":[],"archive":[],"trash":[]}"""
+
+        val notes = parseBackupJson(raw).notes
+        assertEquals(0.0, notes[0].nutritionCalories, 0.0)
+        assertEquals(0.0, notes[0].nutritionProtein, 0.0)
+        assertEquals(9_999_999_999.0, notes[0].nutritionFat, 0.0)
+        assertEquals(1.0, notes[1].purchaseQuantity, 0.0)
+        assertEquals(0.0, notes[1].purchaseUnitPrice, 0.0)
+        assertEquals(0.0, notes[2].workoutWeightKg, 0.0)
+        assertTrue(notes.all { values ->
+            listOf(values.nutritionCalories, values.nutritionProtein, values.nutritionFat,
+                values.purchaseQuantity, values.purchaseUnitPrice, values.workoutWeightKg)
+                .all { it.isFinite() }
+        })
+    }
+
     @Test
     fun backupRejectsRecordIdCollisionsAcrossCollectionsAndVault() {
         val malformedBackups = listOf(
