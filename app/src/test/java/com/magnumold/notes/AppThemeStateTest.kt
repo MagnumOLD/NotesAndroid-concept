@@ -31,8 +31,8 @@ class AppThemeStateTest {
     fun systemModeUsesSeparateLightAndDarkNoteColorOpacity() {
         val state = state()
 
-        assertEquals(0.3f, state.activeNoteColorOpacity(systemDark = false))
-        assertEquals(0.7f, state.activeNoteColorOpacity(systemDark = true))
+        assertEquals(0.3f, state.activeNoteColorOpacity(systemDark = false), 0f)
+        assertEquals(0.7f, state.activeNoteColorOpacity(systemDark = true), 0f)
     }
 
     @Test
