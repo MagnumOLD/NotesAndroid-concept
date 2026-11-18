@@ -305,7 +305,7 @@ class HomeTimelineOperationsTest {
         assertTrue(HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(hidden)).isEmpty())
 
         val restored = HomeTimelineOperations.setShowOnHome(hidden, setOf(1L, 2L), true)
-        assertEquals(listOf(1L, 2L), HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(restored)).map { it.id })
+        assertEquals(listOf(2L, 1L), HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(restored)).map { it.id })
     }
 
     @Test
