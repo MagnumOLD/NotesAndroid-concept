@@ -14,6 +14,46 @@ class TimerRecordEditorSmokeTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+
+    @Test
+    fun timerCompletionKeepsTheLatestEditedTitle() {
+        val state = androidx.compose.runtime.mutableStateOf(
+            Note(
+                id = 91003L,
+                title = "",
+                titleText = "Initial title",
+                blocks = listOf(NoteBlock()),
+                updated = 1L,
+                type = RecordType.TIMER,
+                status = RecordStatus.IN_PROGRESS,
+                timerDurationSeconds = 1L,
+                timerEndsAtMillis = System.currentTimeMillis() + 900L
+            )
+        )
+
+        composeRule.setContent {
+            MaterialTheme {
+                TimerRecordEditor(
+                    note = state.value,
+                    topBarColor = Color(0xFF202020),
+                    onBack = {},
+                    onChange = { state.value = it }
+                )
+            }
+        }
+
+        composeRule.runOnIdle {
+            state.value = state.value.copy(titleText = "Updated title")
+        }
+        composeRule.waitUntil(5_000L) {
+            state.value.status == RecordStatus.COMPLETED
+        }
+        composeRule.runOnIdle {
+            assert(state.value.titleText == "Updated title")
+            assert(state.value.timerEndsAtMillis == null)
+        }
+    }
+
     @Test
     fun idleTimerShowsDurationAndStartControls() {
         val note = Note(
