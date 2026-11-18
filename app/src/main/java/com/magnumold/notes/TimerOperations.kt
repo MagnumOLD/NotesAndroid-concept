@@ -10,7 +10,15 @@ internal object TimerOperations {
         seconds.coerceIn(MIN_DURATION_SECONDS, MAX_DURATION_SECONDS)
 
     fun remainingSeconds(endsAtMillis: Long, nowMillis: Long): Long {
-        val remainingMillis = (endsAtMillis - nowMillis).coerceAtLeast(0L)
+        if (endsAtMillis <= nowMillis) return 0L
+
+        // Saturate subtraction when timestamps span the signed Long range.
+        // This also avoids turning an already-expired negative end timestamp
+        // into a huge positive duration through arithmetic underflow.
+        val remainingMillis = if (
+            nowMillis < 0L && endsAtMillis > Long.MAX_VALUE + nowMillis
+        ) Long.MAX_VALUE else endsAtMillis - nowMillis
+
         // Divide first: adding 999 before division overflows for very large
         // imported/restored end timestamps near Long.MAX_VALUE.
         return remainingMillis / 1_000L + if (remainingMillis % 1_000L == 0L) 0L else 1L
