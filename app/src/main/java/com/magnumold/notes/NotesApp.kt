@@ -69,8 +69,12 @@ internal fun NotesApp(
             val navigation = remember { AppNavigationState() }
             val activeCollectionId = navigation.activeCollectionId
             val selectedId = navigation.selectedId
-            val sourceNotes = if (navigation.activeCollectionId == null) notes.toList()
-                else collections.firstOrNull { it.id == activeCollectionId }?.notes.orEmpty()
+            val homeTimelineMode = navigation.activeModule == AppModule.ALL && activeCollectionId == null
+            val sourceNotes = when {
+                activeCollectionId != null -> collections.firstOrNull { it.id == activeCollectionId }?.notes.orEmpty()
+                homeTimelineMode -> HomeTimelineOperations.records(snapshot)
+                else -> notes.toList()
+            }
             val activeNotes = sourceNotes.filter { navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType }
             val autoFocusNewNote = navigation.autoFocusNewNote
             val search = navigation.search
@@ -182,24 +186,29 @@ internal fun NotesApp(
                         onOpen = { navigation.openRecord(it) },
                         onArchiveSelected = { ids ->
                             closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
-                            recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = false)
+                            if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = false)
+                            else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = false)
                         },
                         onDeleteSelected = { ids ->
                             closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
-                            recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = true)
+                            if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = true)
+                            else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = true)
                         },
                         onMoveSelected = { ids, afterId ->
-                            recordsViewModel.reorderActiveRecords(activeCollectionId, ids, afterId)
+                            if (homeTimelineMode) recordsViewModel.reorderHomeRecords(ids, afterId)
+                            else recordsViewModel.reorderActiveRecords(activeCollectionId, ids, afterId)
                         },
                         onTogglePinned = { ids ->
-                            recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, ids)
+                            if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(ids)
+                            else recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, ids)
                         },
                         onChangeNoteColor = { noteId, colorIndex ->
-                            recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
+                            if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
+                            else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
                         },
                         screenTitle = navigation.activeModule.title,
                         onOpenModules = { navigation.openModules() },
-                        timelineMode = navigation.activeModule == AppModule.ALL,
+                        timelineMode = homeTimelineMode,
                         onCreate = { requestedType ->
                             val type = navigation.activeModule.recordType ?: requestedType
                             val now = System.currentTimeMillis()
@@ -221,7 +230,10 @@ internal fun NotesApp(
                             timeTrackingRepository.save(updated)
                         },
                         onBack = {
-                            if (!selected.hasContent()) recordsViewModel.removeActiveRecord(activeCollectionId, selected.id)
+                            if (!selected.hasContent()) {
+                                if (homeTimelineMode) recordsViewModel.removeHomeRecord(selected.id)
+                                else recordsViewModel.removeActiveRecord(activeCollectionId, selected.id)
+                            }
                             navigation.closeEditor()
                         },
                         onChange = { changed ->
@@ -237,11 +249,16 @@ internal fun NotesApp(
                                 timeTrackingRepository.save(updatedTimeState)
                             }
                             val index = activeNotes.indexOfFirst { it.id == changed.id }
-                            if (index >= 0) recordsViewModel.updateActiveRecord(activeCollectionId, changed.copy(updated = now))
+                            if (index >= 0) {
+                                val updated = changed.copy(updated = now)
+                                if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
+                                else recordsViewModel.updateActiveRecord(activeCollectionId, updated)
+                            }
                         },
                         onDelete = { promoteChildren ->
                             closeActiveSessionsForRemoved(listOf(selected))
-                            recordsViewModel.moveActiveRecordsToVault(activeCollectionId, setOf(selected.id), toTrash = true)
+                            if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(setOf(selected.id), toTrash = true)
+                            else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, setOf(selected.id), toTrash = true)
                             navigation.closeEditor()
                         },
                         onShare = { activity.shareNote(selected) }
