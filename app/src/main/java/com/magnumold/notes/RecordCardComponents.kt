@@ -317,6 +317,18 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
         else "%.1f".format(java.util.Locale.getDefault(), value)
 
     return when (note.type) {
+        RecordType.TASK -> {
+            val status = recordStatusCompactText(note.recordStatus())
+            val date = note.dateAt?.let { timestamp ->
+                val label = if (note.dateMode == RecordDateMode.DEADLINE) "до" else "на"
+                "$label " + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru"))
+                    .format(java.util.Date(timestamp))
+            }
+            val children = if (note.children.isEmpty()) "" else {
+                " · ${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}"
+            }
+            listOfNotNull(status + children, date).joinToString(" · ")
+        }
         RecordType.NUTRITION -> {
             if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
                 note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0

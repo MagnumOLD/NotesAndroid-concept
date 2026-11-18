@@ -74,4 +74,27 @@ class ModuleRecordBackupTest {
         assertEquals("3 × 8 повторений · 20 кг", recordCardSecondaryText(workout))
     }
 
+    @Test
+    fun taskCardsShowStatusDeadlineAndSubtaskProgress() {
+        val task = Note(
+            id = 30L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 100L,
+            type = RecordType.TASK,
+            status = RecordStatus.IN_PROGRESS,
+            dateMode = RecordDateMode.DEADLINE,
+            dateAt = java.util.Calendar.getInstance().apply {
+                clear()
+                set(2026, java.util.Calendar.NOVEMBER, 20)
+            }.timeInMillis,
+            children = listOf(
+                Note(31L, "", listOf(NoteBlock("Done")), 100L, type = RecordType.TASK, status = RecordStatus.COMPLETED),
+                Note(32L, "", listOf(NoteBlock("Next")), 100L, type = RecordType.TASK)
+            )
+        )
+
+        assertEquals("Выполняется · 1/2 · до 20.11", recordCardSecondaryText(task))
+    }
+
 }
