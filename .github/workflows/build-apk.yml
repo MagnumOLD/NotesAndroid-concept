@@ -112,7 +112,7 @@ jobs:
 
   # UI suite is intentionally reserved for the final architecture verification.
   instrumentation-tests:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-ui-tests]'))
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && contains(github.event.head_commit.message, '[run-ui-tests]')) || (github.event_name == 'pull_request' && contains(github.event.pull_request.title, '[run-ui-tests]'))
     name: Run Compose UI tests on Android emulator
     runs-on: ubuntu-latest
     timeout-minutes: 35
