@@ -136,24 +136,24 @@ internal object RecordOperations {
         fromArchive: Boolean
     ): PersistenceSnapshot {
         val source = if (fromArchive) snapshot.archived else snapshot.trash
-        if (source.none { it.note.id == entry.note.id }) return snapshot
+        val storedEntry = source.firstOrNull { it.note.id == entry.note.id } ?: return snapshot
         val neighborVault = snapshot.archived + snapshot.trash
         val withoutEntry = if (fromArchive) snapshot.copy(
             archived = snapshot.archived.filterNot { it.note.id == entry.note.id }
         ) else snapshot.copy(
             trash = snapshot.trash.filterNot { it.note.id == entry.note.id }
         )
-        val collectionIndex = entry.collectionId?.let { id ->
+        val collectionIndex = storedEntry.collectionId?.let { id ->
             withoutEntry.collections.indexOfFirst { it.id == id }
         } ?: -1
         return if (collectionIndex >= 0) {
             val collections = withoutEntry.collections.toMutableList()
             val target = collections[collectionIndex]
-            val notes = insertAtOriginalPosition(target.notes, entry, neighborVault)
+            val notes = insertAtOriginalPosition(target.notes, storedEntry, neighborVault)
             collections[collectionIndex] = target.copy(notes = notes)
             withoutEntry.copy(collections = collections)
         } else {
-            withoutEntry.copy(notes = insertAtOriginalPosition(withoutEntry.notes, entry, neighborVault))
+            withoutEntry.copy(notes = insertAtOriginalPosition(withoutEntry.notes, storedEntry, neighborVault))
         }
     }
 
@@ -205,10 +205,10 @@ internal object RecordOperations {
         entry: VaultNote,
         now: Long = System.currentTimeMillis()
     ): PersistenceSnapshot {
-        if (snapshot.archived.none { it.note.id == entry.note.id }) return snapshot
+        val storedEntry = snapshot.archived.firstOrNull { it.note.id == entry.note.id } ?: return snapshot
         return snapshot.copy(
             archived = snapshot.archived.filterNot { it.note.id == entry.note.id },
-            trash = listOf(entry.copy(movedAt = now)) + snapshot.trash
+            trash = listOf(storedEntry.copy(movedAt = now)) + snapshot.trash
         )
     }
 
@@ -218,7 +218,9 @@ internal object RecordOperations {
         now: Long = System.currentTimeMillis()
     ): PersistenceSnapshot {
         if (retentionDays <= 0 || snapshot.trash.isEmpty()) return snapshot
-        val cutoff = now - retentionDays.toLong() * TRASH_RETENTION_DAY_MILLIS
+        val retentionMillis = retentionDays.toLong() * TRASH_RETENTION_DAY_MILLIS
+        val cutoff = if (now < Long.MIN_VALUE + retentionMillis) Long.MIN_VALUE
+            else now - retentionMillis
         val retained = snapshot.trash.filter { it.movedAt >= cutoff }
         return if (retained.size == snapshot.trash.size) snapshot else snapshot.copy(trash = retained)
     }
