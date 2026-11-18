@@ -194,11 +194,22 @@ internal object TimeTrackingEngine {
      * Splits sessions at local midnight so daily statistics attribute overnight work
      * to the correct calendar days. Overlapping sessions remain independent.
      */
-    fun dailyTotals(state: TimeTrackingState, nowMillis: Long): Map<String, Long> {
+    fun dailyTotals(
+        state: TimeTrackingState,
+        nowMillis: Long,
+        startInclusive: Long,
+        endExclusive: Long
+    ): Map<String, Long> {
+        require(endExclusive >= startInclusive)
         val totals = linkedMapOf<String, Long>()
-        state.sessions.forEach { addSessionByDay(totals, it.startedAtMillis, it.endedAtMillis) }
+        fun addClipped(start: Long, end: Long) {
+            val clippedStart = maxOf(start, startInclusive)
+            val clippedEnd = minOf(end, endExclusive)
+            if (clippedEnd > clippedStart) addSessionByDay(totals, clippedStart, clippedEnd)
+        }
+        state.sessions.forEach { addClipped(it.startedAtMillis, it.endedAtMillis) }
         state.activeSessions.values.forEach {
-            addSessionByDay(totals, it.startedAtMillis, nowMillis.coerceAtLeast(it.startedAtMillis))
+            addClipped(it.startedAtMillis, nowMillis.coerceAtLeast(it.startedAtMillis))
         }
         return totals
     }
@@ -227,7 +238,9 @@ internal object TimeTrackingEngine {
             val nextDayCalendar = dayStart.clone() as Calendar
             nextDayCalendar.add(Calendar.DAY_OF_MONTH, 1)
             val nextDay = nextDayCalendar.timeInMillis
-            val segmentEnd = minOf(end, nextDay)
+            // Calendar arithmetic at the edge of the Long timestamp range can
+            // wrap. Consume the remaining clipped interval instead of looping.
+            val segmentEnd = if (nextDay <= cursor) end else minOf(end, nextDay)
             val key = dayKey(cursor)
             totals[key] = saturatingAdd(totals[key] ?: 0L, elapsedMillisSaturated(cursor, segmentEnd))
             cursor = segmentEnd
