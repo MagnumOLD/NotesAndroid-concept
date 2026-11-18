@@ -44,6 +44,8 @@ internal fun NotesHome(
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
     onChangeNoteColor: (Long, Int) -> Unit, onDeleteSelected: (Set<Long>) -> Unit, onArchiveSelected: (Set<Long>) -> Unit,
     onTogglePinned: (Set<Long>) -> Unit,
+    onToggleFavorite: (Set<Long>) -> Unit = {},
+    onSetShowOnHome: (Set<Long>, Boolean) -> Unit = { _, _ -> },
     onMoveSelected: (Set<Long>, Long?) -> Unit,
     collections: List<NoteCollection>, activeCollectionId: Long?,
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
@@ -58,6 +60,7 @@ internal fun NotesHome(
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showMoveMenu by remember { mutableStateOf(false) }
+    var showSelectionActionsMenu by remember { mutableStateOf(false) }
     var collectionMenuId by remember { mutableStateOf<Long?>(null) }
     var showNewCollectionDialog by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
@@ -173,7 +176,10 @@ internal fun NotesHome(
                     if (selectionMode) {
                         Text("${selectedNoteIds.size} выбрано", style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        val allSelectedPinned = notes.filter { it.id in selectedNoteIds }.all { it.pinned }
+                        val selectedRecords = notes.filter { it.id in selectedNoteIds }
+                        val allSelectedPinned = selectedRecords.isNotEmpty() && selectedRecords.all { it.pinned }
+                        val allSelectedFavorite = selectedRecords.isNotEmpty() && selectedRecords.all { it.favorite }
+                        val allSelectedShownOnHome = selectedRecords.isNotEmpty() && selectedRecords.all { it.showOnHome }
                         IconButton(onClick = { onTogglePinned(selectedNoteIds) }) {
                             AppIcon(NoteIcon.Pin, contentDescription = if (allSelectedPinned) "Открепить заметки" else "Закрепить заметки")
                         }
@@ -190,6 +196,33 @@ internal fun NotesHome(
                             }
                             if (collections.isEmpty() || (collections.size == 1 && activeCollectionId != null)) {
                                 DropdownMenuItem(text = { Text("Нет других подборок") }, enabled = false, onClick = {})
+                            }
+                        }
+                        Box {
+                            IconButton(onClick = { showSelectionActionsMenu = true }) {
+                                AppIcon(NoteIcon.More, contentDescription = "Дополнительные действия")
+                            }
+                            DropdownMenu(
+                                expanded = showSelectionActionsMenu,
+                                onDismissRequest = { showSelectionActionsMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedFavorite) "Убрать из избранного" else "В избранное") },
+                                    onClick = {
+                                        onToggleFavorite(selectedNoteIds)
+                                        if (allSelectedFavorite) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedShownOnHome) "Скрыть с главной" else "Показывать на главной") },
+                                    onClick = {
+                                        val show = !allSelectedShownOnHome
+                                        onSetShowOnHome(selectedNoteIds, show)
+                                        if (!show) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
                             }
                         }
                         IconButton(onClick = { selectedNoteIds = emptySet() }) {
