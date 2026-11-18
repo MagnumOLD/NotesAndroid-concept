@@ -136,6 +136,10 @@ internal class NotesViewModel(
         updateSnapshot { RecordOperations.moveArchivedToTrash(it, entry) }
     }
 
+    fun purgeExpiredTrash(retentionDays: Int, now: Long = System.currentTimeMillis()) {
+        updateSnapshot { RecordOperations.purgeExpiredTrash(it, retentionDays, now) }
+    }
+
     fun deleteFromTrash(entry: VaultNote) {
         updateSnapshot { RecordOperations.deleteFromTrash(it, entry) }
     }

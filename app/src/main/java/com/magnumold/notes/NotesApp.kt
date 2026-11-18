@@ -21,6 +21,12 @@ internal fun NotesApp(
             val moduleSettingsStore = remember(activity) {
                 ModuleSettingsStore(activity.getSharedPreferences("notes_modules", Context.MODE_PRIVATE))
             }
+            val trashRetentionStore = remember(activity) {
+                TrashRetentionStore(activity.getSharedPreferences("notes_storage", Context.MODE_PRIVATE))
+            }
+            var trashRetentionDays by remember(trashRetentionStore) {
+                androidx.compose.runtime.mutableIntStateOf(trashRetentionStore.loadDays())
+            }
             var moduleConfiguration by remember(moduleSettingsStore) {
                 androidx.compose.runtime.mutableStateOf(moduleSettingsStore.load())
             }
@@ -83,6 +89,9 @@ internal fun NotesApp(
             val vaultScreen = navigation.vaultScreen
             val archived = snapshot.archived
             val trash = snapshot.trash
+            LaunchedEffect(trash, trashRetentionDays) {
+                recordsViewModel.purgeExpiredTrash(trashRetentionDays)
+            }
 
             val backupActions = rememberBackupActions(
                 activity = activity,
@@ -149,6 +158,11 @@ internal fun NotesApp(
                         onImport = backupActions.importBackup,
                         onOpenArchive = { navigation.openVault("archive") },
                         onOpenTrash = { navigation.openVault("trash") },
+                        trashRetentionDays = trashRetentionDays,
+                        onTrashRetentionDaysChange = { days ->
+                            trashRetentionDays = days
+                            trashRetentionStore.saveDays(days)
+                        },
                         onBack = { navigation.closeSettings() }
                     )
                 } else if (selected == null) {

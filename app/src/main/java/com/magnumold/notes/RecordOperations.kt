@@ -42,13 +42,30 @@ internal object RecordOperations {
         }
     }
 
-    fun moveArchivedToTrash(snapshot: PersistenceSnapshot, entry: VaultNote): PersistenceSnapshot {
+    fun moveArchivedToTrash(
+        snapshot: PersistenceSnapshot,
+        entry: VaultNote,
+        now: Long = System.currentTimeMillis()
+    ): PersistenceSnapshot {
         if (snapshot.archived.none { it.note.id == entry.note.id }) return snapshot
         return snapshot.copy(
             archived = snapshot.archived.filterNot { it.note.id == entry.note.id },
-            trash = listOf(entry) + snapshot.trash
+            trash = listOf(entry.copy(movedAt = now)) + snapshot.trash
         )
     }
+
+    fun purgeExpiredTrash(
+        snapshot: PersistenceSnapshot,
+        retentionDays: Int,
+        now: Long = System.currentTimeMillis()
+    ): PersistenceSnapshot {
+        if (retentionDays <= 0 || snapshot.trash.isEmpty()) return snapshot
+        val cutoff = now - retentionDays.toLong() * TRASH_RETENTION_DAY_MILLIS
+        val retained = snapshot.trash.filter { it.movedAt >= cutoff }
+        return if (retained.size == snapshot.trash.size) snapshot else snapshot.copy(trash = retained)
+    }
+
+    private const val TRASH_RETENTION_DAY_MILLIS = 86_400_000L
 
     fun deleteFromTrash(snapshot: PersistenceSnapshot, entry: VaultNote): PersistenceSnapshot =
         snapshot.copy(trash = snapshot.trash.filterNot { it.note.id == entry.note.id })

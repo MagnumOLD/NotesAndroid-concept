@@ -134,11 +134,14 @@ internal fun SettingsScreen(
     onExport: () -> Unit,    onImport: () -> Unit,
     onOpenArchive: () -> Unit,
     onOpenTrash: () -> Unit,
+    trashRetentionDays: Int,
+    onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     var colorEditorIndex by remember { mutableStateOf<Int?>(null) }
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
+    var retentionMenuExpanded by remember { mutableStateOf(false) }
 
     BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
@@ -279,6 +282,33 @@ internal fun SettingsScreen(
                     leadingContent = { AppIcon(NoteIcon.Trash, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onOpenTrash).padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Хранить в корзине") },
+                        supportingContent = {
+                            Text(if (trashRetentionDays <= 0) "Без автоматического удаления" else "$trashRetentionDays дней, затем удаление навсегда")
+                        },
+                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        modifier = Modifier.clickable { retentionMenuExpanded = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                    DropdownMenu(
+                        expanded = retentionMenuExpanded,
+                        onDismissRequest = { retentionMenuExpanded = false }
+                    ) {
+                        listOf(7, 30, 90, 365, 0).forEach { days ->
+                            DropdownMenuItem(
+                                text = { Text(if (days == 0) "Не удалять автоматически" else "$days дней") },
+                                onClick = {
+                                    onTrashRetentionDaysChange(days)
+                                    retentionMenuExpanded = false
+                                },
+                                trailingIcon = {
+                                    if (trashRetentionDays == days) Icon(Icons.Outlined.CheckCircle, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
