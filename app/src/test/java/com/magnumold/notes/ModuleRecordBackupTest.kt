@@ -98,4 +98,22 @@ class ModuleRecordBackupTest {
     }
 
 
+    @Test
+    fun vaultNeighborLinksSurviveBackupRoundTrip() {
+        val records = listOf(note(101L, "A"), note(102L, "B"), note(103L, "C"))
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(records.first()),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(records[1], null, 1, 200L, previousRecordId = 101L, nextRecordId = 103L)
+            ),
+            trash = emptyList()
+        )
+        val decoded = parseBackupJson(createBackupJson(
+            snapshot.notes, snapshot.collections, snapshot.archived, snapshot.trash
+        ))
+
+        assertEquals(101L, decoded.archived.single().previousRecordId)
+        assertEquals(103L, decoded.archived.single().nextRecordId)
+    }
 }

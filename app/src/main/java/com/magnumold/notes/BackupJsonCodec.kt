@@ -42,7 +42,10 @@ internal fun vaultToJson(items: List<VaultNote>): JSONArray {
     val array = JSONArray()
     items.forEach { entry ->
         array.put(JSONObject().put("collectionId", entry.collectionId ?: JSONObject.NULL)
-            .put("position", entry.position).put("movedAt", entry.movedAt).put("note", noteToJson(entry.note)))
+            .put("position", entry.position).put("movedAt", entry.movedAt)
+            .put("previousRecordId", entry.previousRecordId ?: JSONObject.NULL)
+            .put("nextRecordId", entry.nextRecordId ?: JSONObject.NULL)
+            .put("note", noteToJson(entry.note)))
     }
     return array
 }
@@ -108,7 +111,14 @@ internal fun parseVaultArray(array: JSONArray?): List<VaultNote> {
         val noteObj = obj.optJSONObject("note") ?: return@mapNotNull null
         val note = parseNoteObject(noteObj, index).takeIf { it.hasContent() } ?: return@mapNotNull null
         val collectionId = if (obj.isNull("collectionId")) null else obj.optLong("collectionId")
-        VaultNote(note, collectionId, obj.optInt("position", 0), obj.optLong("movedAt", System.currentTimeMillis()))
+        VaultNote(
+            note = note,
+            collectionId = collectionId,
+            position = obj.optInt("position", 0),
+            movedAt = obj.optLong("movedAt", System.currentTimeMillis()),
+            previousRecordId = if (obj.isNull("previousRecordId")) null else obj.optLong("previousRecordId"),
+            nextRecordId = if (obj.isNull("nextRecordId")) null else obj.optLong("nextRecordId")
+        )
     }
 }
 internal fun collectionsToJson(items: List<NoteCollection>): JSONArray {
@@ -135,7 +145,7 @@ internal fun createBackupJson(items: List<Note>, collections: List<NoteCollectio
     collections.forEach { collection ->
         collectionArray.put(JSONObject().put("id", collection.id).put("name", collection.name).put("notes", notesToJson(collection.notes)))
     }
-    return JSONObject().put("format", "notes_backup").put("version", 10).put("exportedAt", System.currentTimeMillis())
+    return JSONObject().put("format", "notes_backup").put("version", 11).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
         .put("timeTracking", timeTrackingToJson(timeTracking)).toString(2)
@@ -143,7 +153,7 @@ internal fun createBackupJson(items: List<Note>, collections: List<NoteCollectio
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..10) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..11) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.optJSONArray("notes") ?: error("В файле нет списка заметок"))
     val collections = parseCollectionsArray(root.optJSONArray("collections") ?: JSONArray())
     return BackupData(notes, collections, parseVaultArray(root.optJSONArray("archive")), parseVaultArray(root.optJSONArray("trash")), root.optJSONObject("timeTracking")?.let(::parseTimeTrackingJson))

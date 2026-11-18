@@ -102,4 +102,41 @@ class RecordOperationsTest {
         assertEquals(listOf(1L, 2L, 3L), result.collections.single().notes.map { it.id })
         assertTrue(result.archived.isEmpty())
     }
+    @Test
+    fun restoringVaultEntriesOutOfOrderPreservesOriginalRootOrder() {
+        val original = listOf(note(1L, "A"), note(2L, "B"), note(3L, "C"), note(4L, "D"), note(5L, "E"))
+        val snapshot = PersistenceSnapshot(original, emptyList(), emptyList(), emptyList())
+        val archived = RecordOperations.moveActiveRecordsToVault(
+            snapshot, collectionId = null, ids = setOf(2L, 3L, 4L), toTrash = false, now = 50L
+        )
+        val c = archived.archived.first { it.note.id == 3L }
+        val d = archived.archived.first { it.note.id == 4L }
+        val b = archived.archived.first { it.note.id == 2L }
+
+        val afterC = RecordOperations.restoreVaultEntry(archived, c, fromArchive = true)
+        val afterD = RecordOperations.restoreVaultEntry(afterC, d, fromArchive = true)
+        val afterB = RecordOperations.restoreVaultEntry(afterD, b, fromArchive = true)
+
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), afterB.notes.map { it.id })
+    }
+
+    @Test
+    fun restoringVaultEntriesOutOfOrderPreservesOriginalCollectionOrder() {
+        val original = listOf(note(11L, "A"), note(12L, "B"), note(13L, "C"), note(14L, "D"), note(15L, "E"))
+        val snapshot = PersistenceSnapshot(
+            emptyList(), listOf(NoteCollection(90L, "Work", original)), emptyList(), emptyList()
+        )
+        val archived = RecordOperations.moveActiveRecordsToVault(
+            snapshot, collectionId = 90L, ids = setOf(12L, 13L, 14L), toTrash = false, now = 50L
+        )
+        val c = archived.archived.first { it.note.id == 13L }
+        val d = archived.archived.first { it.note.id == 14L }
+        val b = archived.archived.first { it.note.id == 12L }
+
+        val afterC = RecordOperations.restoreVaultEntry(archived, c, fromArchive = true)
+        val afterD = RecordOperations.restoreVaultEntry(afterC, d, fromArchive = true)
+        val afterB = RecordOperations.restoreVaultEntry(afterD, b, fromArchive = true)
+
+        assertEquals(listOf(11L, 12L, 13L, 14L, 15L), afterB.collections.single().notes.map { it.id })
+    }
 }

@@ -75,7 +75,14 @@ internal data class PersistenceSnapshot(
     val archived: List<VaultNote>,
     val trash: List<VaultNote>
 )
-internal data class VaultNote(val note: Note, val collectionId: Long?, val position: Int, val movedAt: Long)
+internal data class VaultNote(
+    val note: Note,
+    val collectionId: Long?,
+    val position: Int,
+    val movedAt: Long,
+    val previousRecordId: Long? = null,
+    val nextRecordId: Long? = null
+)
 
 internal fun List<NoteBlock>.toPlainText(): String = joinToString("\n\n") { block ->
     (if (block.isChecklist) (if (block.checked) "☑ " else "☐ ") else "") + block.text

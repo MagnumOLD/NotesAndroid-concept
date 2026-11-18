@@ -31,14 +31,54 @@ internal object RecordOperations {
         return if (collectionIndex >= 0) {
             val collections = withoutEntry.collections.toMutableList()
             val target = collections[collectionIndex]
-            val notes = target.notes.toMutableList()
-            notes.add(entry.position.coerceIn(0, notes.size), entry.note)
+            val notes = insertAtOriginalPosition(target.notes, entry, source)
             collections[collectionIndex] = target.copy(notes = notes)
             withoutEntry.copy(collections = collections)
         } else {
-            val notes = withoutEntry.notes.toMutableList()
-            notes.add(entry.position.coerceIn(0, notes.size), entry.note)
-            withoutEntry.copy(notes = notes)
+            withoutEntry.copy(notes = insertAtOriginalPosition(withoutEntry.notes, entry, source))
+        }
+    }
+
+    internal fun createVaultEntries(
+        notes: List<Note>,
+        collectionId: Long?,
+        ids: Set<Long>,
+        now: Long
+    ): List<VaultNote> = notes.mapIndexedNotNull { index, note ->
+        if (note.id !in ids) return@mapIndexedNotNull null
+        VaultNote(
+            note = note,
+            collectionId = collectionId,
+            position = index,
+            movedAt = now,
+            previousRecordId = notes.getOrNull(index - 1)?.id,
+            nextRecordId = notes.getOrNull(index + 1)?.id
+        )
+    }
+
+    private fun insertAtOriginalPosition(
+        activeNotes: List<Note>,
+        entry: VaultNote,
+        sourceVault: List<VaultNote>
+    ): List<Note> {
+        fun nearestActiveNeighbor(startId: Long?, forward: Boolean): Int? {
+            var candidateId = startId
+            val visited = mutableSetOf(entry.note.id)
+            while (candidateId != null && visited.add(candidateId)) {
+                val activeIndex = activeNotes.indexOfFirst { it.id == candidateId }
+                if (activeIndex >= 0) return activeIndex
+                val vaulted = sourceVault.firstOrNull { it.note.id == candidateId } ?: return null
+                candidateId = if (forward) vaulted.nextRecordId else vaulted.previousRecordId
+            }
+            return null
+        }
+
+        val nextIndex = nearestActiveNeighbor(entry.nextRecordId, forward = true)
+        val previousIndex = nearestActiveNeighbor(entry.previousRecordId, forward = false)
+        val insertionIndex = nextIndex ?: previousIndex?.plus(1)
+            ?: entry.position.coerceIn(0, activeNotes.size)
+        return activeNotes.toMutableList().apply {
+            add(insertionIndex.coerceIn(0, size), entry.note)
         }
     }
 
@@ -82,9 +122,7 @@ internal object RecordOperations {
             else snapshot.collections.firstOrNull { it.id == collectionId }?.notes ?: return snapshot
         val moving = active.filter { it.id in ids }
         if (moving.isEmpty()) return snapshot
-        val entries = moving.map { note ->
-            VaultNote(note, collectionId, active.indexOfFirst { it.id == note.id }, now)
-        }
+        val entries = createVaultEntries(active, collectionId, ids, now)
         val remaining = active.filterNot { it.id in ids }
         val updated = if (collectionId == null) snapshot.copy(notes = remaining)
         else snapshot.copy(collections = snapshot.collections.map { collection ->

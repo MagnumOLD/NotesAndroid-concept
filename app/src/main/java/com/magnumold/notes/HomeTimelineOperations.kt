@@ -129,13 +129,9 @@ internal object HomeTimelineOperations {
     ): PersistenceSnapshot {
         if (ids.isEmpty()) return snapshot
         val entries = buildList {
-            snapshot.notes.forEachIndexed { index, note ->
-                if (note.id in ids) add(VaultNote(note, null, index, now))
-            }
+            addAll(RecordOperations.createVaultEntries(snapshot.notes, null, ids, now))
             snapshot.collections.forEach { collection ->
-                collection.notes.forEachIndexed { index, note ->
-                    if (note.id in ids) add(VaultNote(note, collection.id, index, now))
-                }
+                addAll(RecordOperations.createVaultEntries(collection.notes, collection.id, ids, now))
             }
         }
         if (entries.isEmpty()) return snapshot
