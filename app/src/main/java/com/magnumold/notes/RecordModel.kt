@@ -3,7 +3,10 @@ package com.magnumold.notes
 internal enum class RecordType {
     NOTE,
     TASK,
-    PURCHASE
+    PURCHASE,
+    TIMER,
+    NUTRITION,
+    WORKOUT
 }
 
 internal enum class RecordStatus {
