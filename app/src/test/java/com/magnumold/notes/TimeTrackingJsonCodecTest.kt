@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,6 +74,78 @@ class TimeTrackingJsonCodecTest {
         assertEquals(localTimer, merged.protectionTimer)
         assertEquals("backup-tone", merged.soundUri)
         assertEquals(false, merged.soundEnabled)
+    }
+
+    @Test
+    fun importedTrackingReferencesFollowRekeyedNestedTaskIds() {
+        val currentChild = Note(
+            id = 20L,
+            title = "",
+            blocks = listOf(NoteBlock("Local task")),
+            updated = 20L,
+            type = RecordType.TASK
+        )
+        val currentParent = Note(
+            id = 10L,
+            title = "",
+            blocks = listOf(NoteBlock("Local parent")),
+            updated = 10L,
+            type = RecordType.TASK,
+            children = listOf(currentChild)
+        )
+        val importedChild = Note(
+            id = 20L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported subtask")),
+            updated = 40L,
+            type = RecordType.TASK
+        )
+        val importedParent = Note(
+            id = 30L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported parent")),
+            updated = 30L,
+            type = RecordType.TASK,
+            children = listOf(importedChild)
+        )
+        val backupTracking = TimeTrackingState(
+            sessions = listOf(
+                WorkSession("imported-session", 20L, 30L, "Imported parent", "Imported subtask",
+                    100L, 200L, 100L, WorkSessionEndReason.STOP)
+            ),
+            activeSessions = mapOf(
+                20L to ActiveWorkSession("active-imported", 20L, 30L, "Imported parent", "Imported subtask", 300L)
+            ),
+            protectionTimer = ProtectionTimer(
+                20L, "Imported parent", "Imported subtask", 400L, 500L,
+                ProtectionEndMode.SIGNAL_ONLY, parentTaskId = 30L
+            )
+        )
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(
+                notes = listOf(currentParent),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList()
+            ),
+            BackupData(
+                notes = listOf(importedParent),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList(),
+                timeTracking = backupTracking
+            )
+        )
+        val importedSubtaskId = merged.snapshot.notes.last().children.single().id
+        val remapped = remapTimeTrackingTaskIds(backupTracking, merged.importedNoteIdMap)
+
+        assertNotEquals(20L, importedSubtaskId)
+        assertEquals(importedSubtaskId, remapped.sessions.single().taskId)
+        assertEquals(30L, remapped.sessions.single().parentTaskId)
+        assertEquals(importedSubtaskId, remapped.activeSessions.keys.single())
+        assertEquals(importedSubtaskId, remapped.activeSessions.values.single().taskId)
+        assertEquals(importedSubtaskId, remapped.protectionTimer?.taskId)
+        assertEquals(30L, remapped.protectionTimer?.parentTaskId)
     }
 
     @Test fun sharedBackupKeepsPerSubtaskTrackingPreference() {
