@@ -104,4 +104,23 @@ class ModuleSummaryOperationsTest {
             ModuleSummaryOperations.summary("Таймеры", records, today, now))
     }
 
+
+    @Test
+    fun purchaseSummaryFormatsTotalsBeyondLongRangeWithoutSaturation() {
+        val today = 700L
+        val record = Note(
+            1, "", listOf(NoteBlock()), 1L,
+            type = RecordType.PURCHASE,
+            status = RecordStatus.WAITING,
+            scheduledAt = today * 86_400_000L,
+            purchaseQuantity = 1_000_000_000_000.0,
+            purchaseUnitPrice = 10_000_000.0
+        )
+
+        assertEquals(
+            "В списке: 1 · Куплено: 0 · Остаток: 10000000000000000000",
+            ModuleSummaryOperations.summary("Покупки", listOf(record), today)
+        )
+    }
+
 }
