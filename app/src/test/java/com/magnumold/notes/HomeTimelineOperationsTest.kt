@@ -152,6 +152,26 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun dateRangeFiltersCoverTodayTomorrowWeekMonthAndHistory() {
+        val today = 100L
+        val records = listOf(
+            note(1, created = (today - 1) * 86_400_000L),
+            note(2, created = today * 86_400_000L),
+            note(3, created = (today + 1) * 86_400_000L),
+            note(4, created = (today + 6) * 86_400_000L),
+            note(5, created = (today + 7) * 86_400_000L),
+            note(6, created = (today + 29) * 86_400_000L),
+            note(7, created = (today + 30) * 86_400_000L)
+        )
+
+        assertEquals(listOf(2L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TODAY, today).map { it.id })
+        assertEquals(listOf(3L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TOMORROW, today).map { it.id })
+        assertEquals(listOf(2L, 3L, 4L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.WEEK, today).map { it.id })
+        assertEquals(listOf(2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
+        assertEquals(listOf(1L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.HISTORY, today).map { it.id })
+    }
+
+    @Test
     fun homeTimelineSortsByScheduledDayAndHidesExcludedRecords() {
         val yesterday = note(1, order = 100, created = 86_400_000L)
         val today = note(2, order = 10, created = 2 * 86_400_000L)
