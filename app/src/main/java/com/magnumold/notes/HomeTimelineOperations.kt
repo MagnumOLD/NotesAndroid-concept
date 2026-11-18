@@ -4,7 +4,24 @@ package com.magnumold.notes
  * Operations for the unified home timeline. Records remain in their original
  * notebook/collection; only their home presentation order is shared.
  */
+internal enum class HomeTimelineRange {
+    ALL, TODAY, TOMORROW, WEEK, MONTH, HISTORY
+}
+
 internal object HomeTimelineOperations {
+    fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> =
+        notes.filter { note ->
+            val day = (note.scheduledAt ?: note.created) / 86_400_000L
+            when (range) {
+                HomeTimelineRange.ALL -> true
+                HomeTimelineRange.TODAY -> day == todayDay
+                HomeTimelineRange.TOMORROW -> day == todayDay + 1
+                HomeTimelineRange.WEEK -> day in todayDay..(todayDay + 6)
+                HomeTimelineRange.MONTH -> day in todayDay..(todayDay + 29)
+                HomeTimelineRange.HISTORY -> day < todayDay
+            }
+        }
+
     fun records(snapshot: PersistenceSnapshot): List<Note> =
         snapshot.notes + snapshot.collections.flatMap { it.notes }
 
