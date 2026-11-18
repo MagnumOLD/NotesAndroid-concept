@@ -172,6 +172,35 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun createdTimestampUsesDeviceLocalCalendarDay() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val helsinki = java.util.TimeZone.getTimeZone("Europe/Helsinki")
+        val timestamp = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.JANUARY, 1, 22, 30, 0)
+        }.timeInMillis
+        val expectedDay = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.JANUARY, 2, 0, 0, 0)
+        }.timeInMillis / 86_400_000L
+
+        assertEquals(expectedDay, timelineDayKey(timestamp, isDateOnly = false, timeZone = helsinki))
+    }
+
+    @Test
+    fun scheduledDateUsesDatePickerUtcCalendarDay() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val helsinki = java.util.TimeZone.getTimeZone("Europe/Helsinki")
+        val datePickerMillis = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.JANUARY, 2, 0, 0, 0)
+        }.timeInMillis
+        val expectedDay = datePickerMillis / 86_400_000L
+
+        assertEquals(expectedDay, timelineDayKey(datePickerMillis, isDateOnly = true, timeZone = helsinki))
+    }
+
+    @Test
     fun favoritesRangeReturnsOnlyFavoriteRecords() {
         val records = listOf(
             note(1).copy(favorite = true),
