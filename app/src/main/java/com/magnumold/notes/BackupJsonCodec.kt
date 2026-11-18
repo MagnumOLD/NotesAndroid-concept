@@ -237,9 +237,7 @@ private fun Note.sameRecordContent(other: Note): Boolean =
         workoutSets == other.workoutSets && workoutReps == other.workoutReps && workoutWeightKg == other.workoutWeightKg
 
 internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): List<Note> {
-    val result = existing.toMutableList()
     val usedIds = mutableSetOf<Long>()
-
     fun collectIds(notes: List<Note>) {
         notes.forEach { note ->
             usedIds += note.id
@@ -247,6 +245,15 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
         }
     }
     collectIds(existing)
+    return mergeImportedNotes(existing, imported, usedIds)
+}
+
+private fun mergeImportedNotes(
+    existing: List<Note>,
+    imported: List<Note>,
+    usedIds: MutableSet<Long>
+): List<Note> {
+    val result = existing.toMutableList()
 
     fun nextUniqueId(): Long {
         var candidate = System.currentTimeMillis().coerceAtLeast(0L)
@@ -273,7 +280,7 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
         if (sameIndex >= 0) {
             val current = result[sameIndex]
             result[sameIndex] = current.copy(
-                children = mergeImportedNotes(current.children, incoming.children)
+                children = mergeImportedNotes(current.children, incoming.children, usedIds)
             )
             return@forEach
         }
@@ -281,7 +288,6 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
     }
     return result
 }
-
 internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultNote>): List<VaultNote> {
     val result = existing.toMutableList()
     imported.forEach { incoming ->
