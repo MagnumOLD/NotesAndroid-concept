@@ -49,10 +49,10 @@ internal data class Note(
     val deadlineResumeOverride: Boolean = false, val children: List<Note> = emptyList(),
     val statusBeforeAutoCompletion: RecordStatus? = null,
     val timeTrackingEnabled: Boolean = false,
-    scheduledAt: Long? = null,
-    showOnHome: Boolean = true,
-    favorite: Boolean = false,
-    homeOrder: Long = created
+    val scheduledAt: Long? = null,
+    val showOnHome: Boolean = true,
+    val favorite: Boolean = false,
+    val homeOrder: Long = created
 )
 
 internal data class NoteCollection(val id: Long, val name: String, val notes: List<Note> = emptyList())
