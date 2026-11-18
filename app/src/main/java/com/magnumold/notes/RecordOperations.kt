@@ -25,6 +25,7 @@ internal object RecordOperations {
     ): PersistenceSnapshot {
         val source = if (fromArchive) snapshot.archived else snapshot.trash
         if (source.none { it.note.id == entry.note.id }) return snapshot
+        val neighborVault = snapshot.archived + snapshot.trash
         val withoutEntry = if (fromArchive) snapshot.copy(
             archived = snapshot.archived.filterNot { it.note.id == entry.note.id }
         ) else snapshot.copy(
@@ -36,11 +37,11 @@ internal object RecordOperations {
         return if (collectionIndex >= 0) {
             val collections = withoutEntry.collections.toMutableList()
             val target = collections[collectionIndex]
-            val notes = insertAtOriginalPosition(target.notes, entry, source)
+            val notes = insertAtOriginalPosition(target.notes, entry, neighborVault)
             collections[collectionIndex] = target.copy(notes = notes)
             withoutEntry.copy(collections = collections)
         } else {
-            withoutEntry.copy(notes = insertAtOriginalPosition(withoutEntry.notes, entry, source))
+            withoutEntry.copy(notes = insertAtOriginalPosition(withoutEntry.notes, entry, neighborVault))
         }
     }
 

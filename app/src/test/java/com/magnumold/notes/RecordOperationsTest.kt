@@ -181,4 +181,25 @@ class RecordOperationsTest {
         val restored = RecordOperations.restoreVaultEntry(merged, merged.archived.single(), fromArchive = true)
         assertEquals(listOf(2L, 3L), restored.collections.first { it.name == "Home" }.notes.map { it.id })
     }
+    @Test
+    fun restoringEntriesAcrossArchiveAndTrashPreservesOriginalOrder() {
+        val original = listOf(
+            note(21L, "A"), note(22L, "B"), note(23L, "C"), note(24L, "D"), note(25L, "E")
+        )
+        val initial = PersistenceSnapshot(original, emptyList(), emptyList(), emptyList())
+        val archived = RecordOperations.moveActiveRecordsToVault(
+            initial, collectionId = null, ids = setOf(22L, 23L, 24L), toTrash = false, now = 50L
+        )
+        val c = archived.archived.first { it.note.id == 23L }
+        val movedToTrash = RecordOperations.moveArchivedToTrash(archived, c, now = 60L)
+        val b = movedToTrash.archived.first { it.note.id == 22L }
+        val d = movedToTrash.archived.first { it.note.id == 24L }
+        val trashedC = movedToTrash.trash.single()
+
+        val afterB = RecordOperations.restoreVaultEntry(movedToTrash, b, fromArchive = true)
+        val afterC = RecordOperations.restoreVaultEntry(afterB, trashedC, fromArchive = false)
+        val afterD = RecordOperations.restoreVaultEntry(afterC, d, fromArchive = true)
+
+        assertEquals(listOf(21L, 22L, 23L, 24L, 25L), afterD.notes.map { it.id })
+    }
 }
