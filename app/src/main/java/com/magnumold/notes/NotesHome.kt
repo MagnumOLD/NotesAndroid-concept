@@ -52,6 +52,7 @@ internal fun NotesHome(
     screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false,
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
+     showCollections: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -177,7 +178,7 @@ internal fun NotesHome(
                             AppIcon(NoteIcon.Pin, contentDescription = if (allSelectedPinned) "Открепить заметки" else "Закрепить заметки")
                         }
                         IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
-                        IconButton(onClick = { showMoveMenu = true }) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
+                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
                         DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
                             if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
                                 onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
@@ -258,6 +259,7 @@ internal fun NotesHome(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
+            if (showCollections) {
             Row(Modifier.fillMaxWidth().height(AppCollectionRowDimensions.height).padding(start = AppSpacing.screenHorizontal, end = AppSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f).fillMaxHeight().horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(AppSpacing.lg)) {
@@ -295,6 +297,7 @@ internal fun NotesHome(
                 IconButton(onClick = { newCollectionName = ""; showNewCollectionDialog = true }) {
                     AppIcon(NoteIcon.Add, contentDescription = "Создать подборку", tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
             }
             if (timelineMode) {
                 Row(

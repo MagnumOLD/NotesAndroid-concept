@@ -28,6 +28,12 @@ internal fun NotesApp(
                 CardPreviewSettingsStore(activity.getSharedPreferences("notes_card_previews", Context.MODE_PRIVATE))
             }
             var cardPreviewFields by remember(cardPreviewStore) { androidx.compose.runtime.mutableStateOf(cardPreviewStore.load()) }
+            val collectionVisibilityStore = remember(activity) {
+                CollectionVisibilitySettingsStore(activity.getSharedPreferences("notes_collection_visibility", Context.MODE_PRIVATE))
+            }
+            var collectionVisibleModules by remember(collectionVisibilityStore) {
+                androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
+            }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
             }
@@ -173,6 +179,14 @@ internal fun NotesApp(
                         interactiveCardsEnabled = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
                         onCardPreviewFieldsChange = { fields -> cardPreviewFields = fields; cardPreviewStore.save(fields) },
+                        collectionVisibleModules = collectionVisibleModules,
+                        onCollectionVisibilityChange = { module, visible ->
+                            collectionVisibleModules = if (visible) collectionVisibleModules + module else collectionVisibleModules - module
+                            collectionVisibilityStore.save(collectionVisibleModules)
+                            if (!visible && navigation.activeModule == module && navigation.activeCollectionId != null) {
+                                navigation.selectCollection(null)
+                            }
+                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -243,6 +257,7 @@ internal fun NotesApp(
                         timelineMode = homeTimelineMode,
                         interactiveCards = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
+                        showCollections = navigation.activeModule == AppModule.ALL || navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
