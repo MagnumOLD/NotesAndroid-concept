@@ -72,10 +72,7 @@ internal fun NotesHome(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val orderedNotes = if (timelineMode) {
-        notes.filter { it.showOnHome }.sortedWith(
-            compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
-                .thenByDescending { it.homeOrder }
-        )
+        HomeTimelineOperations.orderedVisibleRecords(notes)
     } else notes.sortedByDescending { it.pinned }
     val filtered = orderedNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
