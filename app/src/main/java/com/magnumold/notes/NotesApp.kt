@@ -68,8 +68,9 @@ internal fun NotesApp(
             val navigation = remember { AppNavigationState() }
             val activeCollectionId = navigation.activeCollectionId
             val selectedId = navigation.selectedId
-            val activeNotes = if (navigation.activeCollectionId == null) notes.toList()
+            val sourceNotes = if (navigation.activeCollectionId == null) notes.toList()
                 else collections.firstOrNull { it.id == activeCollectionId }?.notes.orEmpty()
+            val activeNotes = sourceNotes.filter { navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType }
             val autoFocusNewNote = navigation.autoFocusNewNote
             val search = navigation.search
             val searchVisible = navigation.searchVisible
@@ -195,7 +196,11 @@ internal fun NotesApp(
                         onChangeNoteColor = { noteId, colorIndex ->
                             recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
                         },
-                        onCreate = { type ->
+                        screenTitle = navigation.activeModule.title,
+                        onOpenModules = { navigation.openModules() },
+                        timelineMode = navigation.activeModule == AppModule.ALL,
+                        onCreate = { requestedType ->
+                            val type = navigation.activeModule.recordType ?: requestedType
                             val now = System.currentTimeMillis()
                             val id = newRecordId()
                             recordsViewModel.createActiveRecord(activeCollectionId, Note(id, "", listOf(NoteBlock()), now, created = now, type = type))
