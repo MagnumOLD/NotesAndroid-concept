@@ -145,7 +145,8 @@ internal class NotesViewModel(
         val imported = parseBackupJson(json)
         val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
         val before = _snapshot.value
-        val merge = RecordOperations.mergeBackupWithIdMap(before, imported)
+        val currentTimeTracking = timeTrackingRepository.load()
+        val merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
         imported.timeTracking?.let { backup ->
             val remappedBackup = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
             timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, remappedBackup) }
