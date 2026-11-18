@@ -54,8 +54,13 @@ internal class NotesViewModel(
         runBlocking {
             pendingJob?.cancelAndJoin()
         }
-        repository.flushSnapshot(_snapshot.value)
-        startPersistenceObserver()
+        try {
+            repository.flushSnapshot(_snapshot.value)
+        } finally {
+            // A failed synchronous commit must not permanently disable
+            // autosave for every edit made later in this ViewModel's lifetime.
+            startPersistenceObserver()
+        }
     }
 
     fun refreshFromRepository() {
