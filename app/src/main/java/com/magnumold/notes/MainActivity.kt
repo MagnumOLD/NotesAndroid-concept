@@ -15,6 +15,7 @@ import androidx.lifecycle.ViewModelProvider
 class MainActivity : ComponentActivity() {
     private lateinit var recordsViewModel: NotesViewModel
     private lateinit var timeTrackingRepository: TimeTrackingRepository
+    private lateinit var recoveryDataRepository: RecoveryDataRepository
     private var lastExternalTaskStatusUpdate: Long = 0L
     private val taskStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -102,19 +103,22 @@ class MainActivity : ComponentActivity() {
             else if (initialDark) android.graphics.Color.BLACK else android.graphics.Color.WHITE
         ))
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        val repository = NotesRepository(getPreferences(Context.MODE_PRIVATE))
-        lastExternalTaskStatusUpdate = getPreferences(Context.MODE_PRIVATE)
-            .getLong("external_task_status_update", 0L)
-        timeTrackingRepository = TimeTrackingRepository(getSharedPreferences("time_tracking", Context.MODE_PRIVATE))
+        val recordPreferences = getPreferences(Context.MODE_PRIVATE)
+        val timeTrackingPreferences = getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
+        val repository = NotesRepository(recordPreferences)
+        timeTrackingRepository = TimeTrackingRepository(timeTrackingPreferences)
+        recoveryDataRepository = RecoveryDataRepository(recordPreferences, timeTrackingPreferences)
+        lastExternalTaskStatusUpdate = recordPreferences.getLong("external_task_status_update", 0L)
         recordsViewModel = ViewModelProvider(
             this,
-            NotesViewModelFactory(repository, timeTrackingRepository)
+            NotesViewModelFactory(repository, timeTrackingRepository, recoveryDataRepository)
         )[NotesViewModel::class.java]
         setContent {
             NotesApp(
                 activity = this@MainActivity,
                 recordsViewModel = recordsViewModel,
                 timeTrackingRepository = timeTrackingRepository,
+                recoveryDataRepository = recoveryDataRepository,
                 savedThemeMode = savedThemeMode,
                 initialThemeColorSets = initialThemeColorSets
             )

@@ -11,7 +11,8 @@ import android.net.Uri
  */
 internal class BackupFileStore(
     private val contentResolver: ContentResolver,
-    private val timeTrackingStateProvider: () -> TimeTrackingState = { TimeTrackingState() }
+    private val timeTrackingStateProvider: () -> TimeTrackingState = { TimeTrackingState() },
+    private val recoveryDataProvider: () -> List<RecoveryEntry> = { emptyList() }
 ) {
     fun writeBackup(uri: Uri, snapshot: PersistenceSnapshot, timeTracking: TimeTrackingState = timeTrackingStateProvider()) {
         val output = contentResolver.openOutputStream(uri)
@@ -22,7 +23,8 @@ internal class BackupFileStore(
                 snapshot.collections,
                 snapshot.archived,
                 snapshot.trash,
-                timeTracking
+                timeTracking,
+                recoveryDataProvider()
             )
             it.write(json.toByteArray(Charsets.UTF_8))
         }

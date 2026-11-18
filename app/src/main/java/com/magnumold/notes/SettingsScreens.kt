@@ -376,7 +376,7 @@ internal fun SettingsScreen(
                 ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Экспорт заметок") },
-                    supportingContent = { Text("Сохранить резервную копию в JSON-файл") },
+                    supportingContent = { Text("Записи, архив, корзина и данные восстановления в JSON-файл") },
                     leadingContent = { AppIcon(NoteIcon.Upload, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onExport).padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )

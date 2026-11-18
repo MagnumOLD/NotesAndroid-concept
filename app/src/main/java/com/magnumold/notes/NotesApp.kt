@@ -15,6 +15,7 @@ internal fun NotesApp(
     activity: MainActivity,
     recordsViewModel: NotesViewModel,
     timeTrackingRepository: TimeTrackingRepository,
+    recoveryDataRepository: RecoveryDataRepository,
     savedThemeMode: String,
     initialThemeColorSets: ThemeColorSets
 ) {
@@ -50,8 +51,12 @@ internal fun NotesApp(
             val themeSettings = remember(activity) {
                 ThemeSettingsStore(activity.getSharedPreferences("notes_settings", Context.MODE_PRIVATE))
             }
-            val backupFileStore = remember(activity, timeTrackingRepository) {
-                BackupFileStore(activity.contentResolver) { timeTrackingRepository.load() }
+            val backupFileStore = remember(activity, timeTrackingRepository, recoveryDataRepository) {
+                BackupFileStore(
+                    contentResolver = activity.contentResolver,
+                    timeTrackingStateProvider = { timeTrackingRepository.load() },
+                    recoveryDataProvider = { recoveryDataRepository.exportEntries() }
+                )
             }
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }

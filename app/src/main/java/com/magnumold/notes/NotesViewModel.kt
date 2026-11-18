@@ -21,7 +21,8 @@ import kotlinx.coroutines.runBlocking
  */
 internal class NotesViewModel(
     private val repository: NotesRepository,
-    private val timeTrackingRepository: TimeTrackingRepository
+    private val timeTrackingRepository: TimeTrackingRepository,
+    private val recoveryDataRepository: RecoveryDataRepository
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(repository.loadSnapshot())
     val snapshot: StateFlow<PersistenceSnapshot> = _snapshot.asStateFlow()
@@ -137,6 +138,7 @@ internal class NotesViewModel(
 
     fun importBackup(json: String): Int {
         val imported = parseBackupJson(json)
+        recoveryDataRepository.importEntries(imported.recoveryEntries)
         imported.timeTracking?.let { backup ->
             timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, backup) }
         }
@@ -180,13 +182,14 @@ internal class NotesViewModel(
 
 internal class NotesViewModelFactory(
     private val repository: NotesRepository,
-    private val timeTrackingRepository: TimeTrackingRepository
+    private val timeTrackingRepository: TimeTrackingRepository,
+    private val recoveryDataRepository: RecoveryDataRepository
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(NotesViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return NotesViewModel(repository, timeTrackingRepository) as T
+        return NotesViewModel(repository, timeTrackingRepository, recoveryDataRepository) as T
     }
 }

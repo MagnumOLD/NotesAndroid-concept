@@ -3,7 +3,14 @@ package com.magnumold.notes
 import org.json.JSONArray
 import org.json.JSONObject
 
-internal data class BackupData(val notes: List<Note>, val collections: List<NoteCollection>, val archived: List<VaultNote>, val trash: List<VaultNote>, val timeTracking: TimeTrackingState? = null)
+internal data class BackupData(
+    val notes: List<Note>,
+    val collections: List<NoteCollection>,
+    val archived: List<VaultNote>,
+    val trash: List<VaultNote>,
+    val timeTracking: TimeTrackingState? = null,
+    val recoveryEntries: List<RecoveryEntry> = emptyList()
+)
 private fun noteToJson(note: Note): JSONObject {
     val blocks = JSONArray()
     note.blocks.forEach { block ->
@@ -144,20 +151,38 @@ internal fun parseCollectionsArray(array: JSONArray): List<NoteCollection> =
         )
     }
 
-internal fun createBackupJson(items: List<Note>, collections: List<NoteCollection>, archived: List<VaultNote>, trash: List<VaultNote>, timeTracking: TimeTrackingState = TimeTrackingState()): String {
+internal fun createBackupJson(
+    items: List<Note>,
+    collections: List<NoteCollection>,
+    archived: List<VaultNote>,
+    trash: List<VaultNote>,
+    timeTracking: TimeTrackingState = TimeTrackingState(),
+    recoveryEntries: List<RecoveryEntry> = emptyList()
+): String {
     val collectionArray = JSONArray()
     collections.forEach { collection ->
         collectionArray.put(JSONObject().put("id", collection.id).put("name", collection.name).put("notes", notesToJson(collection.notes)))
     }
-    return JSONObject().put("format", "notes_backup").put("version", 11).put("exportedAt", System.currentTimeMillis())
+    val recoveryArray = JSONArray()
+    recoveryEntries.forEach { entry ->
+        recoveryArray.put(
+            JSONObject()
+                .put("storage", entry.storage)
+                .put("key", entry.key)
+                .put("raw", entry.raw)
+        )
+    }
+    return JSONObject().put("format", "notes_backup").put("version", 12).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
-        .put("timeTracking", timeTrackingToJson(timeTracking)).toString(2)
+        .put("timeTracking", timeTrackingToJson(timeTracking))
+        .put("recoveryData", recoveryArray)
+        .toString(2)
 }
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..11) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..12) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.getJSONArray("notes"))
     val collections = if (!root.has("collections") || root.isNull("collections")) emptyList()
         else parseCollectionsArray(root.getJSONArray("collections"))
@@ -167,7 +192,23 @@ internal fun parseBackupJson(raw: String): BackupData {
         else parseVaultArray(root.getJSONArray("trash"))
     val timeTracking = if (!root.has("timeTracking") || root.isNull("timeTracking")) null
         else parseTimeTrackingJson(root.getJSONObject("timeTracking"))
-    return BackupData(notes, collections, archived, trash, timeTracking)
+    val recoveryEntries = if (!root.has("recoveryData") || root.isNull("recoveryData")) emptyList()
+        else {
+            val array = root.getJSONArray("recoveryData")
+            (0 until array.length()).map { index ->
+                val entry = array.getJSONObject(index)
+                RecoveryEntry(
+                    storage = entry.getString("storage"),
+                    key = entry.getString("key"),
+                    raw = entry.getString("raw")
+                ).also {
+                    require(it.storage == RecoveryDataRepository.STORAGE_RECORDS ||
+                        it.storage == RecoveryDataRepository.STORAGE_TIME_TRACKING)
+                    require(it.key.startsWith(RecoveryDataRepository.RECOVERY_KEY_PREFIX))
+                }
+            }
+        }
+    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries)
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =
