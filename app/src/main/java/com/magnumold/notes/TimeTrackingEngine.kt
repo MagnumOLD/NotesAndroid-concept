@@ -252,6 +252,9 @@ internal object ProtectionTimerEngine {
     ): ProtectionTimer {
         require(current == null) { "Only one protection timer can run at a time." }
         require(durationMillis > 0L)
+        require(nowMillis <= Long.MAX_VALUE - durationMillis) {
+            "Protection timer end timestamp exceeds the supported range."
+        }
         return ProtectionTimer(
             taskId = taskId,
             taskTitle = taskTitle,
@@ -265,8 +268,12 @@ internal object ProtectionTimerEngine {
         )
     }
 
-    fun remainingMillis(timer: ProtectionTimer, nowMillis: Long): Long =
-        (timer.endsAtMillis - nowMillis).coerceAtLeast(0L)
+    fun remainingMillis(timer: ProtectionTimer, nowMillis: Long): Long {
+        if (timer.endsAtMillis <= nowMillis) return 0L
+        return if (
+            nowMillis < 0L && timer.endsAtMillis > Long.MAX_VALUE + nowMillis
+        ) Long.MAX_VALUE else timer.endsAtMillis - nowMillis
+    }
 
     fun isFinished(timer: ProtectionTimer, nowMillis: Long): Boolean =
         nowMillis >= timer.endsAtMillis
