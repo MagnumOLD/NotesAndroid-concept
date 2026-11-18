@@ -84,9 +84,10 @@ internal object RecordOperations {
         val importedVaultRootIds = (
             imported.archived.map { it.note.id } + imported.trash.map { it.note.id }
         ).mapTo(mutableSetOf()) { importedNoteIdMap[it] ?: it }
+        val preexistingVaultRootIds = (current.archived + current.trash).mapTo(mutableSetOf()) { it.note.id }
         fun remapImportedVaultLinks(entries: List<VaultNote>): List<VaultNote> =
             entries.map { entry ->
-                if (entry.note.id !in importedVaultRootIds) entry
+                if (entry.note.id !in importedVaultRootIds || entry.note.id in preexistingVaultRootIds) entry
                 else entry.copy(
                     previousRecordId = entry.previousRecordId?.let { importedNoteIdMap[it] ?: it },
                     nextRecordId = entry.nextRecordId?.let { importedNoteIdMap[it] ?: it }
