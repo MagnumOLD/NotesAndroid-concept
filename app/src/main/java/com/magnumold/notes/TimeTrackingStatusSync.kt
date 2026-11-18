@@ -45,12 +45,20 @@ internal fun syncWorkSessionsForTaskChanges(
 
     newEntries.forEach { (id, entry) ->
         val note = entry.note
-        if (note.type != RecordType.TASK) return@forEach
+        if (note.type != RecordType.TASK) {
+            if (id in state.activeSessions) {
+                state = TimeTrackingEngine.finish(state, id, nowMillis, WorkSessionEndReason.STOP)
+            }
+            if (state.protectionTimer?.taskId == id) {
+                state = state.copy(protectionTimer = null)
+            }
+            return@forEach
+        }
         val old = oldEntries[id]?.note
-        // All subtasks are tracked automatically. The legacy opt-in field is ignored,
-        // preserving compatibility with previously saved records.
-        val oldStatus = old?.status
-        val newStatus = note.status
+        // Resolve deadline-derived states at the same instant as this sync.
+        // A task can become MISSED without its persisted raw status changing.
+        val oldStatus = old?.recordStatus(nowMillis)
+        val newStatus = note.recordStatus(nowMillis)
         if (newStatus == RecordStatus.COMPLETED && state.protectionTimer?.taskId == id) {
             state = state.copy(protectionTimer = null)
         }
@@ -67,9 +75,8 @@ internal fun syncWorkSessionsForTaskChanges(
                 )
             )
         }
-        if (previousParentId != null &&
-            (entry.parentId == null || parentChanged ||
-                (oldStatus == RecordStatus.IN_PROGRESS && newStatus != RecordStatus.IN_PROGRESS))
+        if (id in state.activeSessions &&
+            (entry.parentId == null || parentChanged || newStatus != RecordStatus.IN_PROGRESS)
         ) {
             val reason = when (newStatus) {
                 RecordStatus.COMPLETED -> WorkSessionEndReason.TASK_COMPLETED
