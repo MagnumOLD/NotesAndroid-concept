@@ -68,6 +68,30 @@ internal class NotesViewModel(
         updateSnapshot { CollectionOperations.transfer(it, sourceId, targetId, ids) }
     }
 
+    fun updateHomeRecord(note: Note) {
+        updateSnapshot { HomeTimelineOperations.update(it, note) }
+    }
+
+    fun removeHomeRecord(noteId: Long) {
+        updateSnapshot { HomeTimelineOperations.remove(it, noteId) }
+    }
+
+    fun reorderHomeRecords(ids: Set<Long>, afterId: Long?) {
+        updateSnapshot { HomeTimelineOperations.reorder(it, ids, afterId) }
+    }
+
+    fun toggleHomeRecordsPinned(ids: Set<Long>) {
+        updateSnapshot { HomeTimelineOperations.togglePinned(it, ids) }
+    }
+
+    fun changeHomeRecordColor(noteId: Long, colorIndex: Int) {
+        updateSnapshot { HomeTimelineOperations.changeColor(it, noteId, colorIndex) }
+    }
+
+    fun moveHomeRecordsToVault(ids: Set<Long>, toTrash: Boolean) {
+        updateSnapshot { HomeTimelineOperations.moveToVault(it, ids, toTrash) }
+    }
+
     fun createActiveRecord(collectionId: Long?, note: Note) {
         updateSnapshot { RecordListOperations.create(it, collectionId, note) }
     }
