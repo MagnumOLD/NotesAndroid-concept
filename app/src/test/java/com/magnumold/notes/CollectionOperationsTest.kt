@@ -62,6 +62,21 @@ class CollectionOperationsTest {
         assertTrue(moved.collections.single().notes.isEmpty())
     }
 
+
+    @Test
+    fun transferToMissingCollectionLeavesSourceRecordsUntouched() {
+        val initial = snapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Source", listOf(note(2), note(3))))
+        )
+
+        val unchanged = CollectionOperations.transfer(initial, 10, 999, setOf(2, 3))
+
+        assertSame(initial, unchanged)
+        assertEquals(listOf(2L, 3L), unchanged.collections.single().notes.map { it.id })
+        assertEquals(listOf(1L), unchanged.notes.map { it.id })
+    }
+
     @Test
     fun recordListCreateUpdateRemoveAndColorChangeAreScopedToSelectedCollection() {
         val initial = snapshot(
