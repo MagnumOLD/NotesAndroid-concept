@@ -230,7 +230,8 @@ class HomeTimelineOperationsTest {
         val records = listOf(
             note(1).copy(favorite = true),
             note(2),
-            note(3).copy(favorite = true)
+            note(3).copy(favorite = true),
+            note(4).copy(favorite = true, showOnHome = false)
         )
         assertEquals(
             listOf(1L, 3L),
