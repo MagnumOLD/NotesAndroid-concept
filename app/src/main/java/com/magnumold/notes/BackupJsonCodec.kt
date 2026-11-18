@@ -22,6 +22,7 @@ private fun noteToJson(note: Note): JSONObject {
         .put("nutritionGrams", note.nutritionGrams).put("nutritionCalories", note.nutritionCalories)
         .put("nutritionProtein", note.nutritionProtein).put("nutritionFat", note.nutritionFat)
         .put("nutritionCarbs", note.nutritionCarbs)
+        .put("purchaseQuantity", note.purchaseQuantity).put("purchaseUnitPrice", note.purchaseUnitPrice)
         .put("dateMode", note.dateMode?.name ?: JSONObject.NULL)
         .put("dateAt", note.dateAt ?: JSONObject.NULL)
         .put("titleEnabled", note.titleEnabled).put("titleText", note.titleText)
@@ -80,6 +81,8 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         nutritionProtein = obj.optDouble("nutritionProtein", 0.0).coerceAtLeast(0.0),
         nutritionFat = obj.optDouble("nutritionFat", 0.0).coerceAtLeast(0.0),
         nutritionCarbs = obj.optDouble("nutritionCarbs", 0.0).coerceAtLeast(0.0),
+        purchaseQuantity = obj.optDouble("purchaseQuantity", 1.0).coerceAtLeast(0.0),
+        purchaseUnitPrice = obj.optDouble("purchaseUnitPrice", 0.0).coerceAtLeast(0.0),
         dateMode = dateMode,
         dateAt = if (obj.isNull("dateAt")) null else obj.optLong("dateAt"),
         titleEnabled = obj.optBoolean("titleEnabled", false), titleText = obj.optString("titleText"),
@@ -127,7 +130,7 @@ internal fun createBackupJson(items: List<Note>, collections: List<NoteCollectio
     collections.forEach { collection ->
         collectionArray.put(JSONObject().put("id", collection.id).put("name", collection.name).put("notes", notesToJson(collection.notes)))
     }
-    return JSONObject().put("format", "notes_backup").put("version", 8).put("exportedAt", System.currentTimeMillis())
+    return JSONObject().put("format", "notes_backup").put("version", 9).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
         .put("timeTracking", timeTrackingToJson(timeTracking)).toString(2)
@@ -135,7 +138,7 @@ internal fun createBackupJson(items: List<Note>, collections: List<NoteCollectio
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..8) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..9) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.optJSONArray("notes") ?: error("В файле нет списка заметок"))
     val collections = parseCollectionsArray(root.optJSONArray("collections") ?: JSONArray())
     return BackupData(notes, collections, parseVaultArray(root.optJSONArray("archive")), parseVaultArray(root.optJSONArray("trash")), root.optJSONObject("timeTracking")?.let(::parseTimeTrackingJson))
