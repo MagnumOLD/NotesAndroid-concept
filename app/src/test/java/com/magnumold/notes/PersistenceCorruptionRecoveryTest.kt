@@ -1,6 +1,7 @@
 package com.magnumold.notes
 
 import android.content.Context
+import androidx.lifecycle.ViewModelStore
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -108,6 +109,42 @@ class PersistenceCorruptionRecoveryTest {
             it.startsWith("recovery_corrupt_time_tracking_state_v1_")
         }
         assertEquals(damaged, prefs.getString(recoveryKey, null))
+    }
+
+    @Test
+    fun backupImportFlushesMergedRecordsBeforeReturning() {
+        val records = preferences("backup_import_flush_records_test")
+        val tracking = preferences("backup_import_flush_tracking_test")
+        val store = ViewModelStore()
+        val viewModel = NotesViewModel(
+            NotesRepository(records),
+            TimeTrackingRepository(tracking),
+            RecoveryDataRepository(records, tracking)
+        )
+        store.put("backup-import-test", viewModel)
+        try {
+            val note = Note(
+                id = 420L,
+                title = "",
+                blocks = listOf(NoteBlock("Imported immediately")),
+                updated = 420L
+            )
+            val json = createBackupJson(
+                items = listOf(note),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList()
+            )
+
+            val result = viewModel.importBackup(json)
+
+            assertEquals(1, result.importedRecordCount)
+            assertEquals(420L, NotesRepository(records).loadSnapshot().notes.single().id)
+        } finally {
+            store.clear()
+            records.edit().clear().commit()
+            tracking.edit().clear().commit()
+        }
     }
 
     @Test

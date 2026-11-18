@@ -15,19 +15,19 @@ internal class BackupFileStore(
     private val recoveryDataProvider: () -> List<RecoveryEntry> = { emptyList() }
 ) {
     fun writeBackup(uri: Uri, snapshot: PersistenceSnapshot, timeTracking: TimeTrackingState = timeTrackingStateProvider()) {
+        // Serialize before opening the destination so an encoding failure
+        // cannot truncate an existing document.
+        val bytes = createBackupJson(
+            snapshot.notes,
+            snapshot.collections,
+            snapshot.archived,
+            snapshot.trash,
+            timeTracking,
+            recoveryDataProvider()
+        ).toByteArray(Charsets.UTF_8)
         val output = contentResolver.openOutputStream(uri)
             ?: error("Не удалось открыть файл")
-        output.use {
-            val json = createBackupJson(
-                snapshot.notes,
-                snapshot.collections,
-                snapshot.archived,
-                snapshot.trash,
-                timeTracking,
-                recoveryDataProvider()
-            )
-            it.write(json.toByteArray(Charsets.UTF_8))
-        }
+        output.use { it.write(bytes) }
     }
 
     fun readBackup(uri: Uri): String {

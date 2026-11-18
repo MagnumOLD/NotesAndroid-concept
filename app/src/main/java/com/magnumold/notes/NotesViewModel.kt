@@ -148,6 +148,9 @@ internal class NotesViewModel(
             importedCount = RecordOperations.recordCount(merged) - RecordOperations.recordCount(current)
             merged
         }
+        // Do not report a successful import while the merged records are only
+        // waiting in the debounced autosave queue.
+        flush()
         return BackupImportResult(importedCount, importedRecoveryCount)
     }
 
