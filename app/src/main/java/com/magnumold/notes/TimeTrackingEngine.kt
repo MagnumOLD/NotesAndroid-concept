@@ -50,7 +50,7 @@ internal object TimeTrackingEngine {
             subtaskTitle = active.subtaskTitle,
             startedAtMillis = active.startedAtMillis,
             endedAtMillis = end,
-            durationMillis = end - active.startedAtMillis,
+            durationMillis = elapsedMillisSaturated(active.startedAtMillis, end),
             endReason = reason
         )
         return state.copy(
@@ -85,7 +85,7 @@ internal object TimeTrackingEngine {
             var current = mutableListOf(sorted.first())
             sorted.drop(1).forEach { next ->
                 val previous = current.last()
-                val gap = next.startedAtMillis - previous.endedAtMillis
+                val gap = elapsedMillisSaturated(previous.endedAtMillis, next.startedAtMillis)
                 if (gap <= mergeGapMillis) {
                     current.add(next)
                 } else {
@@ -103,7 +103,7 @@ internal object TimeTrackingEngine {
             .filter { it.taskId == taskId }
             .fold(0L) { total, session -> saturatingAdd(total, session.durationMillis) }
         val active = state.activeSessions[taskId]?.let {
-            elapsedMillis(it.startedAtMillis, nowMillis)
+            elapsedMillisSaturated(it.startedAtMillis, nowMillis)
         } ?: 0L
         return saturatingAdd(saved, active)
     }
@@ -141,12 +141,12 @@ internal object TimeTrackingEngine {
             if (start <= mergedEnd) {
                 mergedEnd = maxOf(mergedEnd, end)
             } else {
-                total = saturatingAdd(total, elapsedMillis(mergedStart, mergedEnd))
+                total = saturatingAdd(total, elapsedMillisSaturated(mergedStart, mergedEnd))
                 mergedStart = start
                 mergedEnd = end
             }
         }
-        return saturatingAdd(total, elapsedMillis(mergedStart, mergedEnd))
+        return saturatingAdd(total, elapsedMillisSaturated(mergedStart, mergedEnd))
     }
 
     fun replaceSession(state: TimeTrackingState, edited: WorkSession): TimeTrackingState {
@@ -176,7 +176,7 @@ internal object TimeTrackingEngine {
         fun include(taskId: Long, start: Long, end: Long) {
             val overlapStart = maxOf(start, startInclusive)
             val overlapEnd = minOf(end, endExclusive)
-            val overlap = elapsedMillis(overlapStart, overlapEnd)
+            val overlap = elapsedMillisSaturated(overlapStart, overlapEnd)
             if (overlap > 0L) {
                 totals[taskId] = saturatingAdd(totals[taskId] ?: 0L, overlap)
             }
@@ -229,17 +229,8 @@ internal object TimeTrackingEngine {
             val nextDay = nextDayCalendar.timeInMillis
             val segmentEnd = minOf(end, nextDay)
             val key = dayKey(cursor)
-            totals[key] = saturatingAdd(totals[key] ?: 0L, elapsedMillis(cursor, segmentEnd))
+            totals[key] = saturatingAdd(totals[key] ?: 0L, elapsedMillisSaturated(cursor, segmentEnd))
             cursor = segmentEnd
-        }
-    }
-
-    private fun elapsedMillis(start: Long, end: Long): Long {
-        if (end <= start) return 0L
-        return if (start < 0L && end > Long.MAX_VALUE + start) {
-            Long.MAX_VALUE
-        } else {
-            end - start
         }
     }
 
