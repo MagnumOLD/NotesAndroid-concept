@@ -20,6 +20,9 @@
             android:name=".ProtectionTimerReceiver"
             android:exported="false" />
         <receiver
+            android:name=".RecordTimerReceiver"
+            android:exported="false" />
+        <receiver
             android:name=".ProtectionTimerBootReceiver"
             android:enabled="true"
             android:exported="false">

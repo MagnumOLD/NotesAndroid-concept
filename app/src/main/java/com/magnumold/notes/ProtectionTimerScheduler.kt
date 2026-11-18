@@ -88,9 +88,16 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
             }
         }
         if (state != repository.load()) repository.save(state)
-        val timer = state.protectionTimer ?: return
-        // Scheduling even an already-expired alarm lets AlarmManager deliver it
-        // through the same receiver path as a normal expiry after reboot.
-        ProtectionTimerScheduler(context).schedule(timer)
+        state.protectionTimer?.let { timer ->
+            // Scheduling even an already-expired alarm lets AlarmManager deliver it
+            // through the same receiver path as a normal expiry after reboot.
+            ProtectionTimerScheduler(context).schedule(timer)
+        }
+        val notesRepository = NotesRepository(
+            context.getSharedPreferences("MainActivity_preferences", Context.MODE_PRIVATE)
+        )
+        RecordTimerScheduler(context).scheduleAll(
+            HomeTimelineOperations.records(notesRepository.loadSnapshot())
+        )
     }
 }

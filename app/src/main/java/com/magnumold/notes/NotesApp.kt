@@ -38,6 +38,7 @@ internal fun NotesApp(
             }
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
+            val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
             LaunchedEffect(timeTrackingState.protectionTimer) {
                 val timer = timeTrackingState.protectionTimer
                 if (timer == null) protectionTimerScheduler.cancel()
@@ -297,6 +298,7 @@ internal fun NotesApp(
                             val updated = changed.copy(updated = System.currentTimeMillis())
                             if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
                             else recordsViewModel.updateActiveRecord(activeCollectionId, updated)
+                            recordTimerScheduler.sync(updated)
                         }
                     )
                 } else {

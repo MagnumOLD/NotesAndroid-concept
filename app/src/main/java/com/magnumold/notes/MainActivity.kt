@@ -42,6 +42,11 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (::recordsViewModel.isInitialized) {
+            recordsViewModel.refreshFromRepository()
+            val noteRepository = NotesRepository(getPreferences(Context.MODE_PRIVATE))
+            RecordTimerScheduler(this).scheduleAll(
+                HomeTimelineOperations.records(noteRepository.loadSnapshot())
+            )
             val marker = getPreferences(Context.MODE_PRIVATE)
                 .getLong("external_task_status_update", lastExternalTaskStatusUpdate)
             if (marker > lastExternalTaskStatusUpdate) {
