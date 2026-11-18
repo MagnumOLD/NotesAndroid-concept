@@ -9,6 +9,12 @@ internal object TimerOperations {
     fun normalizeDuration(seconds: Long): Long =
         seconds.coerceIn(MIN_DURATION_SECONDS, MAX_DURATION_SECONDS)
 
+    /** A completed timer starts from its full configured duration again. */
+    fun durationToStart(remainingSeconds: Long?, durationSeconds: Long): Long {
+        val duration = normalizeDuration(durationSeconds)
+        return remainingSeconds?.takeIf { it > 0L }?.coerceAtMost(duration) ?: duration
+    }
+
     fun remainingSeconds(endsAtMillis: Long, nowMillis: Long): Long {
         if (endsAtMillis <= nowMillis) return 0L
 
