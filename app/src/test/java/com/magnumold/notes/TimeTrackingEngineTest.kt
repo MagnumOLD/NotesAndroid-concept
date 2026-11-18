@@ -106,6 +106,30 @@ class TimeTrackingEngineTest {
         assertTrue(ProtectionTimerEngine.isFinished(timer, 60_000))
     }
 
+    @Test fun protectionTimerRemainingTimeDoesNotOverflowForExtremeTimestamps() {
+        val expired = ProtectionTimer(
+            taskId = 1, taskTitle = "Task", subtaskTitle = null,
+            startedAtMillis = Long.MIN_VALUE, endsAtMillis = -1L,
+            endMode = ProtectionEndMode.SIGNAL_ONLY
+        )
+        val longRunning = expired.copy(endsAtMillis = Long.MAX_VALUE)
+
+        assertEquals(0L, ProtectionTimerEngine.remainingMillis(expired, 1L))
+        assertEquals(Long.MAX_VALUE, ProtectionTimerEngine.remainingMillis(longRunning, Long.MIN_VALUE))
+    }
+
+    @Test fun protectionTimerRejectsEndTimestampOverflow() {
+        try {
+            ProtectionTimerEngine.start(
+                null, 1, "Task", null, Long.MAX_VALUE - 10L, 60_000L,
+                ProtectionEndMode.SIGNAL_ONLY, null, false
+            )
+            throw AssertionError("Expected an invalid end timestamp to be rejected")
+        } catch (_: IllegalArgumentException) {
+            // Expected: an invalid timestamp must not wrap into the past.
+        }
+    }
+
     private fun session(
         id: String,
         taskId: Long,
