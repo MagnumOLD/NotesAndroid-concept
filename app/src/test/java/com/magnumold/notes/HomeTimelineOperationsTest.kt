@@ -224,6 +224,24 @@ class HomeTimelineOperationsTest {
         )
     }
 
+
+    @Test
+    fun favoritesAreGroupedByModuleAndOrderedByDateInsideEachGroup() {
+        val records = listOf(
+            note(1, created = 5 * 86_400_000L).copy(type = RecordType.TASK, favorite = true),
+            note(2, created = 8 * 86_400_000L).copy(type = RecordType.NOTE, favorite = true),
+            note(3, created = 9 * 86_400_000L).copy(type = RecordType.TASK, favorite = true),
+            note(4, created = 10 * 86_400_000L).copy(type = RecordType.NOTE),
+            note(5, created = 7 * 86_400_000L).copy(type = RecordType.PURCHASE, favorite = true)
+        )
+
+        val ordered = HomeTimelineOperations.orderedFavoritesByModule(records)
+
+        assertEquals(listOf(2L, 1L, 3L, 5L), ordered.map { it.id })
+        assertEquals("Заметки", HomeTimelineOperations.moduleSectionTitle(RecordType.NOTE))
+        assertEquals("Задачи", HomeTimelineOperations.moduleSectionTitle(RecordType.TASK))
+    }
+
     @Test
     fun homeTimelineSortsByScheduledDayAndHidesExcludedRecords() {
         val yesterday = note(1, order = 100, created = 86_400_000L)

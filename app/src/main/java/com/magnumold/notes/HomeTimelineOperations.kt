@@ -33,6 +33,17 @@ internal object HomeTimelineOperations {
                 .thenByDescending { it.homeOrder }
         )
 
+    fun orderedFavoritesByModule(notes: List<Note>): List<Note> =
+        notes.filter { it.favorite && it.showOnHome }.sortedWith(
+            compareBy<Note> { it.type.ordinal }
+                .thenByDescending { timelineDayKey(it) }
+                .thenByDescending { it.pinned }
+                .thenByDescending { it.homeOrder }
+        )
+
+    fun moduleSectionTitle(type: RecordType): String =
+        AppModule.entries.firstOrNull { it.recordType == type }?.title ?: "Другое"
+
     fun update(snapshot: PersistenceSnapshot, note: Note): PersistenceSnapshot {
         if (snapshot.notes.any { it.id == note.id }) {
             return snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })

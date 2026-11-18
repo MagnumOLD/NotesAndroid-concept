@@ -79,7 +79,10 @@ internal fun NotesHome(
     val rangeNotes = if (timelineMode) {
         HomeTimelineOperations.filterByRange(orderedNotes, timelineRange, todayDay)
     } else orderedNotes
-    val filtered = rangeNotes.filter { it.matchesSearch(search) }
+    val displayNotes = if (timelineMode && timelineRange == HomeTimelineRange.FAVORITES) {
+        HomeTimelineOperations.orderedFavoritesByModule(rangeNotes)
+    } else rangeNotes
+    val filtered = displayNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
@@ -490,12 +493,20 @@ internal fun NotesHome(
                             val anchorNoteId = dragRow.key.toLongOrNull()
                             val anchorNote = dragRow.notes.firstOrNull { it.id == anchorNoteId } ?: dragRow.notes.first()
                             val rowDay = timelineDayKey(anchorNote)
-                            val previousDay = visibleDragRows.getOrNull(index - 1)?.notes?.firstOrNull()
-                                ?.let { timelineDayKey(it) }
+                            val previousNote = visibleDragRows.getOrNull(index - 1)?.notes?.firstOrNull()
+                            val previousDay = previousNote?.let { timelineDayKey(it) }
+                            val isFavoritesView = timelineRange == HomeTimelineRange.FAVORITES
+                            val startsNewSection = if (isFavoritesView) {
+                                index == 0 || previousNote?.type != anchorNote.type
+                            } else {
+                                index == 0 || rowDay != previousDay
+                            }
                             Column(Modifier.fillMaxWidth()) {
-                                if (timelineMode && !isDragging && (index == 0 || rowDay != previousDay)) {
+                                if (timelineMode && !isDragging && startsNewSection) {
                                     Text(
-                                        text = homeTimelineDayLabel(rowDay, todayDay),
+                                        text = if (isFavoritesView) {
+                                            HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
+                                        } else homeTimelineDayLabel(rowDay, todayDay),
                                         modifier = Modifier.fillMaxWidth().padding(
                                             start = AppSpacing.screenHorizontal,
                                             end = AppSpacing.screenHorizontal,
