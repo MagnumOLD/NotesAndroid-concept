@@ -56,27 +56,32 @@ class ModuleSummaryOperationsTest {
 
     @Test
     fun taskSummaryUsesTheSuppliedInstantForDeadlineStatus() {
-        val day = 600L
-        val dayStart = day * 86_400_000L
-        val deadline = dayStart
-        val task = Note(
-            1, "", listOf(NoteBlock()), dayStart,
-            type = RecordType.TASK,
-            status = RecordStatus.WAITING,
-            dateMode = RecordDateMode.DEADLINE,
-            dateAt = deadline,
-            scheduledAt = dayStart
-        )
+        val previousZone = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+            val day = 600L
+            val dayStart = day * 86_400_000L
+            val task = Note(
+                1, "", listOf(NoteBlock()), dayStart,
+                type = RecordType.TASK,
+                status = RecordStatus.WAITING,
+                dateMode = RecordDateMode.DEADLINE,
+                dateAt = dayStart,
+                scheduledAt = dayStart
+            )
 
-        val beforeDeadlineDayEnds = ModuleSummaryOperations.summary(
-            "Задачи", listOf(task), day, dayStart + 23L * 60L * 60L * 1_000L
-        )
-        val afterDeadlineDayEnds = ModuleSummaryOperations.summary(
-            "Задачи", listOf(task), day, dayStart + 86_400_000L
-        )
+            val beforeDeadlineDayEnds = ModuleSummaryOperations.summary(
+                "Задачи", listOf(task), day, dayStart + 23L * 60L * 60L * 1_000L
+            )
+            val afterDeadlineDayEnds = ModuleSummaryOperations.summary(
+                "Задачи", listOf(task), day, dayStart + 86_400_000L
+            )
 
-        assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 0", beforeDeadlineDayEnds)
-        assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 1", afterDeadlineDayEnds)
+            assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 0", beforeDeadlineDayEnds)
+            assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 1", afterDeadlineDayEnds)
+        } finally {
+            java.util.TimeZone.setDefault(previousZone)
+        }
     }
 
     @Test
