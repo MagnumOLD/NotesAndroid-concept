@@ -166,7 +166,11 @@ internal fun NotesApp(
                         onBack = { navigation.closeVault() },
                         onRestore = { entry ->
                             recordsViewModel.restoreVaultEntry(entry, fromArchive = navigation.vaultScreen == "archive")
-                            recordTimerScheduler.sync(entry.note)
+                            recordsViewModel.flush()
+                            val restored = HomeTimelineOperations.records(recordsViewModel.snapshot.value)
+                                .firstOrNull { it.id == entry.note.id }
+                            if (restored != null) recordTimerScheduler.sync(restored)
+                            else recordTimerScheduler.cancel(entry.note.id)
                         },
                         onMoveToTrash = { entry ->
                             recordTimerScheduler.cancel(entry.note.id)
