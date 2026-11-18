@@ -83,9 +83,9 @@ class ModuleRecordBackupTest {
     @Test
     fun backupNormalizesNonFiniteAndOutOfRangeModuleNumbers() {
         val raw = """{"format":"notes_backup","version":12,"notes":[
-            {"id":1,"type":"NUTRITION","nutritionCalories":1e309,"nutritionProtein":-4,"nutritionFat":99999999999,"blocks":[]},
-            {"id":2,"type":"PURCHASE","purchaseQuantity":1e309,"purchaseUnitPrice":-8,"blocks":[]},
-            {"id":3,"type":"WORKOUT","workoutWeightKg":1e309,"blocks":[]}
+            {"id":1,"type":"NUTRITION","nutritionCalories":"Infinity","nutritionProtein":-4,"nutritionFat":99999999999,"blocks":[]},
+            {"id":2,"type":"PURCHASE","purchaseQuantity":"Infinity","purchaseUnitPrice":-8,"blocks":[]},
+            {"id":3,"type":"WORKOUT","workoutWeightKg":"Infinity","blocks":[]}
         ],"collections":[],"archive":[],"trash":[]}"""
 
         val notes = parseBackupJson(raw).notes
