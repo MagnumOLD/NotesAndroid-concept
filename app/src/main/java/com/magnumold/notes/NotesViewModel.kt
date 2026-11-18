@@ -143,19 +143,35 @@ internal class NotesViewModel(
 
     fun importBackup(json: String): BackupImportResult {
         val imported = parseBackupJson(json)
-        val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
         val before = _snapshot.value
         val currentTimeTracking = timeTrackingRepository.load()
         val merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
-        imported.timeTracking?.let { backup ->
+        val mergedTimeTracking = imported.timeTracking?.let { backup ->
             val remappedBackup = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
-            timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, remappedBackup) }
+            mergeTimeTrackingBackup(currentTimeTracking, remappedBackup)
         }
         val importedCount = RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
+
+        // Persist the merged records and tracking references as one logical
+        // operation. If the record snapshot cannot be committed, roll back the
+        // tracking state so it cannot point at records that were never saved.
+        if (mergedTimeTracking != null) timeTrackingRepository.save(mergedTimeTracking)
         updateSnapshot { merge.snapshot }
-        // Do not report a successful import while the merged records are only
-        // waiting in the debounced autosave queue.
-        flush()
+        try {
+            flush()
+        } catch (failure: Throwable) {
+            _snapshot.value = before
+            runCatching { repository.flushSnapshot(before) }
+                .exceptionOrNull()?.let(failure::addSuppressed)
+            if (mergedTimeTracking != null) {
+                runCatching { timeTrackingRepository.restoreBackup(currentTimeTracking) }
+                    .exceptionOrNull()?.let(failure::addSuppressed)
+            }
+            throw failure
+        }
+
+        // Recovery payloads are imported only after the main data commit succeeds.
+        val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
         return BackupImportResult(importedCount, importedRecoveryCount)
     }
 
