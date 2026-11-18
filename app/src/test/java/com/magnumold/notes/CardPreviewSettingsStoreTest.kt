@@ -30,4 +30,16 @@ class CardPreviewSettingsStoreTest {
         prefs.edit().putStringSet("card_preview_fields", setOf("invalid", CardPreviewField.PURCHASE_STATUS.key)).commit()
         assertEquals(setOf(CardPreviewField.PURCHASE_STATUS.key), CardPreviewSettingsStore(prefs).load())
     }
+    @Test
+    fun legacyModuleVisibilityPreferencesMigrateToFieldSelections() {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("card_preview_legacy_test", Context.MODE_PRIVATE)
+        prefs.edit().clear().putStringSet("card_preview_modules", setOf("NUTRITION", "TASKS")).commit()
+        val store = CardPreviewSettingsStore(prefs)
+        assertEquals(
+            (CardPreviewField.forModule(AppModule.NUTRITION) + CardPreviewField.forModule(AppModule.TASKS)).map { it.key }.toSet(),
+            store.load()
+        )
+        store.save(store.load())
+        assertEquals(null, prefs.getStringSet("card_preview_modules", null))
+    }
 }
