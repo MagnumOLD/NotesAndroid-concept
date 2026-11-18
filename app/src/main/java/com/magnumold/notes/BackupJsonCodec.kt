@@ -13,7 +13,7 @@ private fun noteToJson(note: Note): JSONObject {
     return JSONObject()
         .put("id", note.id).put("title", note.title).put("updated", note.updated)
         .put("created", note.created).put("colorIndex", note.colorIndex).put("pinned", note.pinned)
-        .put("type", note.type.name).put("status", note.status.name).put("timeTrackingEnabled", note.timeTrackingEnabled)
+        .put("type", note.type.name).put("status", note.status.name).put("timeTrackingEnabled", note.timeTrackingEnabled)\n        .put("scheduledAt", note.scheduledAt ?: JSONObject.NULL).put("showOnHome", note.showOnHome)\n        .put("favorite", note.favorite).put("homeOrder", note.homeOrder)
         .put("dateMode", note.dateMode?.name ?: JSONObject.NULL)
         .put("dateAt", note.dateAt ?: JSONObject.NULL)
         .put("titleEnabled", note.titleEnabled).put("titleText", note.titleText)
@@ -60,7 +60,7 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         id = obj.optLong("id", index.toLong() + 1L), title = "", blocks = blocks, updated = updated,
         colorIndex = obj.optInt("colorIndex", 0).coerceIn(0, 6), pinned = obj.optBoolean("pinned", false),
         created = created, type = type, status = status,
-        timeTrackingEnabled = obj.optBoolean("timeTrackingEnabled", false), dateMode = dateMode,
+        timeTrackingEnabled = obj.optBoolean("timeTrackingEnabled", false),\n        scheduledAt = if (obj.isNull("scheduledAt")) null else obj.optLong("scheduledAt"),\n        showOnHome = obj.optBoolean("showOnHome", true), favorite = obj.optBoolean("favorite", false),\n        homeOrder = obj.optLong("homeOrder", created), dateMode = dateMode,
         dateAt = if (obj.isNull("dateAt")) null else obj.optLong("dateAt"),
         titleEnabled = obj.optBoolean("titleEnabled", false), titleText = obj.optString("titleText"),
         descriptionEnabled = obj.optBoolean("descriptionEnabled", false),
