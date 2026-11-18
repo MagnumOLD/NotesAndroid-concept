@@ -45,9 +45,12 @@ internal object RecordListOperations {
         val current = activeNotes(snapshot, collectionId)
         val reordered = NoteReorderModel.moveSelected(current, ids, afterId)
         if (reordered == current) return snapshot
+        // HomeTimelineOperations sorts homeOrder descending. Keep the same
+        // convention here so a module reorder is reflected in the same order
+        // when these records appear in the unified home timeline.
         val orderBase = System.currentTimeMillis()
         val orderedWithTimelinePosition = reordered.mapIndexed { index, note ->
-            note.copy(homeOrder = orderBase + index)
+            note.copy(homeOrder = orderBase + reordered.size - index)
         }
         return replace(snapshot, collectionId, orderedWithTimelinePosition)
     }
@@ -57,8 +60,11 @@ internal object RecordListOperations {
         collectionId: Long?,
         ids: Set<Long>
     ): PersistenceSnapshot {
+        if (ids.isEmpty()) return snapshot
         val current = activeNotes(snapshot, collectionId)
-        val allPinned = current.filter { it.id in ids }.all { it.pinned }
+        val selected = current.filter { it.id in ids }
+        if (selected.isEmpty()) return snapshot
+        val allPinned = selected.all { it.pinned }
         val updated = current.map { if (it.id in ids) it.copy(pinned = !allPinned) else it }
         return replace(snapshot, collectionId, updated.sortedByDescending { it.pinned })
     }
