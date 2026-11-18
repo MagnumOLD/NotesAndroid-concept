@@ -46,7 +46,10 @@ internal object RecordListOperations {
         val reordered = NoteReorderModel.moveSelected(current, ids, afterId)
         if (reordered == current) return snapshot
         val orderBase = System.currentTimeMillis()
-        val orderedWithTimelinePosition = reordered.mapIndexed { index, note ->\n            note.copy(homeOrder = orderBase + index)\n        }\n        return replace(snapshot, collectionId, orderedWithTimelinePosition)
+        val orderedWithTimelinePosition = reordered.mapIndexed { index, note ->
+            note.copy(homeOrder = orderBase + index)
+        }
+        return replace(snapshot, collectionId, orderedWithTimelinePosition)
     }
 
     fun togglePinned(
