@@ -28,13 +28,20 @@ internal object RecordStatusRules {
         status: RecordStatus,
         dateMode: RecordDateMode?,
         dateAt: Long?,
-        now: Long
+        now: Long,
+        timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()
     ): RecordStatus {
         if (status == RecordStatus.COMPLETED || status == RecordStatus.PAUSED ||
             status == RecordStatus.CANCELLED || status == RecordStatus.MISSED
         ) return status
         if (dateMode != RecordDateMode.DEADLINE || dateAt == null) return status
-        return if (now >= dateAt + 86_400_000L) RecordStatus.MISSED else status
+
+        // DatePicker dates are UTC-midnight calendar dates, while "now" is an
+        // instant. Compare calendar-day keys in the device timezone instead
+        // of adding 24 hours (which breaks around timezone and DST changes).
+        val deadlineDay = timelineDayKey(dateAt, isDateOnly = true)
+        val currentDay = timelineDayKey(now, isDateOnly = false, timeZone = timeZone)
+        return if (currentDay > deadlineDay) RecordStatus.MISSED else status
     }
 }
 
