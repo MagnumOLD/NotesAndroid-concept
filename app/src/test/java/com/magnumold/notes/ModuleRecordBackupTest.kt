@@ -120,4 +120,49 @@ class ModuleRecordBackupTest {
         assertEquals(101L, decoded.archived.single().previousRecordId)
         assertEquals(103L, decoded.archived.single().nextRecordId)
     }
+
+    @Test
+    fun importingTasksWithDifferentDeadlinesOrStatusesDoesNotMergeThem() {
+        val created = 1_800_000_000_000L
+        val waiting = Note(
+            id = 100L,
+            title = "",
+            blocks = listOf(NoteBlock("Prepare report")),
+            updated = created,
+            created = created,
+            type = RecordType.TASK,
+            status = RecordStatus.WAITING,
+            dateMode = RecordDateMode.DEADLINE,
+            dateAt = created + 86_400_000L
+        )
+        val laterDeadline = waiting.copy(id = 101L, dateAt = created + 2 * 86_400_000L)
+        val inProgress = waiting.copy(id = 102L, status = RecordStatus.IN_PROGRESS)
+
+        val merged = mergeImportedNotes(emptyList(), listOf(waiting, laterDeadline, inProgress))
+
+        assertEquals(3, merged.size)
+        assertEquals(setOf(waiting.dateAt, laterDeadline.dateAt), merged.take(2).map { it.dateAt }.toSet())
+        assertEquals(RecordStatus.IN_PROGRESS, merged.last().status)
+    }
+
+    @Test
+    fun identicalBackupRecordsRemainIdempotentAcrossRepeatedImports() {
+        val created = 1_800_000_000_000L
+        val original = Note(
+            id = 200L,
+            title = "",
+            blocks = listOf(NoteBlock("Buy milk", isChecklist = true)),
+            updated = created,
+            created = created,
+            type = RecordType.TASK,
+            dateMode = RecordDateMode.DATE,
+            dateAt = created + 86_400_000L
+        )
+
+        val once = mergeImportedNotes(listOf(original), listOf(original.copy(
+            blocks = original.blocks.map { it.copy(id = "different-block-id") }
+        )))
+
+        assertEquals(1, once.size)
+    }
 }
