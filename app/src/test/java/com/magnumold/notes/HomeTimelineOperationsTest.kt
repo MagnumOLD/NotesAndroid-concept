@@ -201,6 +201,17 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun dateRangeFiltersUseTheSameCalendarDayKeyAsTimelineSorting() {
+        val today = currentTimelineDayKey()
+        val scheduled = note(1, created = 0L).copy(scheduledAt = today * 86_400_000L)
+        val previous = note(2, created = 0L).copy(scheduledAt = (today - 1) * 86_400_000L)
+        val next = note(3, created = 0L).copy(scheduledAt = (today + 1) * 86_400_000L)
+
+        assertEquals(listOf(1L), HomeTimelineOperations.filterByRange(listOf(scheduled, previous, next), HomeTimelineRange.TODAY, today).map { it.id })
+        assertEquals(listOf(3L), HomeTimelineOperations.filterByRange(listOf(scheduled, previous, next), HomeTimelineRange.TOMORROW, today).map { it.id })
+    }
+
+    @Test
     fun favoritesRangeReturnsOnlyFavoriteRecords() {
         val records = listOf(
             note(1).copy(favorite = true),

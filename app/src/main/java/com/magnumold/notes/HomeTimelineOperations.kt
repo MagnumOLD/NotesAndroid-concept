@@ -11,7 +11,7 @@ internal enum class HomeTimelineRange {
 internal object HomeTimelineOperations {
     fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> =
         notes.filter { note ->
-            val day = (note.scheduledAt ?: note.created) / 86_400_000L
+            val day = timelineDayKey(note)
             when (range) {
                 HomeTimelineRange.ALL -> true
                 HomeTimelineRange.TODAY -> day == todayDay

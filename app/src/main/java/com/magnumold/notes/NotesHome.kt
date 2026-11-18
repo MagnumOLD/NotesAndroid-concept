@@ -606,8 +606,9 @@ private fun homeTimelineDayLabel(day: Long, todayDay: Long): String {
         todayDay -> "Сегодня"
         todayDay + 1 -> "Завтра"
         todayDay - 1 -> "Вчера"
-        else -> java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault())
-            .format(java.util.Date(day * 86_400_000L))
+        else -> java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).apply {
+            timeZone = java.util.TimeZone.getTimeZone("UTC")
+        }.format(java.util.Date(day * 86_400_000L))
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
     }
 }
