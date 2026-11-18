@@ -143,7 +143,7 @@ class HomeTimelineOperationsTest {
             trash = emptyList()
         )
 
-        val updated = HomeTimelineOperations.reorder(snapshot, setOf(3), afterId = 1)
+        val updated = HomeTimelineOperations.reorder(snapshot, setOf(3), afterId = null)
         val ordered = HomeTimelineOperations.orderedVisibleRecords(updated.notes)
 
         assertEquals(listOf(3L, 1L, 2L), ordered.map { it.id })
