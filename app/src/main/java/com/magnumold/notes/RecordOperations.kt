@@ -78,6 +78,25 @@ internal object RecordOperations {
             )
         )
 
+        // Vault neighbor links are record references too. Once every imported
+        // record has been assigned its final ID, remap links on imported vault
+        // entries without touching unrelated entries already in local storage.
+        val importedVaultRootIds = (
+            imported.archived.map { it.note.id } + imported.trash.map { it.note.id }
+        ).mapTo(mutableSetOf()) { importedNoteIdMap[it] ?: it }
+        fun remapImportedVaultLinks(entries: List<VaultNote>): List<VaultNote> =
+            entries.map { entry ->
+                if (entry.note.id !in importedVaultRootIds) entry
+                else entry.copy(
+                    previousRecordId = entry.previousRecordId?.let { importedNoteIdMap[it] ?: it },
+                    nextRecordId = entry.nextRecordId?.let { importedNoteIdMap[it] ?: it }
+                )
+            }
+        val mergedWithRemappedVaultLinks = merged.copy(
+            archived = remapImportedVaultLinks(merged.archived),
+            trash = remapImportedVaultLinks(merged.trash)
+        )
+
         // Time-tracking history may outlive a deleted task. If such an orphan
         // ID collides with a local record, give the imported reference its own
         // reserved ID rather than accidentally attaching history to that record.
@@ -107,7 +126,7 @@ internal object RecordOperations {
                 }
             }
         }
-        return BackupMergeResult(merged, importedNoteIdMap)
+        return BackupMergeResult(mergedWithRemappedVaultLinks, importedNoteIdMap)
     }
 
     fun restoreVaultEntry(
