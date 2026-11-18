@@ -273,6 +273,41 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun favoriteActionTogglesSelectedRecordsAcrossRootAndCollections() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(2)))),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val favorited = HomeTimelineOperations.toggleFavorite(snapshot, setOf(1L, 2L))
+        assertTrue(favorited.notes.single().favorite)
+        assertTrue(favorited.collections.single().notes.single().favorite)
+
+        val unfavorited = HomeTimelineOperations.toggleFavorite(favorited, setOf(1L, 2L))
+        assertFalse(unfavorited.notes.single().favorite)
+        assertFalse(unfavorited.collections.single().notes.single().favorite)
+    }
+
+    @Test
+    fun homeVisibilityCanBeDisabledAndRestoredWithoutDeletingRecords() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(2)))),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val hidden = HomeTimelineOperations.setShowOnHome(snapshot, setOf(1L, 2L), false)
+        assertEquals(2, HomeTimelineOperations.records(hidden).size)
+        assertTrue(HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(hidden)).isEmpty())
+
+        val restored = HomeTimelineOperations.setShowOnHome(hidden, setOf(1L, 2L), true)
+        assertEquals(listOf(1L, 2L), HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(restored)).map { it.id })
+    }
+
+    @Test
     fun unknownRecordUpdateIsNoOp() {
         val snapshot = PersistenceSnapshot(listOf(note(1)), emptyList(), emptyList(), emptyList())
 
