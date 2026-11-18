@@ -68,13 +68,18 @@ internal fun NotesHome(
     var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragReleaseRequested by remember { mutableStateOf(false) }
     val measuredNoteCardHeights = remember { mutableStateMapOf<Long, Int>() }
+    var timelineRange by remember { mutableStateOf(HomeTimelineRange.ALL) }
 
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val orderedNotes = if (timelineMode) {
         HomeTimelineOperations.orderedVisibleRecords(notes)
     } else notes.sortedByDescending { it.pinned }
-    val filtered = orderedNotes.filter { it.matchesSearch(search) }
+    val todayDay = System.currentTimeMillis() / 86_400_000L
+    val rangeNotes = if (timelineMode) {
+        HomeTimelineOperations.filterByRange(orderedNotes, timelineRange, todayDay)
+    } else orderedNotes
+    val filtered = rangeNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
@@ -103,7 +108,7 @@ internal fun NotesHome(
         } else {
             setOf(note.id)
         }
-        val rows = NoteReorderModel.createDragRows(orderedNotes, ids, note.id) ?: return
+        val rows = NoteReorderModel.createDragRows(rangeNotes, ids, note.id) ?: return
 
         dragBaseRows = rows.associateBy { it.key }
         reorderSession = AdjacentReorderEngine.begin(rows.map { it.key }, note.id.toString())
@@ -287,6 +292,34 @@ internal fun NotesHome(
                 }
                 IconButton(onClick = { newCollectionName = ""; showNewCollectionDialog = true }) {
                     AppIcon(NoteIcon.Add, contentDescription = "Создать подборку", tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            if (timelineMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val ranges = listOf(
+                        HomeTimelineRange.ALL to "Лента",
+                        HomeTimelineRange.TODAY to "Сегодня",
+                        HomeTimelineRange.TOMORROW to "Завтра",
+                        HomeTimelineRange.WEEK to "Неделя",
+                        HomeTimelineRange.MONTH to "Месяц",
+                        HomeTimelineRange.HISTORY to "История"
+                    )
+                    ranges.forEach { (range, label) ->
+                        FilterChip(
+                            selected = timelineRange == range,
+                            onClick = {
+                                timelineRange = range
+                                selectedNoteIds = emptySet()
+                            },
+                            label = { Text(label) }
+                        )
+                    }
                 }
             }
             if (searchVisible) OutlinedTextField(value = search, onValueChange = onSearch,
