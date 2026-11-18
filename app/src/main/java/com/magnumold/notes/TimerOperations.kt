@@ -11,7 +11,9 @@ internal object TimerOperations {
 
     fun remainingSeconds(endsAtMillis: Long, nowMillis: Long): Long {
         val remainingMillis = (endsAtMillis - nowMillis).coerceAtLeast(0L)
-        return (remainingMillis + 999L) / 1_000L
+        // Divide first: adding 999 before division overflows for very large
+        // imported/restored end timestamps near Long.MAX_VALUE.
+        return remainingMillis / 1_000L + if (remainingMillis % 1_000L == 0L) 0L else 1L
     }
 
     fun startAt(nowMillis: Long, remainingSeconds: Long): Long =
