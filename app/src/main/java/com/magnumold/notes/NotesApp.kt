@@ -17,7 +17,13 @@ internal fun NotesApp(
     initialThemeColorSets: ThemeColorSets
 ) {
             val snapshot by recordsViewModel.snapshot.collectAsStateWithLifecycle()
-            val moduleSettingsStore = remember(activity) {\n                ModuleSettingsStore(activity.getSharedPreferences("notes_modules", Context.MODE_PRIVATE))\n            }\n            var moduleConfiguration by remember(moduleSettingsStore) {\n                androidx.compose.runtime.mutableStateOf(moduleSettingsStore.load())\n            }\n            val themeSettings = remember(activity) {
+            val moduleSettingsStore = remember(activity) {
+                ModuleSettingsStore(activity.getSharedPreferences("notes_modules", Context.MODE_PRIVATE))
+            }
+            var moduleConfiguration by remember(moduleSettingsStore) {
+                androidx.compose.runtime.mutableStateOf(moduleSettingsStore.load())
+            }
+            val themeSettings = remember(activity) {
                 ThemeSettingsStore(activity.getSharedPreferences("notes_settings", Context.MODE_PRIVATE))
             }
             val backupFileStore = remember(activity, timeTrackingRepository) {
@@ -79,7 +85,8 @@ internal fun NotesApp(
                 backupFileStore = backupFileStore
             )
 
-            BackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }\n            BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
+            BackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
+            BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
             BackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
 
             AppThemeEffects(
@@ -95,7 +102,21 @@ internal fun NotesApp(
 
             NotesTheme(dark, activeThemeColors, themeMode == "custom") {
                 val selected = activeNotes.firstOrNull { it.id == selectedId }
-                if (navigation.modulesVisible && selected == null) {\n                    ModulesScreen(\n                        configuration = moduleConfiguration,\n                        onConfigurationChange = { updated ->\n                            moduleConfiguration = updated.normalized()\n                            moduleSettingsStore.save(moduleConfiguration)\n                            if (navigation.activeModule != AppModule.ALL && navigation.activeModule !in moduleConfiguration.enabled) {\n                                navigation.selectModule(AppModule.ALL)\n                            }\n                        },\n                        onOpenModule = { module -> navigation.selectModule(module) },\n                        onBack = { navigation.closeModules() },\n                        themeColors = activeThemeColors\n                    )\n                } else if (settingsVisible && selected == null && vaultScreen != null) {
+                if (navigation.modulesVisible && selected == null) {
+                    ModulesScreen(
+                        configuration = moduleConfiguration,
+                        onConfigurationChange = { updated ->
+                            moduleConfiguration = updated.normalized()
+                            moduleSettingsStore.save(moduleConfiguration)
+                            if (navigation.activeModule != AppModule.ALL && navigation.activeModule !in moduleConfiguration.enabled) {
+                                navigation.selectModule(AppModule.ALL)
+                            }
+                        },
+                        onOpenModule = { module -> navigation.selectModule(module) },
+                        onBack = { navigation.closeModules() },
+                        themeColors = activeThemeColors
+                    )
+                } else if (settingsVisible && selected == null && vaultScreen != null) {
                     VaultScreen(
                         title = if (navigation.vaultScreen == "archive") "Архив" else "Корзина",
                         entries = if (navigation.vaultScreen == "archive") archived else trash,
