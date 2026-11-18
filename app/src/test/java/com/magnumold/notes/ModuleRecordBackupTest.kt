@@ -225,6 +225,56 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importedVaultNeighborLinksFollowRekeyedActiveRecordIds() {
+        val currentRecord = Note(
+            id = 200L,
+            title = "",
+            blocks = listOf(NoteBlock("Local record")),
+            updated = 100L
+        )
+        val importedNeighbor = Note(
+            id = 200L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported neighbor")),
+            updated = 200L
+        )
+        val importedArchived = Note(
+            id = 300L,
+            title = "",
+            blocks = listOf(NoteBlock("Archived record")),
+            updated = 300L
+        )
+        val imported = BackupData(
+            notes = listOf(importedNeighbor),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = importedArchived,
+                    collectionId = null,
+                    position = 1,
+                    movedAt = 400L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(
+                notes = listOf(currentRecord),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList()
+            ),
+            imported
+        )
+
+        val importedNeighborId = merged.importedNoteIdMap.getValue(200L)
+        assertNotEquals(currentRecord.id, importedNeighborId)
+        assertEquals(importedNeighborId, merged.snapshot.archived.single().previousRecordId)
+    }
+
+    @Test
     fun moduleCardTitlesHaveUsefulFallbacks() {
         val base = Note(1, "", listOf(NoteBlock()), 100L)
         assertEquals("Таймер", recordCardPrimaryText(base.copy(type = RecordType.TIMER)))
