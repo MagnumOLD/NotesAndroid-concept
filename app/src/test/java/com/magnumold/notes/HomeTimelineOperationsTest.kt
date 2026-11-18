@@ -265,4 +265,20 @@ class HomeTimelineOperationsTest {
         assertEquals(snapshot, HomeTimelineOperations.update(snapshot, note(99)))
         assertNull(HomeTimelineOperations.records(snapshot).firstOrNull { it.id == 99L })
     }
+    @Test
+    fun movingHomeSelectionToVaultPreservesTheTimelineOrder() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1L), note(2L), note(3L)),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val result = HomeTimelineOperations.moveToVault(
+            snapshot, ids = setOf(1L, 2L), toTrash = false, now = 100L
+        )
+
+        assertEquals(listOf(1L, 2L), result.archived.map { it.note.id })
+        assertEquals(listOf(3L), result.notes.map { it.id })
+    }
 }

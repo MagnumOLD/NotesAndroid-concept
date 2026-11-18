@@ -64,4 +64,42 @@ class RecordOperationsTest {
         assertEquals(once.trash.map { it.note.id }.toSet(), twice.trash.map { it.note.id }.toSet())
         assertTrue(twice.archived.size == 2 && twice.trash.size == 2)
     }
+    @Test
+    fun movingSelectedRecordsToVaultPreservesTheirVisibleOrder() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1L, "first"), note(2L, "second"), note(3L, "third")),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val archived = RecordOperations.moveActiveRecordsToVault(
+            snapshot, collectionId = null, ids = setOf(1L, 2L), toTrash = false, now = 50L
+        )
+        assertEquals(listOf(1L, 2L), archived.archived.map { it.note.id })
+
+        val trashed = RecordOperations.moveActiveRecordsToVault(
+            snapshot, collectionId = null, ids = setOf(1L, 2L), toTrash = true, now = 50L
+        )
+        assertEquals(listOf(1L, 2L), trashed.trash.map { it.note.id })
+    }
+
+    @Test
+    fun restoringArchivedRecordReturnsItToItsOriginalCollectionPosition() {
+        val first = note(1L, "first")
+        val restored = note(2L, "restored")
+        val last = note(3L, "last")
+        val entry = VaultNote(restored, collectionId = 10L, position = 1, movedAt = 100L)
+        val snapshot = PersistenceSnapshot(
+            notes = emptyList(),
+            collections = listOf(NoteCollection(10L, "Work", listOf(first, last))),
+            archived = listOf(entry),
+            trash = emptyList()
+        )
+
+        val result = RecordOperations.restoreVaultEntry(snapshot, entry, fromArchive = true)
+
+        assertEquals(listOf(1L, 2L, 3L), result.collections.single().notes.map { it.id })
+        assertTrue(result.archived.isEmpty())
+    }
 }

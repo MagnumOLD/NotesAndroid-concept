@@ -144,8 +144,8 @@ internal object HomeTimelineOperations {
             collection.copy(notes = collection.notes.filterNot { it.id in ids })
         }
         val updated = snapshot.copy(notes = remainingRoot, collections = remainingCollections)
-        return if (toTrash) updated.copy(trash = entries.asReversed() + updated.trash)
-        else updated.copy(archived = entries.asReversed() + updated.archived)
+        return if (toTrash) updated.copy(trash = entries + updated.trash)
+        else updated.copy(archived = entries + updated.archived)
     }
 
     private fun updateById(

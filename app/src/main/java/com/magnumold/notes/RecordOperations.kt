@@ -90,7 +90,7 @@ internal object RecordOperations {
         else snapshot.copy(collections = snapshot.collections.map { collection ->
             if (collection.id == collectionId) collection.copy(notes = remaining) else collection
         })
-        return if (toTrash) updated.copy(trash = entries.asReversed() + updated.trash)
-        else updated.copy(archived = entries.asReversed() + updated.archived)
+        return if (toTrash) updated.copy(trash = entries + updated.trash)
+        else updated.copy(archived = entries + updated.archived)
     }
 }
