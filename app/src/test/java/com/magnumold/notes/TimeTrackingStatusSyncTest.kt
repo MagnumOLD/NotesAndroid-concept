@@ -66,6 +66,35 @@ class TimeTrackingStatusSyncTest {
         assertTrue(updated.activeSessions[11L]?.id != active.activeSessions[11L]?.id)
     }
 
+    @Test fun protectionTimerFollowsSubtaskWhenParentChanges() {
+        val child = task(11, "Child", RecordStatus.PAUSED)
+        val before = listOf(
+            task(10, "First parent", RecordStatus.IN_PROGRESS, listOf(child)),
+            task(20, "Second parent", RecordStatus.WAITING)
+        )
+        val timer = ProtectionTimer(
+            taskId = 11L,
+            taskTitle = "First parent",
+            subtaskTitle = "Child",
+            startedAtMillis = 100L,
+            endsAtMillis = 900L,
+            endMode = ProtectionEndMode.STOP_AND_PAUSE,
+            parentTaskId = 10L
+        )
+        val after = listOf(
+            task(10, "First parent", RecordStatus.IN_PROGRESS),
+            task(20, "Second parent", RecordStatus.WAITING, listOf(child))
+        )
+
+        val updated = syncWorkSessionsForTaskChanges(
+            before, after, TimeTrackingState(protectionTimer = timer), 500L
+        )
+
+        assertEquals(20L, updated.protectionTimer?.parentTaskId)
+        assertEquals("Second parent", updated.protectionTimer?.taskTitle)
+        assertEquals("Child", updated.protectionTimer?.subtaskTitle)
+    }
+
     @Test fun protectionTimerContinueResumesSubtaskWithoutLegacyOptInFlag() {
         val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE, parentTaskId = 10L)
         val initial = TimeTrackingState(

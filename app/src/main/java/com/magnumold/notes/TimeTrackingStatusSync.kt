@@ -57,6 +57,16 @@ internal fun syncWorkSessionsForTaskChanges(
 
         val previousParentId = oldEntries[id]?.parentId
         val parentChanged = previousParentId != entry.parentId
+        val ownTitle = title(note)
+        state.protectionTimer?.takeIf { it.taskId == id && it.parentTaskId != entry.parentId }?.let { timer ->
+            state = state.copy(
+                protectionTimer = timer.copy(
+                    parentTaskId = entry.parentId,
+                    taskTitle = if (entry.parentId == null) ownTitle else entry.parentTitle ?: "Задача",
+                    subtaskTitle = if (entry.parentId == null) null else ownTitle
+                )
+            )
+        }
         if (previousParentId != null &&
             (entry.parentId == null || parentChanged ||
                 (oldStatus == RecordStatus.IN_PROGRESS && newStatus != RecordStatus.IN_PROGRESS))
@@ -72,7 +82,6 @@ internal fun syncWorkSessionsForTaskChanges(
         val shouldStart = entry.parentId != null && newStatus == RecordStatus.IN_PROGRESS &&
             (old == null || oldStatus != RecordStatus.IN_PROGRESS || parentChanged)
         if (shouldStart && id !in state.activeSessions) {
-            val ownTitle = title(note)
             val parentId = entry.parentId
             state = TimeTrackingEngine.start(
                 state = state,
