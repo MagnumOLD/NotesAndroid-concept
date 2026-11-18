@@ -79,6 +79,24 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun backupRejectsRecordIdCollisionsAcrossCollectionsAndVault() {
+        val malformedBackups = listOf(
+            """{"format":"notes_backup","version":12,"notes":[{"id":42,"blocks":[{"text":"Root"}]}],"collections":[{"id":7,"name":"Work","notes":[{"id":42,"blocks":[{"text":"Collection copy"}]}]}],"archive":[],"trash":[]}""",
+            """{"format":"notes_backup","version":12,"notes":[{"id":42,"blocks":[{"text":"Root"}]}],"collections":[],"archive":[{"note":{"id":42,"blocks":[{"text":"Archived copy"}]}}],"trash":[]}""",
+            """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"Work","notes":[{"id":42,"blocks":[{"text":"Collection copy"}]}]}],"archive":[],"trash":[{"note":{"id":42,"blocks":[{"text":"Trash copy"}]}}]}"""
+        )
+
+        malformedBackups.forEach { malformed ->
+            try {
+                parseBackupJson(malformed)
+                fail("Record IDs must be unique across active, collection, archive and trash storage")
+            } catch (_: IllegalArgumentException) {
+                // Expected: the importer must reject ambiguous tracking references.
+            }
+        }
+    }
+
+    @Test
     fun backupWithDuplicateCollectionIdsIsRejected() {
         val malformed = """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"A","notes":[]},{"id":7,"name":"B","notes":[]}],"archive":[],"trash":[]}"""
         try {
