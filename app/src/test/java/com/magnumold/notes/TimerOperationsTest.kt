@@ -36,6 +36,18 @@ class TimerOperationsTest {
     }
 
     @Test
+    fun completedOrUnsetTimerRestartsAtFullDuration() {
+        assertEquals(300L, TimerOperations.durationToStart(0L, 300L))
+        assertEquals(300L, TimerOperations.durationToStart(null, 300L))
+    }
+
+    @Test
+    fun pausedTimerResumesRemainingTimeWithoutExceedingConfiguredDuration() {
+        assertEquals(45L, TimerOperations.durationToStart(45L, 300L))
+        assertEquals(300L, TimerOperations.durationToStart(500L, 300L))
+    }
+
+    @Test
     fun startAtUsesRemainingSeconds() {
         assertEquals(15_000L, TimerOperations.startAt(5_000L, 10L))
     }
