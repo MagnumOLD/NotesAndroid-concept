@@ -55,6 +55,31 @@ class ModuleSummaryOperationsTest {
 
 
     @Test
+    fun taskSummaryUsesTheSuppliedInstantForDeadlineStatus() {
+        val day = 600L
+        val dayStart = day * 86_400_000L
+        val deadline = dayStart
+        val task = Note(
+            1, "", listOf(NoteBlock()), dayStart,
+            type = RecordType.TASK,
+            status = RecordStatus.WAITING,
+            dateMode = RecordDateMode.DEADLINE,
+            dateAt = deadline,
+            scheduledAt = dayStart
+        )
+
+        val beforeDeadlineDayEnds = ModuleSummaryOperations.summary(
+            "Задачи", listOf(task), day, dayStart + 23L * 60L * 60L * 1_000L
+        )
+        val afterDeadlineDayEnds = ModuleSummaryOperations.summary(
+            "Задачи", listOf(task), day, dayStart + 86_400_000L
+        )
+
+        assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 0", beforeDeadlineDayEnds)
+        assertEquals("Задач: 1 · Выполнено: 0 · Просрочено: 1", afterDeadlineDayEnds)
+    }
+
+    @Test
     fun timerSummaryCountsOnlyTimersThatAreActuallyRunning() {
         val today = 500L
         val now = today * 86_400_000L + 12_000L
