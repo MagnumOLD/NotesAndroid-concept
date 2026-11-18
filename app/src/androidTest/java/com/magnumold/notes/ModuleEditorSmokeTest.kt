@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTextReplacement
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,6 +74,31 @@ class ModuleEditorSmokeTest {
         composeRule.onNodeWithText("Итого").assertExists()
         composeRule.onNodeWithText("3.00").assertExists()
         composeRule.onNodeWithText("Куплено").assertExists()
+    }
+
+
+    @Test
+    fun workoutInputsDisplayAndSaveClampedValues() {
+        val state = androidx.compose.runtime.mutableStateOf(record(RecordType.WORKOUT))
+        composeRule.setContent {
+            MaterialTheme {
+                WorkoutRecordEditor(
+                    note = state.value,
+                    topBarColor = Color(0xFF202020),
+                    onBack = {},
+                    onChange = { state.value = it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Подходы").performTextReplacement("5000")
+        composeRule.runOnIdle {
+            assertEquals(100, state.value.workoutSets)
+        }
+        composeRule.onNodeWithText("Вес, кг (если нужен)").performTextReplacement("1500")
+        composeRule.runOnIdle {
+            assertEquals(1_000.0, state.value.workoutWeightKg, 0.0)
+        }
     }
 
     @Test
