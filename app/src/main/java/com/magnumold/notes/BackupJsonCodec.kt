@@ -245,13 +245,14 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
         }
     }
     collectIds(existing)
-    return mergeImportedNotes(existing, imported, usedIds)
+    return mergeImportedNotes(existing, imported, usedIds, null)
 }
 
 private fun mergeImportedNotes(
     existing: List<Note>,
     imported: List<Note>,
-    usedIds: MutableSet<Long>
+    usedIds: MutableSet<Long>,
+    importedIdMap: MutableMap<Long, Long>?
 ): List<Note> {
     val result = existing.toMutableList()
 
@@ -266,6 +267,7 @@ private fun mergeImportedNotes(
     fun copyWithUniqueTreeIds(note: Note): Note {
         val safeId = if (usedIds.add(note.id)) note.id else nextUniqueId()
         val idChanged = safeId != note.id
+        importedIdMap?.put(note.id, safeId)
         return note.copy(
             id = safeId,
             blocks = if (idChanged) note.blocks.map {
@@ -280,8 +282,9 @@ private fun mergeImportedNotes(
         if (sameIndex >= 0) {
             val current = result[sameIndex]
             result[sameIndex] = current.copy(
-                children = mergeImportedNotes(current.children, incoming.children, usedIds)
+                children = mergeImportedNotes(current.children, incoming.children, usedIds, importedIdMap)
             )
+            importedIdMap?.put(incoming.id, current.id)
             return@forEach
         }
         result.add(copyWithUniqueTreeIds(incoming))
@@ -289,6 +292,26 @@ private fun mergeImportedNotes(
     return result
 }
 internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultNote>): List<VaultNote> {
+    val usedIds = mutableSetOf<Long>()
+    fun collectIds(entries: List<VaultNote>) {
+        entries.forEach { entry ->
+            fun collect(note: Note) {
+                usedIds += note.id
+                note.children.forEach(::collect)
+            }
+            collect(entry.note)
+        }
+    }
+    collectIds(existing)
+    return mergeImportedVault(existing, imported, usedIds, null)
+}
+
+internal fun mergeImportedVault(
+    existing: List<VaultNote>,
+    imported: List<VaultNote>,
+    usedIds: MutableSet<Long>,
+    importedIdMap: MutableMap<Long, Long>?
+): List<VaultNote> {
     val result = existing.toMutableList()
     imported.forEach { incoming ->
         val sameIndex = result.indexOfFirst { it.note.sameRecordContent(incoming.note) }
@@ -296,17 +319,13 @@ internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultN
             val current = result[sameIndex]
             result[sameIndex] = current.copy(
                 note = current.note.copy(
-                    children = mergeImportedNotes(current.note.children, incoming.note.children)
+                    children = mergeImportedNotes(current.note.children, incoming.note.children, usedIds, importedIdMap)
                 )
             )
+            importedIdMap?.put(incoming.note.id, current.note.id)
             return@forEach
         }
-        val collision = result.any { it.note.id == incoming.note.id }
-        val safeNote = if (!collision) incoming.note else {
-            var candidate = System.currentTimeMillis()
-            while (result.any { it.note.id == candidate }) candidate++
-            incoming.note.copy(id = candidate, blocks = incoming.note.blocks.map { it.copy(id = java.util.UUID.randomUUID().toString()) })
-        }
+        val safeNote = mergeImportedNotes(emptyList(), listOf(incoming.note), usedIds, importedIdMap).single()
         result.add(incoming.copy(note = safeNote))
     }
     return result
@@ -319,20 +338,36 @@ internal data class ImportedCollectionsMerge(
 
 internal fun mergeImportedCollectionsWithIdMap(
     existing: List<NoteCollection>,
-    imported: List<NoteCollection>
+    imported: List<NoteCollection>,
+    usedNoteIds: MutableSet<Long>? = null,
+    importedNoteIdMap: MutableMap<Long, Long>? = null
 ): ImportedCollectionsMerge {
+    val usedIds = usedNoteIds ?: mutableSetOf<Long>().also { ids ->
+        fun collect(notes: List<Note>) {
+            notes.forEach { note ->
+                ids += note.id
+                collect(note.children)
+            }
+        }
+        existing.forEach { collect(it.notes) }
+    }
     val result = existing.toMutableList()
     val idMap = linkedMapOf<Long, Long>()
     imported.forEach { incoming ->
         val sameName = result.indexOfFirst { it.name.equals(incoming.name, true) }
         if (sameName >= 0) {
             val target = result[sameName]
-            result[sameName] = target.copy(notes = mergeImportedNotes(target.notes, incoming.notes))
+            result[sameName] = target.copy(
+                notes = mergeImportedNotes(target.notes, incoming.notes, usedIds, importedNoteIdMap)
+            )
             idMap[incoming.id] = target.id
         } else {
             var id = incoming.id
             while (result.any { it.id == id }) id++
-            result.add(incoming.copy(id = id))
+            result.add(incoming.copy(
+                id = id,
+                notes = mergeImportedNotes(emptyList(), incoming.notes, usedIds, importedNoteIdMap)
+            ))
             idMap[incoming.id] = id
         }
     }
