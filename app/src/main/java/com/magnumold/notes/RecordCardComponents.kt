@@ -586,7 +586,7 @@ internal fun NoteRow(
                 ) {
                     DragHandleIcon(color = rowTextColor)
                 }
-                if (interactiveCards && note.type in setOf(RecordType.TASK, RecordType.PURCHASE, RecordType.TIMER)) {
+                if (interactiveCards && note.type in setOf(RecordType.TASK, RecordType.PURCHASE, RecordType.TIMER, RecordType.WORKOUT)) {
                     val actionIcon = when (note.type) {
                         RecordType.TIMER -> if (note.timerEndsAtMillis != null) Icons.Outlined.PauseCircleOutline else Icons.Outlined.PlayCircleOutline
                         else -> if (note.status == RecordStatus.COMPLETED) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked

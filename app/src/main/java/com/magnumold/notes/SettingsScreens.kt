@@ -276,7 +276,7 @@ internal fun SettingsScreen(
                 ListItem(headlineContent = { Text("Поведение карточек", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Интерактивные карточки") },
-                    supportingContent = { Text("Быстро отмечать задачи и покупки, запускать и ставить на паузу таймеры прямо в списке") },
+                    supportingContent = { Text("Быстро отмечать задачи, покупки и тренировки, запускать и ставить на паузу таймеры прямо в списке") },
                     trailingContent = {
                         Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange)
                     },

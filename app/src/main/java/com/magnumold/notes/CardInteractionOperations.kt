@@ -2,7 +2,7 @@ package com.magnumold.notes
 
 internal object CardInteractionOperations {
     fun applyQuickAction(note: Note, nowMillis: Long): Note? = when (note.type) {
-        RecordType.TASK, RecordType.PURCHASE -> note.copy(
+        RecordType.TASK, RecordType.PURCHASE, RecordType.WORKOUT -> note.copy(
             status = if (note.status == RecordStatus.COMPLETED) RecordStatus.WAITING else RecordStatus.COMPLETED,
             deadlineResumeOverride = false
         )

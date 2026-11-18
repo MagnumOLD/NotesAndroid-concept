@@ -14,6 +14,9 @@ class CardInteractionOperationsTest {
 
         val purchase = task.copy(type = RecordType.PURCHASE)
         assertEquals(RecordStatus.COMPLETED, CardInteractionOperations.applyQuickAction(purchase, 200L)!!.status)
+
+        val workout = task.copy(type = RecordType.WORKOUT)
+        assertEquals(RecordStatus.COMPLETED, CardInteractionOperations.applyQuickAction(workout, 200L)!!.status)
     }
 
     @Test
