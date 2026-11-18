@@ -136,7 +136,7 @@ internal class NotesViewModel(
         updateSnapshot { RecordListOperations.changeColor(it, collectionId, noteId, colorIndex) }
     }
 
-    fun importBackup(json: String): Int {
+    fun importBackup(json: String): BackupImportResult {
         val imported = parseBackupJson(json)
         val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
         imported.timeTracking?.let { backup ->
