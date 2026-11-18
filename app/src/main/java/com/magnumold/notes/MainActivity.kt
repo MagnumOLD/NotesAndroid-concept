@@ -42,17 +42,19 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         if (::recordsViewModel.isInitialized) {
-            recordsViewModel.refreshFromRepository()
-            val noteRepository = NotesRepository(getPreferences(Context.MODE_PRIVATE))
-            RecordTimerScheduler(this).scheduleAll(
-                HomeTimelineOperations.records(noteRepository.loadSnapshot())
-            )
+            // The ViewModel is already the source of truth for in-app edits.
+            // Re-reading preferences on every resume can replace a newer in-memory
+            // snapshot with stale data while the debounced write is still pending.
+            // Refresh only when the background service explicitly marks an update.
             val marker = getPreferences(Context.MODE_PRIVATE)
                 .getLong("external_task_status_update", lastExternalTaskStatusUpdate)
             if (marker > lastExternalTaskStatusUpdate) {
                 recordsViewModel.refreshFromRepository()
                 lastExternalTaskStatusUpdate = marker
             }
+            RecordTimerScheduler(this).scheduleAll(
+                HomeTimelineOperations.records(recordsViewModel.snapshot.value)
+            )
         }
         if (::timeTrackingRepository.isInitialized) {
             timeTrackingRepository.reload()
