@@ -165,4 +165,40 @@ class ModuleRecordBackupTest {
 
         assertEquals(1, once.size)
     }
+
+    @Test
+    fun taskSchedulingStatusAndChecklistStateSurviveBackupRoundTrip() {
+        val created = 1_800_000_000_000L
+        val task = Note(
+            id = 300L,
+            title = "",
+            blocks = listOf(
+                NoteBlock("Prepare", checked = true, isChecklist = true, id = "checked"),
+                NoteBlock("Review", checked = false, isChecklist = true, id = "unchecked")
+            ),
+            updated = created + 1_000L,
+            created = created,
+            type = RecordType.TASK,
+            status = RecordStatus.IN_PROGRESS,
+            dateMode = RecordDateMode.DEADLINE,
+            dateAt = created + 3 * 86_400_000L,
+            scheduledAt = created + 2 * 86_400_000L,
+            deadlineResumeOverride = true,
+            timeTrackingEnabled = true
+        )
+
+        val restored = parseBackupJson(
+            createBackupJson(listOf(task), emptyList(), emptyList(), emptyList())
+        ).notes.single()
+
+        assertEquals(task.created, restored.created)
+        assertEquals(task.status, restored.status)
+        assertEquals(task.dateMode, restored.dateMode)
+        assertEquals(task.dateAt, restored.dateAt)
+        assertEquals(task.scheduledAt, restored.scheduledAt)
+        assertEquals(task.deadlineResumeOverride, restored.deadlineResumeOverride)
+        assertEquals(task.timeTrackingEnabled, restored.timeTrackingEnabled)
+        assertEquals(task.blocks.map { Triple(it.text, it.checked, it.isChecklist) },
+            restored.blocks.map { Triple(it.text, it.checked, it.isChecklist) })
+    }
 }
