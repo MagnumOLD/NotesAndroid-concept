@@ -248,7 +248,7 @@ internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): Lis
     return mergeImportedNotes(existing, imported, usedIds, null)
 }
 
-private fun mergeImportedNotes(
+internal fun mergeImportedNotes(
     existing: List<Note>,
     imported: List<Note>,
     usedIds: MutableSet<Long>,
