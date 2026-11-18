@@ -17,6 +17,16 @@ class TimerOperationsTest {
             Long.MAX_VALUE / 1_000L + 1L,
             TimerOperations.remainingSeconds(Long.MAX_VALUE, 0L)
         )
+        assertEquals(
+            Long.MAX_VALUE / 1_000L + 1L,
+            TimerOperations.remainingSeconds(Long.MAX_VALUE, Long.MIN_VALUE)
+        )
+    }
+
+    @Test
+    fun expiredNegativeEndTimestampNeverWrapsIntoPositiveDuration() {
+        assertEquals(0L, TimerOperations.remainingSeconds(Long.MIN_VALUE, 1L))
+        assertEquals(0L, TimerOperations.remainingSeconds(Long.MIN_VALUE, Long.MAX_VALUE))
     }
 
     @Test
