@@ -180,24 +180,6 @@ internal fun NotesHome(
                         val allSelectedPinned = selectedRecords.isNotEmpty() && selectedRecords.all { it.pinned }
                         val allSelectedFavorite = selectedRecords.isNotEmpty() && selectedRecords.all { it.favorite }
                         val allSelectedShownOnHome = selectedRecords.isNotEmpty() && selectedRecords.all { it.showOnHome }
-                        IconButton(onClick = { onTogglePinned(selectedNoteIds) }) {
-                            AppIcon(NoteIcon.Pin, contentDescription = if (allSelectedPinned) "Открепить заметки" else "Закрепить заметки")
-                        }
-                        IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
-                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
-                        DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
-                            if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
-                                onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
-                            })
-                            collections.filter { it.id != activeCollectionId }.forEach { collection ->
-                                DropdownMenuItem(text = { Text(collection.name) }, onClick = {
-                                    onTransferSelected(selectedNoteIds, collection.id); selectedNoteIds = emptySet(); showMoveMenu = false
-                                })
-                            }
-                            if (collections.isEmpty() || (collections.size == 1 && activeCollectionId != null)) {
-                                DropdownMenuItem(text = { Text("Нет других подборок") }, enabled = false, onClick = {})
-                            }
-                        }
                         Box {
                             IconButton(onClick = { showSelectionActionsMenu = true }) {
                                 AppIcon(NoteIcon.More, contentDescription = "Дополнительные действия")
@@ -206,6 +188,13 @@ internal fun NotesHome(
                                 expanded = showSelectionActionsMenu,
                                 onDismissRequest = { showSelectionActionsMenu = false }
                             ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedPinned) "Открепить" else "Закрепить") },
+                                    onClick = {
+                                        onTogglePinned(selectedNoteIds)
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
                                 DropdownMenuItem(
                                     text = { Text(if (allSelectedFavorite) "Убрать из избранного" else "В избранное") },
                                     onClick = {
@@ -223,6 +212,21 @@ internal fun NotesHome(
                                         showSelectionActionsMenu = false
                                     }
                                 )
+                            }
+                        }
+                        IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
+                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
+                        DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
+                            if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
+                                onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
+                            })
+                            collections.filter { it.id != activeCollectionId }.forEach { collection ->
+                                DropdownMenuItem(text = { Text(collection.name) }, onClick = {
+                                    onTransferSelected(selectedNoteIds, collection.id); selectedNoteIds = emptySet(); showMoveMenu = false
+                                })
+                            }
+                            if (collections.isEmpty() || (collections.size == 1 && activeCollectionId != null)) {
+                                DropdownMenuItem(text = { Text("Нет других подборок") }, enabled = false, onClick = {})
                             }
                         }
                         IconButton(onClick = { selectedNoteIds = emptySet() }) {
