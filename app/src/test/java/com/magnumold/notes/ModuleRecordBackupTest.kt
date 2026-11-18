@@ -38,6 +38,25 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importedRecordCountIncludesNestedTasksInEveryStorageArea() {
+        fun record(id: Long, children: List<Note> = emptyList()) = Note(
+            id = id,
+            title = "",
+            blocks = listOf(NoteBlock("Record $id")),
+            updated = id,
+            children = children
+        )
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(record(1, listOf(record(2)))),
+            collections = listOf(NoteCollection(10, "Work", listOf(record(3, listOf(record(4)))))),
+            archived = listOf(VaultNote(record(5, listOf(record(6))), null, 0, 100)),
+            trash = listOf(VaultNote(record(7, listOf(record(8))), null, 0, 200))
+        )
+
+        assertEquals(8, RecordOperations.recordCount(snapshot))
+    }
+
+    @Test
     fun malformedVaultEntryRejectsBackupInsteadOfSilentlyDroppingIt() {
         val malformed = """{"format":"notes_backup","version":11,"notes":[],"collections":[],"archive":[{"note":null}]}"""
         try {

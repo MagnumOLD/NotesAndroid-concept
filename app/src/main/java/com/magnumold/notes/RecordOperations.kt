@@ -1,9 +1,14 @@
 package com.magnumold.notes
 
 internal object RecordOperations {
+    private fun countNotes(notes: List<Note>): Int =
+        notes.sumOf { 1 + countNotes(it.children) }
+
     fun recordCount(snapshot: PersistenceSnapshot): Int =
-        snapshot.notes.size + snapshot.collections.sumOf { it.notes.size } +
-            snapshot.archived.size + snapshot.trash.size
+        countNotes(snapshot.notes) +
+            snapshot.collections.sumOf { countNotes(it.notes) } +
+            snapshot.archived.sumOf { 1 + countNotes(it.note.children) } +
+            snapshot.trash.sumOf { 1 + countNotes(it.note.children) }
 
     fun mergeBackup(current: PersistenceSnapshot, imported: BackupData): PersistenceSnapshot {
         val collectionMerge = mergeImportedCollectionsWithIdMap(current.collections, imported.collections)
