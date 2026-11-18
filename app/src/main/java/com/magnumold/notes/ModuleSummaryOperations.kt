@@ -3,7 +3,7 @@ package com.magnumold.notes
 import java.util.Locale
 
 internal object ModuleSummaryOperations {
-    fun summary(title: String, records: List<Note>, todayDay: Long): String? {
+    fun summary(title: String, records: List<Note>, todayDay: Long, nowMillis: Long = System.currentTimeMillis()): String? {
         val today = records.filter { timelineDayKey(it) == todayDay }
         fun number(value: Double): String =
             if (value % 1.0 == 0.0) value.toLong().toString()
@@ -48,7 +48,7 @@ internal object ModuleSummaryOperations {
                 val entries = today.filter { it.type == RecordType.TIMER }
                 if (entries.isEmpty()) "Таймеров на сегодня нет"
                 else {
-                    val running = entries.count { it.timerEndsAtMillis != null }
+                    val running = entries.count { it.status == RecordStatus.IN_PROGRESS && (it.timerEndsAtMillis ?: 0L) > nowMillis }
                     "Таймеров: ${entries.size} · Активно: $running"
                 }
             }

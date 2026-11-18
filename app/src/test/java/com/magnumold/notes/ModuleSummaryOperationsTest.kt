@@ -53,4 +53,25 @@ class ModuleSummaryOperationsTest {
         assertEquals("Задач: 3 · Выполнено: 1 · Просрочено: 1", ModuleSummaryOperations.summary("Задачи", records, today))
     }
 
+
+    @Test
+    fun timerSummaryCountsOnlyTimersThatAreActuallyRunning() {
+        val today = 500L
+        val now = today * 86_400_000L + 12_000L
+        val records = listOf(
+            Note(1, "", listOf(NoteBlock()), 1L, type = RecordType.TIMER,
+                status = RecordStatus.IN_PROGRESS, timerEndsAtMillis = now + 30_000L,
+                scheduledAt = today * 86_400_000L),
+            Note(2, "", listOf(NoteBlock()), 1L, type = RecordType.TIMER,
+                status = RecordStatus.IN_PROGRESS, timerEndsAtMillis = now - 1_000L,
+                scheduledAt = today * 86_400_000L),
+            Note(3, "", listOf(NoteBlock()), 1L, type = RecordType.TIMER,
+                status = RecordStatus.PAUSED, timerEndsAtMillis = now + 60_000L,
+                scheduledAt = today * 86_400_000L)
+        )
+
+        assertEquals("Таймеров: 3 · Активно: 1",
+            ModuleSummaryOperations.summary("Таймеры", records, today, now))
+    }
+
 }
