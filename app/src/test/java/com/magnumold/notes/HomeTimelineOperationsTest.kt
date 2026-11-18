@@ -153,15 +153,27 @@ class HomeTimelineOperationsTest {
 
     @Test
     fun dateRangeFiltersCoverTodayTomorrowWeekMonthAndHistory() {
-        val today = 100L
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val today = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.NOVEMBER, 18, 0, 0, 0)
+        }.timeInMillis / 86_400_000L
+        val november30 = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.NOVEMBER, 30, 0, 0, 0)
+        }.timeInMillis
+        val december1 = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.DECEMBER, 1, 0, 0, 0)
+        }.timeInMillis
         val records = listOf(
             note(1, created = (today - 1) * 86_400_000L),
             note(2, created = today * 86_400_000L),
             note(3, created = (today + 1) * 86_400_000L),
             note(4, created = (today + 6) * 86_400_000L),
             note(5, created = (today + 7) * 86_400_000L),
-            note(6, created = (today + 29) * 86_400_000L),
-            note(7, created = (today + 30) * 86_400_000L)
+            note(6, created = november30),
+            note(7, created = december1)
         )
 
         assertEquals(listOf(2L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TODAY, today).map { it.id })
