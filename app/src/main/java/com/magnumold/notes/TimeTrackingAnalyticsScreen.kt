@@ -327,7 +327,7 @@ private fun ColumnScope.TimeTrackingStatisticsContent(state: TimeTrackingState) 
         state, previousRange.first, previousRange.second, now
     )
     val delta = stats.totalMillis - previous.totalMillis
-    val dailyTotals = TimeTrackingEngine.dailyTotals(state, now)
+    val dailyTotals = TimeTrackingEngine.dailyTotals(state, now, range.first, range.second)
     val barColor = MaterialTheme.colorScheme.primary
 
     Column(
