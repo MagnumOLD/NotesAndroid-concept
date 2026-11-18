@@ -319,7 +319,7 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
             if (on(CardPreviewField.TASK_STATUS)) add(recordStatusCompactText(note.recordStatus()))
             if (on(CardPreviewField.TASK_PROGRESS) && note.children.isNotEmpty()) add("${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}")
             if (on(CardPreviewField.TASK_DATE)) note.dateAt?.let { ts ->
-                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru")).format(java.util.Date(ts)))
+                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + formatRecordShortDate(ts))
             }
         }
         RecordType.NUTRITION -> if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
