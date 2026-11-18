@@ -283,25 +283,24 @@ internal fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 ListItem(
-                    headlineContent = { Text("Дополнительные данные на карточках") },
-                    supportingContent = { Text("Выберите, какие модули показывают сводку под основным текстом") },
+                    headlineContent = { Text("Состав данных на карточках") },
+                    supportingContent = { Text("Включайте и отключайте отдельные поля для каждого модуля") },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
-                AppModule.entries.filter { it.recordType != null && it != AppModule.NOTES }.forEach { module ->
-                    ListItem(
-                        headlineContent = { Text(module.title) },
-                        trailingContent = {
-                            Switch(
-                                checked = module in cardPreviewModules,
-                                onCheckedChange = { enabled ->
-                                    onCardPreviewModulesChange(
-                                        if (enabled) cardPreviewModules + module else cardPreviewModules - module
-                                    )
-                                }
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                    )
+                listOf(AppModule.TASKS, AppModule.TIMERS, AppModule.NUTRITION, AppModule.WORKOUTS, AppModule.PURCHASES).forEach { module ->
+                    ListItem(headlineContent = { Text(module.title, style = AppTypography.emphasisBodyStyle()) },
+                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                    CardPreviewField.forModule(module).forEach { field ->
+                        ListItem(
+                            headlineContent = { Text(field.title) },
+                            trailingContent = {
+                                Switch(checked = field.key in cardPreviewFields, onCheckedChange = { checked ->
+                                    onCardPreviewFieldsChange(if (checked) cardPreviewFields + field.key else cardPreviewFields - field.key)
+                                })
+                            },
+                            modifier = Modifier.padding(start = AppSpacing.xl, end = AppSpacing.settingsListItemOuterInset)
+                        )
+                    }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))

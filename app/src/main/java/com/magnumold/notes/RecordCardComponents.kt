@@ -311,52 +311,48 @@ internal fun recordCardPrimaryText(note: Note): String {
 }
 
 
-internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis()): String? {
-    fun amount(value: Double): String =
-        if (value % 1.0 == 0.0) value.toLong().toString()
-        else "%.1f".format(java.util.Locale.getDefault(), value)
-
-    return when (note.type) {
-        RecordType.TASK -> {
-            val status = recordStatusCompactText(note.recordStatus())
-            val date = note.dateAt?.let { timestamp ->
-                val label = if (note.dateMode == RecordDateMode.DEADLINE) "до" else "на"
-                "$label " + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru"))
-                    .format(java.util.Date(timestamp))
+internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis(), enabledFields: Set<String> = CardPreviewField.defaults): String? {
+    fun amount(value: Double) = if (value % 1.0 == 0.0) value.toLong().toString() else "%.1f".format(java.util.Locale.getDefault(), value)
+    fun on(field: CardPreviewField) = field.key in enabledFields
+    val parts = when (note.type) {
+        RecordType.TASK -> buildList {
+            if (on(CardPreviewField.TASK_STATUS)) add(recordStatusCompactText(note.recordStatus()))
+            if (on(CardPreviewField.TASK_PROGRESS) && note.children.isNotEmpty()) add("${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}")
+            if (on(CardPreviewField.TASK_DATE)) note.dateAt?.let { ts ->
+                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru")).format(java.util.Date(ts)))
             }
-            val children = if (note.children.isEmpty()) "" else {
-                " · ${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}"
-            }
-            listOfNotNull(status + children, date).joinToString(" · ")
         }
-        RecordType.NUTRITION -> {
-            if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
-                note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0
-            ) null else "${amount(note.nutritionCalories)} ккал · Б ${amount(note.nutritionProtein)} · Ж ${amount(note.nutritionFat)} · У ${amount(note.nutritionCarbs)}"
+        RecordType.NUTRITION -> buildList {
+            if (on(CardPreviewField.NUTRITION_CALORIES) && note.nutritionCalories > 0) add("${amount(note.nutritionCalories)} ккал")
+            if (on(CardPreviewField.NUTRITION_PROTEIN) && note.nutritionProtein > 0) add("Б ${amount(note.nutritionProtein)}")
+            if (on(CardPreviewField.NUTRITION_FAT) && note.nutritionFat > 0) add("Ж ${amount(note.nutritionFat)}")
+            if (on(CardPreviewField.NUTRITION_CARBS) && note.nutritionCarbs > 0) add("У ${amount(note.nutritionCarbs)}")
+            if (on(CardPreviewField.NUTRITION_GRAMS) && note.nutritionGrams > 0) add("${amount(note.nutritionGrams)} г")
         }
-        RecordType.PURCHASE -> {
-            val total = note.purchaseQuantity * note.purchaseUnitPrice
-            if (note.purchaseUnitPrice <= 0.0 && note.purchaseQuantity == 1.0) {
-                if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке"
-            } else "${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(total)} · ${if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке"}"
+        RecordType.PURCHASE -> buildList {
+            if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
+            if (on(CardPreviewField.PURCHASE_PRICE) && note.purchaseUnitPrice > 0) add("${amount(note.purchaseUnitPrice)} × ${amount(note.purchaseQuantity)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+            if (on(CardPreviewField.PURCHASE_STATUS)) add(if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке")
         }
-        RecordType.WORKOUT -> {
-            val weight = if (note.workoutWeightKg > 0.0) " · ${amount(note.workoutWeightKg)} кг" else ""
-            "${note.workoutSets} × ${note.workoutReps} повторений$weight"
+        RecordType.WORKOUT -> buildList {
+            if (on(CardPreviewField.WORKOUT_SETS)) add("${note.workoutSets} × ${note.workoutReps} повторений")
+            if (on(CardPreviewField.WORKOUT_WEIGHT) && note.workoutWeightKg > 0) add("${amount(note.workoutWeightKg)} кг")
+            if (on(CardPreviewField.WORKOUT_STATUS)) add(recordStatusCompactText(note.status))
         }
-        RecordType.TIMER -> {
-            val remaining = if (note.timerEndsAtMillis != null) {
-                TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis)
-            } else note.timerRemainingSeconds ?: note.timerDurationSeconds
-            when (note.status) {
-                RecordStatus.IN_PROGRESS -> "Осталось ${TimerOperations.format(remaining)}"
-                RecordStatus.PAUSED -> "Пауза · ${TimerOperations.format(remaining)}"
+        RecordType.TIMER -> buildList {
+            val left = if (note.timerEndsAtMillis != null) TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis) else note.timerRemainingSeconds ?: note.timerDurationSeconds
+            if (on(CardPreviewField.TIMER_REMAINING)) add("Осталось ${TimerOperations.format(left)}")
+            if (on(CardPreviewField.TIMER_STATUS)) add(when (note.status) {
+                RecordStatus.IN_PROGRESS -> "Выполняется"
+                RecordStatus.PAUSED -> "Пауза"
                 RecordStatus.COMPLETED -> "Завершён"
-                else -> "Длительность ${TimerOperations.format(note.timerDurationSeconds)}"
-            }
+                else -> "Ожидает"
+            })
+            if (on(CardPreviewField.TIMER_DURATION)) add("Длительность ${TimerOperations.format(note.timerDurationSeconds)}")
         }
-        else -> null
+        else -> emptyList()
     }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
 internal fun recordStatusCompactText(status: RecordStatus): String = when (status) {
@@ -561,7 +557,7 @@ internal fun NoteRow(
                     pinned = false,
                     showDragHandle = false
                 )
-                if (showSecondaryPreview) recordCardSecondaryText(note)?.let { preview ->
+                if (showSecondaryPreview) recordCardSecondaryText(note, enabledFields = previewFields)?.let { preview ->
                     Text(
                         preview,
                         style = MaterialTheme.typography.bodySmall,

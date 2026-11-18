@@ -11,36 +11,23 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class CardPreviewSettingsStoreTest {
-    private fun store(): CardPreviewSettingsStore {
-        val preferences = RuntimeEnvironment.getApplication()
-            .getSharedPreferences("card_preview_test", Context.MODE_PRIVATE)
-        preferences.edit().clear().commit()
-        return CardPreviewSettingsStore(preferences)
+    private fun store(name: String = "card_preview_test"): CardPreviewSettingsStore {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences(name, Context.MODE_PRIVATE)
+        prefs.edit().clear().commit()
+        return CardPreviewSettingsStore(prefs)
     }
-
-    @Test
-    fun defaultPreviewsAreEnabledForDataModules() {
-        assertEquals(
-            setOf(AppModule.TASKS, AppModule.TIMERS, AppModule.NUTRITION, AppModule.WORKOUTS, AppModule.PURCHASES),
-            store().load()
-        )
+    @Test fun defaultsEnableAllPreviewFields() {
+        assertEquals(CardPreviewField.defaults, store().load())
     }
-
-    @Test
-    fun selectedPreviewModulesPersist() {
+    @Test fun individualFieldsPersist() {
+        val selected = setOf(CardPreviewField.NUTRITION_CALORIES.key, CardPreviewField.NUTRITION_PROTEIN.key, CardPreviewField.TASK_STATUS.key)
         val store = store()
-        val selected = setOf(AppModule.TASKS, AppModule.NUTRITION)
         store.save(selected)
-
         assertEquals(selected, store.load())
     }
-
-    @Test
-    fun invalidAndNonDataModulesAreIgnored() {
-        val preferences = RuntimeEnvironment.getApplication()
-            .getSharedPreferences("card_preview_invalid_test", Context.MODE_PRIVATE)
-        preferences.edit().putStringSet("card_preview_modules", setOf("ALL", "NOT_A_MODULE", "PURCHASES")).commit()
-
-        assertEquals(setOf(AppModule.PURCHASES), CardPreviewSettingsStore(preferences).load())
+    @Test fun unknownKeysAreIgnored() {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("card_preview_invalid_test", Context.MODE_PRIVATE)
+        prefs.edit().putStringSet("card_preview_fields", setOf("invalid", CardPreviewField.PURCHASE_STATUS.key)).commit()
+        assertEquals(setOf(CardPreviewField.PURCHASE_STATUS.key), CardPreviewSettingsStore(prefs).load())
     }
 }

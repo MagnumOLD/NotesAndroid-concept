@@ -173,7 +173,7 @@ internal fun NotesApp(
                         onOpenTrash = { navigation.openVault("trash") },
                         trashRetentionDays = trashRetentionDays,
                         interactiveCardsEnabled = interactiveCardsEnabled,
-                        cardPreviewModules = cardPreviewModules,
+                        cardPreviewFields = cardPreviewFields,
                         onCardPreviewModulesChange = { modules ->
                             cardPreviewModules = modules
                             cardPreviewStore.save(modules)
