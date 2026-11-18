@@ -10,6 +10,28 @@ import kotlinx.coroutines.flow.asStateFlow
  * Durable store for time tracking. Unlike debounced note autosave, timer/session
  * transitions are committed synchronously so a process kill cannot discard them.
  */
+internal fun mergeTimeTrackingBackup(
+    current: TimeTrackingState,
+    imported: TimeTrackingState
+): TimeTrackingState {
+    val sessionsById = linkedMapOf<String, WorkSession>()
+    (current.sessions + imported.sessions).forEach { session ->
+        val previous = sessionsById[session.id]
+        if (previous == null || session.endedAtMillis > previous.endedAtMillis) {
+            sessionsById[session.id] = session
+        }
+    }
+    val active = current.activeSessions.toMutableMap()
+    imported.activeSessions.forEach { (taskId, session) -> active.putIfAbsent(taskId, session) }
+    return TimeTrackingState(
+        sessions = sessionsById.values.sortedBy { it.startedAtMillis },
+        activeSessions = active,
+        protectionTimer = current.protectionTimer ?: imported.protectionTimer,
+        soundUri = imported.soundUri ?: current.soundUri,
+        soundEnabled = imported.soundEnabled
+    )
+}
+
 internal class TimeTrackingRepository(
     private val preferences: SharedPreferences
 ) {

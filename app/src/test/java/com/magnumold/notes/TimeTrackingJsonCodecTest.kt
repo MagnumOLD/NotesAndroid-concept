@@ -53,6 +53,27 @@ class TimeTrackingJsonCodecTest {
         assertEquals(original, restored)
     }
 
+    @Test fun importingTrackingBackupMergesHistoryWithoutReplacingLocalSessions() {
+        val local = WorkSession("local", 1L, null, "Local", null, 10L, 20L, 10L, WorkSessionEndReason.PAUSE)
+        val duplicate = local.copy(endedAtMillis = 25L, durationMillis = 15L)
+        val imported = WorkSession("remote", 2L, null, "Remote", null, 30L, 50L, 20L, WorkSessionEndReason.STOP)
+        val localActive = ActiveWorkSession("active-local", 3L, null, "Local active", null, 60L)
+        val remoteActive = ActiveWorkSession("active-remote", 3L, null, "Remote active", null, 70L)
+        val additionalActive = ActiveWorkSession("active-new", 4L, null, "New active", null, 80L)
+        val localTimer = ProtectionTimer(3L, "Local timer", null, 100L, 200L, ProtectionEndMode.SIGNAL_ONLY)
+        val importedTimer = ProtectionTimer(4L, "Imported timer", null, 110L, 210L, ProtectionEndMode.STOP_AND_PAUSE)
+        val current = TimeTrackingState(listOf(local), mapOf(3L to localActive), localTimer, "local-tone", true)
+        val backup = TimeTrackingState(listOf(duplicate, imported), mapOf(3L to remoteActive, 4L to additionalActive), importedTimer, "backup-tone", false)
+
+        val merged = mergeTimeTrackingBackup(current, backup)
+
+        assertEquals(listOf(duplicate, imported), merged.sessions)
+        assertEquals(mapOf(3L to localActive, 4L to additionalActive), merged.activeSessions)
+        assertEquals(localTimer, merged.protectionTimer)
+        assertEquals("backup-tone", merged.soundUri)
+        assertEquals(false, merged.soundEnabled)
+    }
+
     @Test fun sharedBackupKeepsPerSubtaskTrackingPreference() {
         val task = Note(
             id = 10L,

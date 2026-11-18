@@ -118,7 +118,9 @@ internal class NotesViewModel(
 
     fun importBackup(json: String): Int {
         val imported = parseBackupJson(json)
-        imported.timeTracking?.let(timeTrackingRepository::restoreBackup)
+        imported.timeTracking?.let { backup ->
+            timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, backup) }
+        }
         var importedCount = 0
         updateSnapshot { current ->
             val merged = RecordOperations.mergeBackup(current, imported)
