@@ -63,6 +63,28 @@ class RecoveryDataRepositoryTest {
     }
 
     @Test
+    fun invalidRecoveryPayloadDoesNotPartiallyImportEarlierEntries() {
+        val records = preferences("recovery_invalid_records_test")
+        val tracking = preferences("recovery_invalid_tracking_test")
+        val repository = RecoveryDataRepository(records, tracking)
+        val entries = listOf(
+            RecoveryEntry("records", "recovery_corrupt_notes_400", "{valid-first"),
+            RecoveryEntry("unknown", "recovery_corrupt_unknown_500", "{invalid-second")
+        )
+
+        var rejected = false
+        try {
+            repository.importEntries(entries)
+        } catch (_: IllegalStateException) {
+            rejected = true
+        }
+
+        assertTrue(rejected)
+        assertTrue(!records.contains("recovery_corrupt_notes_400"))
+        assertTrue(!tracking.contains("recovery_corrupt_unknown_500"))
+    }
+
+    @Test
     fun backupRoundTripPreservesQuarantinedFragments() {
         val entry = RecoveryEntry("records", "recovery_corrupt_notes_300", "{original-data")
         val encoded = createBackupJson(

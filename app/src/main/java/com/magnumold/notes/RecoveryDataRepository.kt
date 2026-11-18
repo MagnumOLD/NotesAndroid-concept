@@ -22,6 +22,14 @@ internal class RecoveryDataRepository(
             .sortedWith(compareBy<RecoveryEntry> { it.storage }.thenBy { it.key })
 
     fun importEntries(entries: List<RecoveryEntry>): Int {
+        // Validate the entire payload before the first write. A malformed
+        // later entry must not leave an earlier fragment partially imported.
+        entries.forEach { entry ->
+            require(entry.key.startsWith(RECOVERY_KEY_PREFIX)) {
+                "Invalid recovery entry key"
+            }
+            preferencesFor(entry.storage)
+        }
         var importedCount = 0
         entries.forEach { entry ->
             require(entry.key.startsWith(RECOVERY_KEY_PREFIX)) {
