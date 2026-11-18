@@ -138,7 +138,7 @@ internal class NotesViewModel(
 
     fun importBackup(json: String): Int {
         val imported = parseBackupJson(json)
-        recoveryDataRepository.importEntries(imported.recoveryEntries)
+        val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
         imported.timeTracking?.let { backup ->
             timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, backup) }
         }
@@ -148,7 +148,7 @@ internal class NotesViewModel(
             importedCount = RecordOperations.recordCount(merged) - RecordOperations.recordCount(current)
             merged
         }
-        return importedCount
+        return BackupImportResult(importedCount, importedRecoveryCount)
     }
 
     fun restoreVaultEntry(entry: VaultNote, fromArchive: Boolean) {

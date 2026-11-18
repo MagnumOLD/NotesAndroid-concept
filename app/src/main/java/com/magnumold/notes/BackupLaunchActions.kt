@@ -39,8 +39,14 @@ internal fun rememberBackupActions(
         if (uri != null) {
             try {
                 val json = backupFileStore.readBackup(uri)
-                val importedCount = recordsViewModel.importBackup(json)
-                Toast.makeText(activity, "Импортировано заметок: $importedCount", Toast.LENGTH_LONG).show()
+                val result = recordsViewModel.importBackup(json)
+                val message = buildString {
+                    append("Импортировано записей: ${result.importedRecordCount}")
+                    if (result.importedRecoveryCount > 0) {
+                        append("\nДанных восстановления: ${result.importedRecoveryCount}")
+                    }
+                }
+                Toast.makeText(activity, message, Toast.LENGTH_LONG).show()
             } catch (_: Exception) {
                 Toast.makeText(activity, "Не удалось импортировать файл: неверный формат", Toast.LENGTH_LONG).show()
             }

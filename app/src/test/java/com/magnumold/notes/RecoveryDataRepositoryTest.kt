@@ -51,8 +51,8 @@ class RecoveryDataRepositoryTest {
             RecoveryEntry("time_tracking", "recovery_corrupt_time_tracking_state_v1_200", "{timer-copy")
         )
 
-        repository.importEntries(entries)
-        repository.importEntries(entries)
+        assertEquals(2, repository.importEntries(entries))
+        assertEquals(0, repository.importEntries(entries))
 
         assertEquals("{local-copy", records.getString("recovery_corrupt_notes_100", null))
         assertTrue(records.all.keys.contains("recovery_corrupt_notes_100_import_1"))

@@ -3,6 +3,11 @@ package com.magnumold.notes
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal data class BackupImportResult(
+    val importedRecordCount: Int,
+    val importedRecoveryCount: Int
+)
+
 internal data class BackupData(
     val notes: List<Note>,
     val collections: List<NoteCollection>,

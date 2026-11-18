@@ -21,7 +21,8 @@ internal class RecoveryDataRepository(
             collect(STORAGE_TIME_TRACKING, timeTrackingPreferences))
             .sortedWith(compareBy<RecoveryEntry> { it.storage }.thenBy { it.key })
 
-    fun importEntries(entries: List<RecoveryEntry>) {
+    fun importEntries(entries: List<RecoveryEntry>): Int {
+        var importedCount = 0
         entries.forEach { entry ->
             require(entry.key.startsWith(RECOVERY_KEY_PREFIX)) {
                 "Invalid recovery entry key"
@@ -36,7 +37,9 @@ internal class RecoveryDataRepository(
             check(preferences.edit().putString(candidate, entry.raw).commit()) {
                 "Не удалось импортировать фрагмент восстановления: ${entry.key}"
             }
+            importedCount++
         }
+        return importedCount
     }
 
     private fun collect(storage: String, preferences: SharedPreferences): List<RecoveryEntry> =
