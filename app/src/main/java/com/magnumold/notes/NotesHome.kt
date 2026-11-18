@@ -48,7 +48,8 @@ internal fun NotesHome(
     collections: List<NoteCollection>, activeCollectionId: Long?,
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
-    onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit
+    onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
+    screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -174,8 +175,11 @@ internal fun NotesHome(
                         }
                         IconButton(onClick = { showDeleteConfirmation = true }) { AppIcon(NoteIcon.Trash, contentDescription = "Удалить выбранные заметки") }
                     } else {
-                        Text("Заметки", style = AppTypography.screenTitleStyle())
+                        Text(screenTitle, style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
+                        IconButton(onClick = onOpenModules) {
+                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        }
                         IconButton(onClick = onToggleSearch) {
                             AppIcon(if (searchVisible) NoteIcon.Close else NoteIcon.Search, contentDescription = "Поиск")
                         }
@@ -221,6 +225,18 @@ internal fun NotesHome(
                         DropdownMenuItem(text = { Text("Покупка") }, onClick = {
                             createMenuExpanded = false
                             onCreate(RecordType.PURCHASE)
+                        })
+                        DropdownMenuItem(text = { Text("Таймер") }, onClick = {
+                            createMenuExpanded = false
+                            onCreate(RecordType.TIMER)
+                        })
+                        DropdownMenuItem(text = { Text("Запись КБЖУ") }, onClick = {
+                            createMenuExpanded = false
+                            onCreate(RecordType.NUTRITION)
+                        })
+                        DropdownMenuItem(text = { Text("Тренировка") }, onClick = {
+                            createMenuExpanded = false
+                            onCreate(RecordType.WORKOUT)
                         })
                     }
                 }
