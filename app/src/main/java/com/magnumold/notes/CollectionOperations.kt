@@ -38,6 +38,9 @@ internal object CollectionOperations {
         ids: Set<Long>
     ): PersistenceSnapshot {
         if (sourceId == targetId || ids.isEmpty()) return snapshot
+        // Validate the destination before removing anything from the source.
+        // A stale collection ID must never make a transfer silently lose records.
+        if (targetId != null && snapshot.collections.none { it.id == targetId }) return snapshot
         val source = RecordListOperations.activeNotes(snapshot, sourceId)
         val moving = source.filter { it.id in ids }
         if (moving.isEmpty()) return snapshot
