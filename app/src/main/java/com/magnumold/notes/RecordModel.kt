@@ -157,7 +157,11 @@ internal fun Note.matchesSearch(query: String): Boolean =
         children.any { it.matchesSearch(query) }
 
 internal fun Note.hasContent(): Boolean =
-    (type == RecordType.TIMER) || (type == RecordType.NUTRITION && (titleText.isNotBlank() || nutritionGrams > 0.0 || nutritionCalories > 0.0 || nutritionProtein > 0.0 || nutritionFat > 0.0 || nutritionCarbs > 0.0)) || blocks.any { it.text.isNotBlank() } ||
+    (type == RecordType.TIMER) ||
+        (type == RecordType.NUTRITION && (titleText.isNotBlank() || nutritionGrams > 0.0 || nutritionCalories > 0.0 || nutritionProtein > 0.0 || nutritionFat > 0.0 || nutritionCarbs > 0.0)) ||
+        (type == RecordType.PURCHASE && (purchaseQuantity != 1.0 || purchaseUnitPrice > 0.0)) ||
+        (type == RecordType.WORKOUT && (workoutSets != 3 || workoutReps != 10 || workoutWeightKg > 0.0)) ||
+        blocks.any { it.text.isNotBlank() } ||
         titleText.isNotBlank() ||
         descriptionText.isNotBlank() ||
         children.any { it.hasContent() }

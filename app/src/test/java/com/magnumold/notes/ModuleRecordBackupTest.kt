@@ -50,4 +50,23 @@ class ModuleRecordBackupTest {
         assertEquals("Тренировка", recordCardPrimaryText(base.copy(type = RecordType.WORKOUT)))
         assertNotEquals("Пустая заметка", recordCardPrimaryText(base.copy(type = RecordType.WORKOUT, titleText = "Приседания")))
     }
+    @Test
+    fun moduleSpecificValuesAloneKeepAnOtherwiseEmptyRecord() {
+        val base = Note(20, "", listOf(NoteBlock()), 100L)
+        assertEquals(true, base.copy(type = RecordType.PURCHASE, purchaseUnitPrice = 2.5).hasContent())
+        assertEquals(true, base.copy(type = RecordType.WORKOUT, workoutWeightKg = 10.0).hasContent())
+    }
+
+    @Test
+    fun moduleCardsShowUsefulSecondaryDetails() {
+        val base = Note(21, "", listOf(NoteBlock()), 100L)
+        val nutrition = base.copy(type = RecordType.NUTRITION, nutritionCalories = 250.0, nutritionProtein = 20.0)
+        val purchase = base.copy(type = RecordType.PURCHASE, titleText = "Хлеб", purchaseQuantity = 2.0, purchaseUnitPrice = 1.5)
+        val workout = base.copy(type = RecordType.WORKOUT, workoutSets = 3, workoutReps = 8, workoutWeightKg = 20.0)
+
+        assertEquals("250 ккал · Б 20 · Ж 0 · У 0", recordCardSecondaryText(nutrition))
+        assertEquals("2 × 1.5 = 3 · В списке", recordCardSecondaryText(purchase))
+        assertEquals("3 × 8 повторений · 20 кг", recordCardSecondaryText(workout))
+    }
+
 }

@@ -153,6 +153,7 @@ private fun Note.sameRecordContent(other: Note): Boolean =
     type == other.type && blocks.toPlainText() == other.blocks.toPlainText() &&
         titleText == other.titleText && descriptionText == other.descriptionText &&
         timerDurationSeconds == other.timerDurationSeconds &&
+        timerEndsAtMillis == other.timerEndsAtMillis &&
         timerRemainingSeconds == other.timerRemainingSeconds &&
         nutritionGrams == other.nutritionGrams && nutritionCalories == other.nutritionCalories &&
         nutritionProtein == other.nutritionProtein && nutritionFat == other.nutritionFat && nutritionCarbs == other.nutritionCarbs &&

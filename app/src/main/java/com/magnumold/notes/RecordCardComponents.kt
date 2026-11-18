@@ -309,6 +309,43 @@ internal fun recordCardPrimaryText(note: Note): String {
     }
 }
 
+
+internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis()): String? {
+    fun amount(value: Double): String =
+        if (value % 1.0 == 0.0) value.toLong().toString()
+        else "%.1f".format(java.util.Locale.getDefault(), value)
+
+    return when (note.type) {
+        RecordType.NUTRITION -> {
+            if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
+                note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0
+            ) null else "${amount(note.nutritionCalories)} ккал · Б ${amount(note.nutritionProtein)} · Ж ${amount(note.nutritionFat)} · У ${amount(note.nutritionCarbs)}"
+        }
+        RecordType.PURCHASE -> {
+            val total = note.purchaseQuantity * note.purchaseUnitPrice
+            if (note.purchaseUnitPrice <= 0.0 && note.purchaseQuantity == 1.0) {
+                if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке"
+            } else "${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(total)} · ${if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке"}"
+        }
+        RecordType.WORKOUT -> {
+            val weight = if (note.workoutWeightKg > 0.0) " · ${amount(note.workoutWeightKg)} кг" else ""
+            "${note.workoutSets} × ${note.workoutReps} повторений$weight"
+        }
+        RecordType.TIMER -> {
+            val remaining = if (note.timerEndsAtMillis != null) {
+                TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis)
+            } else note.timerRemainingSeconds ?: note.timerDurationSeconds
+            when (note.status) {
+                RecordStatus.IN_PROGRESS -> "Осталось ${TimerOperations.format(remaining)}"
+                RecordStatus.PAUSED -> "Пауза · ${TimerOperations.format(remaining)}"
+                RecordStatus.COMPLETED -> "Завершён"
+                else -> "Длительность ${TimerOperations.format(note.timerDurationSeconds)}"
+            }
+        }
+        else -> null
+    }
+}
+
 internal fun recordStatusCompactText(status: RecordStatus): String = when (status) {
     RecordStatus.WAITING -> "Ожидает"
     RecordStatus.IN_PROGRESS -> "Выполняется"
@@ -508,6 +545,14 @@ internal fun NoteRow(
                     pinned = false,
                     showDragHandle = false
                 )
+                recordCardSecondaryText(note)?.let { preview ->
+                    Text(
+                        preview,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = rowTextColor.copy(alpha = 0.76f),
+                        modifier = Modifier.padding(top = AppSpacing.xs)
+                    )
+                }
             }
 
             Column(
