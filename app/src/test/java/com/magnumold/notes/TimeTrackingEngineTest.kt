@@ -49,6 +49,26 @@ class TimeTrackingEngineTest {
         assertEquals(40L, TimeTrackingEngine.parentDurationMillis(state, 100, 100))
     }
 
+
+    @Test fun startingSessionRejectsAnIdAlreadyUsedBySavedOrActiveHistory() {
+        val saved = session("taken", 1L, null, 0L, 10L)
+        val withSaved = TimeTrackingState(sessions = listOf(saved))
+        try {
+            TimeTrackingEngine.start(withSaved, 2L, null, "Other", null, 20L, "taken")
+            throw AssertionError("A saved session ID must not be reused")
+        } catch (_: IllegalArgumentException) {
+            // Duplicate IDs would make future persistence parsing reject the entire state.
+        }
+
+        val active = TimeTrackingEngine.start(TimeTrackingState(), 3L, null, "Active", null, 30L, "active-id")
+        try {
+            TimeTrackingEngine.start(active, 4L, null, "Other", null, 40L, "active-id")
+            throw AssertionError("An active session ID must not be reused")
+        } catch (_: IllegalArgumentException) {
+            // Session IDs are unique across active and completed intervals.
+        }
+    }
+
     @Test fun pausingClosesSessionAndNextStartCreatesAnother() {
         var state = TimeTrackingEngine.start(TimeTrackingState(), 1, null, "Task", null, 100, "first")
         state = TimeTrackingEngine.finish(state, 1, 500, WorkSessionEndReason.PAUSE)
