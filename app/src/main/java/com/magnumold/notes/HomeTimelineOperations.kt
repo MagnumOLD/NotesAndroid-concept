@@ -9,19 +9,31 @@ internal enum class HomeTimelineRange {
 }
 
 internal object HomeTimelineOperations {
-    fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> =
-        notes.filter { note ->
+    fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> {
+        val monthEndExclusive = if (range == HomeTimelineRange.MONTH) {
+            val utc = java.util.TimeZone.getTimeZone("UTC")
+            java.util.Calendar.getInstance(utc).apply {
+                timeInMillis = todayDay * MILLIS_PER_DAY
+                set(java.util.Calendar.DAY_OF_MONTH, 1)
+                add(java.util.Calendar.MONTH, 1)
+            }.timeInMillis / MILLIS_PER_DAY
+        } else 0L
+
+        return notes.filter { note ->
             val day = timelineDayKey(note)
             when (range) {
                 HomeTimelineRange.ALL -> true
                 HomeTimelineRange.TODAY -> day == todayDay
                 HomeTimelineRange.TOMORROW -> day == todayDay + 1
                 HomeTimelineRange.WEEK -> day in todayDay..(todayDay + 6)
-                HomeTimelineRange.MONTH -> day in todayDay..(todayDay + 29)
+                // "Месяц" is the remainder of the current calendar month,
+                // not an arbitrary rolling 30-day window.
+                HomeTimelineRange.MONTH -> day in todayDay until monthEndExclusive
                 HomeTimelineRange.HISTORY -> day < todayDay
                 HomeTimelineRange.FAVORITES -> note.favorite
             }
         }
+    }
 
     fun records(snapshot: PersistenceSnapshot): List<Note> =
         snapshot.notes + snapshot.collections.flatMap { it.notes }
@@ -120,6 +132,8 @@ internal object HomeTimelineOperations {
     }
 
     private fun dayKey(note: Note): Long = timelineDayKey(note)
+
+    private const val MILLIS_PER_DAY = 86_400_000L
 
     fun moveToVault(
         snapshot: PersistenceSnapshot,
