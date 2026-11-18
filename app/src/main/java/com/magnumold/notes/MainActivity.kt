@@ -67,11 +67,22 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        if (::recordsViewModel.isInitialized) {
-            recordsViewModel.flush()
+        try {
+            if (::recordsViewModel.isInitialized) {
+                try {
+                    recordsViewModel.flush()
+                } catch (error: Exception) {
+                    // A storage failure must not abort Android's lifecycle callback.
+                    android.util.Log.e("NotesAndroid", "Unable to flush records during onStop", error)
+                }
+            }
+        } finally {
+            try {
+                unregisterReceiver(taskStatusReceiver)
+            } finally {
+                super.onStop()
+            }
         }
-        unregisterReceiver(taskStatusReceiver)
-        super.onStop()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
