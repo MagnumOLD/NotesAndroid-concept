@@ -79,6 +79,29 @@ internal object HomeTimelineOperations {
     fun changeColor(snapshot: PersistenceSnapshot, id: Long, colorIndex: Int): PersistenceSnapshot =
         updateById(snapshot, id) { it.copy(colorIndex = colorIndex) }
 
+    fun toggleFavorite(snapshot: PersistenceSnapshot, ids: Set<Long>): PersistenceSnapshot {
+        if (ids.isEmpty()) return snapshot
+        val selected = records(snapshot).filter { it.id in ids }
+        if (selected.isEmpty()) return snapshot
+        val allFavorite = selected.all { it.favorite }
+        return mapAll(snapshot) { note ->
+            if (note.id in ids) note.copy(favorite = !allFavorite) else note
+        }
+    }
+
+    fun setShowOnHome(
+        snapshot: PersistenceSnapshot,
+        ids: Set<Long>,
+        show: Boolean
+    ): PersistenceSnapshot {
+        if (ids.isEmpty()) return snapshot
+        val existingIds = records(snapshot).asSequence().map { it.id }.toSet()
+        if (ids.none { it in existingIds }) return snapshot
+        return mapAll(snapshot) { note ->
+            if (note.id in ids) note.copy(showOnHome = show) else note
+        }
+    }
+
     fun togglePinned(snapshot: PersistenceSnapshot, ids: Set<Long>): PersistenceSnapshot {
         if (ids.isEmpty()) return snapshot
         val selected = records(snapshot).filter { it.id in ids }
