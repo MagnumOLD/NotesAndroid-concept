@@ -48,8 +48,12 @@ internal class TimeTrackingRepository(
 
     private fun loadStoredState(): TimeTrackingState {
         val raw = preferences.getString(KEY_STATE, null) ?: return TimeTrackingState()
-        return runCatching { parseTimeTrackingJson(JSONObject(raw)) }
-            .getOrDefault(TimeTrackingState())
+        return try {
+            parseTimeTrackingJson(JSONObject(raw))
+        } catch (_: Exception) {
+            preferences.preserveCorruptJson(KEY_STATE, raw)
+            TimeTrackingState()
+        }
     }
 
     @Synchronized

@@ -60,19 +60,48 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         return found
     }
 
+    private fun <T> loadJsonArray(
+        key: String,
+        emptyValue: T,
+        parse: (JSONArray) -> T
+    ): T {
+        val raw = preferences.getString(key, "[]") ?: "[]"
+        return try {
+            parse(JSONArray(raw))
+        } catch (_: Exception) {
+            preferences.preserveCorruptJson(key, raw)
+            emptyValue
+        }
+    }
+
+    private fun loadNotes(): List<Note> =
+        loadJsonArray("notes", emptyList(), ::parseNotesArray)
+
+    private fun loadCollections(): List<NoteCollection> =
+        loadJsonArray("collections", emptyList(), ::parseCollectionsArray)
+
+    private fun loadVault(key: String): List<VaultNote> =
+        loadJsonArray(key, emptyList(), ::parseVaultArray)
+
     private companion object {
         const val KEY_EXTERNAL_STATUS_UPDATE = "external_task_status_update"
     }
+}
 
-    private fun loadNotes(): List<Note> = runCatching {
-        parseNotesArray(JSONArray(preferences.getString("notes", "[]") ?: "[]"))
-    }.getOrDefault(emptyList())
-
-    private fun loadCollections(): List<NoteCollection> = runCatching {
-        parseCollectionsArray(JSONArray(preferences.getString("collections", "[]") ?: "[]"))
-    }.getOrDefault(emptyList())
-
-    private fun loadVault(key: String): List<VaultNote> = runCatching {
-        parseVaultArray(JSONArray(preferences.getString(key, "[]") ?: "[]"))
-    }.getOrDefault(emptyList())
+/**
+ * Keep the exact unreadable value before allowing a caller to continue with an
+ * empty fallback. This prevents the next normal save from destroying the only
+ * copy of the user's damaged data.
+ */
+internal fun SharedPreferences.preserveCorruptJson(sourceKey: String, raw: String) {
+    val prefix = "recovery_corrupt_${sourceKey}_"
+    val timestamp = System.currentTimeMillis()
+    var recoveryKey = prefix + timestamp
+    var suffix = 1
+    while (contains(recoveryKey)) {
+        recoveryKey = prefix + timestamp + "_" + suffix++
+    }
+    check(edit().putString(recoveryKey, raw).commit()) {
+        "Не удалось сохранить повреждённые данные для восстановления: $sourceKey"
+    }
 }
