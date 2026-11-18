@@ -164,10 +164,22 @@ internal fun NotesApp(
                         entries = if (navigation.vaultScreen == "archive") archived else trash,
                         isTrash = navigation.vaultScreen == "trash",
                         onBack = { navigation.closeVault() },
-                        onRestore = { entry -> recordsViewModel.restoreVaultEntry(entry, fromArchive = navigation.vaultScreen == "archive") },
-                        onMoveToTrash = { entry -> recordsViewModel.moveArchivedToTrash(entry) },
-                        onDeleteForever = { entry -> recordsViewModel.deleteFromTrash(entry) },
-                        onEmptyTrash = { recordsViewModel.emptyTrash() },
+                        onRestore = { entry ->
+                            recordsViewModel.restoreVaultEntry(entry, fromArchive = navigation.vaultScreen == "archive")
+                            recordTimerScheduler.sync(entry.note)
+                        },
+                        onMoveToTrash = { entry ->
+                            recordTimerScheduler.cancel(entry.note.id)
+                            recordsViewModel.moveArchivedToTrash(entry)
+                        },
+                        onDeleteForever = { entry ->
+                            recordTimerScheduler.cancel(entry.note.id)
+                            recordsViewModel.deleteFromTrash(entry)
+                        },
+                        onEmptyTrash = {
+                            snapshot.trash.forEach { recordTimerScheduler.cancel(it.note.id) }
+                            recordsViewModel.emptyTrash()
+                        },
                         themeColors = activeThemeColors
                     )
                 } else if (settingsVisible && selected == null) {
@@ -242,12 +254,18 @@ internal fun NotesApp(
                         onOpenSettings = { navigation.openSettings() },
                         onOpen = { navigation.openRecord(it) },
                         onArchiveSelected = { ids ->
-                            closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
+                            val selectedRecords = activeNotes.filter { it.id in ids }
+                            closeActiveSessionsForRemoved(selectedRecords)
+                            selectedRecords.filter { it.type == RecordType.TIMER }
+                                .forEach { recordTimerScheduler.cancel(it.id) }
                             if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = false)
                             else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = false)
                         },
                         onDeleteSelected = { ids ->
-                            closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
+                            val selectedRecords = activeNotes.filter { it.id in ids }
+                            closeActiveSessionsForRemoved(selectedRecords)
+                            selectedRecords.filter { it.type == RecordType.TIMER }
+                                .forEach { recordTimerScheduler.cancel(it.id) }
                             if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = true)
                             else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = true)
                         },
