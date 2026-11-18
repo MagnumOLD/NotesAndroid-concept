@@ -77,6 +77,36 @@ class TimeTrackingJsonCodecTest {
     }
 
     @Test
+    fun orphanedImportedTrackingIdsCannotAttachToUnrelatedLocalRecords() {
+        val localTask = Note(55L, "", listOf(NoteBlock("Local task")), 55L, type = RecordType.TASK)
+        val importedTracking = TimeTrackingState(
+            sessions = listOf(
+                WorkSession("orphan", 55L, null, "Deleted imported task", null,
+                    100L, 200L, 100L, WorkSessionEndReason.STOP)
+            )
+        )
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(
+                notes = listOf(localTask),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList()
+            ),
+            BackupData(
+                notes = emptyList(),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList(),
+                timeTracking = importedTracking
+            )
+        )
+        val remapped = remapTimeTrackingTaskIds(importedTracking, merged.importedNoteIdMap)
+
+        assertNotEquals(55L, remapped.sessions.single().taskId)
+        assertEquals(55L, merged.snapshot.notes.single().id)
+    }
+
+    @Test
     fun importedTrackingReferencesFollowRekeyedNestedTaskIds() {
         val currentChild = Note(
             id = 20L,
