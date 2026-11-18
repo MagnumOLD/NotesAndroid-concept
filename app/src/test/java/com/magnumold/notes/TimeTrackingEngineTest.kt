@@ -133,6 +133,29 @@ class TimeTrackingEngineTest {
         assertEquals(Long.MAX_VALUE, stats.taskTotalsMillis[7L])
     }
 
+    @Test fun finishingSessionSaturatesDurationAcrossLongTimestampRange() {
+        val active = TimeTrackingEngine.start(
+            TimeTrackingState(), 7L, null, "Task", null, Long.MIN_VALUE, "extreme"
+        )
+
+        val finished = TimeTrackingEngine.finish(
+            active, 7L, Long.MAX_VALUE, WorkSessionEndReason.STOP
+        )
+
+        assertEquals(Long.MAX_VALUE, finished.sessions.single().durationMillis)
+        assertEquals(Long.MAX_VALUE, finished.sessions.single().endedAtMillis - finished.sessions.single().startedAtMillis.coerceAtLeast(0L))
+    }
+
+    @Test fun displayGroupingDoesNotMergeWhenGapSubtractionWouldOverflow() {
+        val first = session("first", 7L, null, Long.MIN_VALUE, Long.MIN_VALUE)
+        val second = session("second", 7L, null, Long.MAX_VALUE - 1L, Long.MAX_VALUE)
+
+        val groups = TimeTrackingEngine.groupSessionsForDisplay(listOf(first, second))
+
+        assertEquals(2, groups.size)
+        assertEquals(listOf("first", "second"), groups.map { it.single().id })
+    }
+
     @Test fun protectionTimerIsIndependentAndOnlyOneCanRun() {
         val timer = ProtectionTimerEngine.start(null, 1, "Task", "Child", 0, 60_000, ProtectionEndMode.SIGNAL_ONLY, null, false)
         assertEquals(30_000L, ProtectionTimerEngine.remainingMillis(timer, 30_000))
