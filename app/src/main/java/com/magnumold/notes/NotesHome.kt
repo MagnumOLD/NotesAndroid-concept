@@ -51,7 +51,8 @@ internal fun NotesHome(
     onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
     screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false,
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
-    cardPreviewFields: Set<String> = CardPreviewField.defaults
+    cardPreviewFields: Set<String> = CardPreviewField.defaults,
+    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -222,8 +223,13 @@ internal fun NotesHome(
                             .background(themeColors.addButton)
                             .combinedClickable(
                                 role = Role.Button,
-                                onClick = { onCreate(RecordType.NOTE) },
-                                onLongClick = { createMenuExpanded = true }
+                                onClick = {
+                                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                                },
+                                onLongClick = {
+                                    if (enabledModules.isEmpty()) onOpenModules()
+                                    else createMenuExpanded = true
+                                }
                             ),
                         contentAlignment = Alignment.Center
                     ) {
@@ -238,26 +244,14 @@ internal fun NotesHome(
                         expanded = createMenuExpanded,
                         onDismissRequest = { createMenuExpanded = false }
                     ) {
-                        DropdownMenuItem(text = { Text("Задача") }, onClick = {
-                            createMenuExpanded = false
-                            onCreate(RecordType.TASK)
-                        })
-                        DropdownMenuItem(text = { Text("Покупка") }, onClick = {
-                            createMenuExpanded = false
-                            onCreate(RecordType.PURCHASE)
-                        })
-                        DropdownMenuItem(text = { Text("Таймер") }, onClick = {
-                            createMenuExpanded = false
-                            onCreate(RecordType.TIMER)
-                        })
-                        DropdownMenuItem(text = { Text("Запись КБЖУ") }, onClick = {
-                            createMenuExpanded = false
-                            onCreate(RecordType.NUTRITION)
-                        })
-                        DropdownMenuItem(text = { Text("Тренировка") }, onClick = {
-                            createMenuExpanded = false
-                            onCreate(RecordType.WORKOUT)
-                        })
+                        enabledModules.forEach { module ->
+                            module.recordType?.let { recordType ->
+                                DropdownMenuItem(text = { Text(module.title) }, onClick = {
+                                    createMenuExpanded = false
+                                    onCreate(recordType)
+                                })
+                            }
+                        }
                     }
                 }
             }

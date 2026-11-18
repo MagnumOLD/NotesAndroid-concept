@@ -44,4 +44,17 @@ class AppModulesTest {
         assertEquals(RecordType.WORKOUT, AppModule.WORKOUTS.recordType)
         assertEquals(RecordType.PURCHASE, AppModule.PURCHASES.recordType)
     }
+    @Test
+    fun enabledModulesFollowConfiguredOrderAndExcludeDisabledModules() {
+        val configuration = ModuleConfiguration(
+            enabled = setOf(AppModule.PURCHASES, AppModule.TASKS),
+            order = listOf(AppModule.PURCHASES, AppModule.NOTES, AppModule.TASKS)
+        )
+        assertEquals(listOf(AppModule.PURCHASES, AppModule.TASKS), configuration.enabledInOrder())
+    }
+
+    @Test
+    fun disablingEveryModuleLeavesNoQuickCreateTarget() {
+        assertTrue(ModuleConfiguration(enabled = emptySet()).enabledInOrder().isEmpty())
+    }
 }

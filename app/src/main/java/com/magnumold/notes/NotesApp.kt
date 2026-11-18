@@ -243,6 +243,7 @@ internal fun NotesApp(
                         timelineMode = homeTimelineMode,
                         interactiveCards = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
+                        enabledModules = moduleConfiguration.enabledInOrder(),
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome

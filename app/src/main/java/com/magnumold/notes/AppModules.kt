@@ -43,6 +43,11 @@ internal data class ModuleConfiguration(
         val safeEnabled = enabled.intersect(available.toSet())
         return copy(enabled = safeEnabled, order = safeOrder)
     }
+
+    fun enabledInOrder(): List<AppModule> {
+        val safe = normalized()
+        return safe.order.filter { it in safe.enabled }
+    }
 }
 
 internal class ModuleSettingsStore(private val preferences: SharedPreferences) {
