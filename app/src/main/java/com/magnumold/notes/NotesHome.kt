@@ -76,6 +76,7 @@ internal fun NotesHome(
         HomeTimelineOperations.orderedVisibleRecords(notes)
     } else notes.sortedByDescending { it.pinned }
     val todayDay = currentTimelineDayKey()
+    val moduleSummary = ModuleSummaryOperations.summary(screenTitle, notes, todayDay)
     val rangeNotes = if (timelineMode && timelineRange == HomeTimelineRange.FAVORITES) {
         notes.filter { it.favorite }
     } else if (timelineMode) {
@@ -484,6 +485,20 @@ internal fun NotesHome(
                         // from following a note that is being displaced from index 0.
                         item(key = "notes_reorder_viewport_anchor") {
                             Spacer(Modifier.height(1.dp))
+                        }
+                        if (moduleSummary != null) {
+                            item(key = "module_summary") {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md)
+                                ) {
+                                    Text(
+                                        moduleSummary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
                         }
                         itemsIndexed(visibleDragRows, key = { _, row -> row.key }) { index, dragRow ->
                             // Keep placement animation attached to every keyed row,
