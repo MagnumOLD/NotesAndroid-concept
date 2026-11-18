@@ -10,6 +10,15 @@ internal object ModuleSummaryOperations {
             else "%.1f".format(Locale.getDefault(), value)
 
         return when (title) {
+            "Задачи" -> {
+                val entries = today.filter { it.type == RecordType.TASK }
+                if (entries.isEmpty()) "На сегодня задач нет"
+                else {
+                    val completed = entries.count { it.recordStatus() == RecordStatus.COMPLETED }
+                    val missed = entries.count { it.recordStatus() == RecordStatus.MISSED }
+                    "Задач: ${entries.size} · Выполнено: $completed · Просрочено: $missed"
+                }
+            }
             "КБЖУ" -> {
                 val entries = today.filter { it.type == RecordType.NUTRITION }
                 if (entries.isEmpty()) "Сегодня пока нет записей о питании"

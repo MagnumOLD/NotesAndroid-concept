@@ -1,5 +1,12 @@
 package com.magnumold.notes
 
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -22,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -34,6 +42,11 @@ internal fun TimerRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    val context = LocalContext.current
+    val exactAlarmsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+        context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+    val notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
     var now by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
     var durationInput by remember(note.id) { mutableStateOf(note.timerDurationSeconds.toString()) }
     val running = note.timerEndsAtMillis != null
@@ -91,6 +104,38 @@ internal fun TimerRecordEditor(
                 fontWeight = FontWeight.Light,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            if (!exactAlarmsAllowed) {
+                Text(
+                    "Без доступа к точным будильникам сигнал может прийти с задержкой.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(
+                    onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .setData(Uri.parse("package:${context.packageName}"))
+                            )
+                        }
+                    }
+                ) { Text("Настроить точный сигнал") }
+            }
+            if (!notificationsAllowed) {
+                Text(
+                    "Уведомления отключены. Включите их, чтобы видеть окончание таймера.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                TextButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                        )
+                    }
+                ) { Text("Настроить уведомления") }
+            }
             if (!running) {
                 OutlinedTextField(
                     value = durationInput,

@@ -38,4 +38,19 @@ class ModuleSummaryOperationsTest {
     fun emptyModuleSummaryIsUseful() {
         assertEquals("Сегодня пока нет записей о питании", ModuleSummaryOperations.summary("КБЖУ", emptyList(), 1L))
     }
+    @Test
+    fun taskSummaryShowsCompletionAndMissedCounts() {
+        val today = 400L
+        val records = listOf(
+            Note(1, "", listOf(NoteBlock()), 1L, type = RecordType.TASK,
+                status = RecordStatus.COMPLETED, scheduledAt = today * 86_400_000L),
+            Note(2, "", listOf(NoteBlock()), 1L, type = RecordType.TASK,
+                status = RecordStatus.WAITING, scheduledAt = today * 86_400_000L),
+            Note(3, "", listOf(NoteBlock()), 1L, type = RecordType.TASK,
+                status = RecordStatus.MISSED, scheduledAt = today * 86_400_000L)
+        )
+
+        assertEquals("Задач: 3 · Выполнено: 1 · Просрочено: 1", ModuleSummaryOperations.summary("Задачи", records, today))
+    }
+
 }
