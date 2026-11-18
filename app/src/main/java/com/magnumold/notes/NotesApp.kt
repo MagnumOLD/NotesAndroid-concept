@@ -259,6 +259,8 @@ internal fun NotesApp(
                             if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(ids)
                             else recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, ids)
                         },
+                        onToggleFavorite = { ids -> recordsViewModel.toggleRecordsFavorite(ids) },
+                        onSetShowOnHome = { ids, show -> recordsViewModel.setRecordsShowOnHome(ids, show) },
                         onChangeNoteColor = { noteId, colorIndex ->
                             if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
                             else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
