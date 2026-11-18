@@ -322,22 +322,25 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
                 add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru")).format(java.util.Date(ts)))
             }
         }
-        RecordType.NUTRITION -> buildList {
-            if (on(CardPreviewField.NUTRITION_CALORIES) && note.nutritionCalories > 0) add("${amount(note.nutritionCalories)} ккал")
-            if (on(CardPreviewField.NUTRITION_PROTEIN) && note.nutritionProtein > 0) add("Б ${amount(note.nutritionProtein)}")
-            if (on(CardPreviewField.NUTRITION_FAT) && note.nutritionFat > 0) add("Ж ${amount(note.nutritionFat)}")
-            if (on(CardPreviewField.NUTRITION_CARBS) && note.nutritionCarbs > 0) add("У ${amount(note.nutritionCarbs)}")
+        RecordType.NUTRITION -> if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
+            note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0 && note.nutritionGrams == 0.0
+        ) emptyList() else buildList {
+            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${amount(note.nutritionCalories)} ккал")
+            if (on(CardPreviewField.NUTRITION_PROTEIN)) add("Б ${amount(note.nutritionProtein)}")
+            if (on(CardPreviewField.NUTRITION_FAT)) add("Ж ${amount(note.nutritionFat)}")
+            if (on(CardPreviewField.NUTRITION_CARBS)) add("У ${amount(note.nutritionCarbs)}")
             if (on(CardPreviewField.NUTRITION_GRAMS) && note.nutritionGrams > 0) add("${amount(note.nutritionGrams)} г")
         }
         RecordType.PURCHASE -> buildList {
-            if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
-            if (on(CardPreviewField.PURCHASE_PRICE) && note.purchaseUnitPrice > 0) add("${amount(note.purchaseUnitPrice)} × ${amount(note.purchaseQuantity)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+            if (on(CardPreviewField.PURCHASE_PRICE) && (note.purchaseUnitPrice > 0 || note.purchaseQuantity != 1.0)) {
+                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+            } else if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
             if (on(CardPreviewField.PURCHASE_STATUS)) add(if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке")
         }
         RecordType.WORKOUT -> buildList {
             if (on(CardPreviewField.WORKOUT_SETS)) add("${note.workoutSets} × ${note.workoutReps} повторений")
             if (on(CardPreviewField.WORKOUT_WEIGHT) && note.workoutWeightKg > 0) add("${amount(note.workoutWeightKg)} кг")
-            if (on(CardPreviewField.WORKOUT_STATUS)) add(recordStatusCompactText(note.status))
+            if (on(CardPreviewField.WORKOUT_STATUS) && note.status != RecordStatus.WAITING) add(recordStatusCompactText(note.status))
         }
         RecordType.TIMER -> buildList {
             val left = if (note.timerEndsAtMillis != null) TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis) else note.timerRemainingSeconds ?: note.timerDurationSeconds

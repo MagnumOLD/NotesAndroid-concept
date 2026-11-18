@@ -97,4 +97,17 @@ class ModuleRecordBackupTest {
         assertEquals("Выполняется · 1/2 · до 20.11", recordCardSecondaryText(task))
     }
 
+    @Test
+    fun legacyModuleVisibilityPreferencesMigrateToFieldSelections() {
+        val prefs = RuntimeEnvironment.getApplication().getSharedPreferences("card_preview_legacy_test", Context.MODE_PRIVATE)
+        prefs.edit().clear().putStringSet("card_preview_modules", setOf("NUTRITION", "TASKS")).commit()
+        val store = CardPreviewSettingsStore(prefs)
+        assertEquals(
+            (CardPreviewField.forModule(AppModule.NUTRITION) + CardPreviewField.forModule(AppModule.TASKS)).map { it.key }.toSet(),
+            store.load()
+        )
+        store.save(store.load())
+        assertEquals(null, prefs.getStringSet("card_preview_modules", null))
+    }
+
 }

@@ -29,11 +29,17 @@ internal enum class CardPreviewField(val module: AppModule, val key: String, val
 
 internal class CardPreviewSettingsStore(private val preferences: SharedPreferences) {
     fun load(): Set<String> {
-        val stored = preferences.getStringSet(KEY_FIELDS, null) ?: return CardPreviewField.defaults
-        return stored.intersect(CardPreviewField.defaults)
+        val stored = preferences.getStringSet(KEY_FIELDS, null)
+        if (stored != null) return stored.intersect(CardPreviewField.defaults)
+        val legacyModules = preferences.getStringSet(LEGACY_KEY_MODULES, null) ?: return CardPreviewField.defaults
+        val enabledModules = legacyModules.mapNotNull { runCatching { AppModule.valueOf(it) }.getOrNull() }.toSet()
+        return CardPreviewField.entries.filter { it.module in enabledModules }.map { it.key }.toSet()
     }
     fun save(fields: Set<String>) {
-        preferences.edit().putStringSet(KEY_FIELDS, fields.intersect(CardPreviewField.defaults)).apply()
+        preferences.edit().putStringSet(KEY_FIELDS, fields.intersect(CardPreviewField.defaults)).remove(LEGACY_KEY_MODULES).apply()
     }
-    private companion object { const val KEY_FIELDS = "card_preview_fields" }
+    private companion object {
+        const val KEY_FIELDS = "card_preview_fields"
+        const val LEGACY_KEY_MODULES = "card_preview_modules"
+    }
 }
