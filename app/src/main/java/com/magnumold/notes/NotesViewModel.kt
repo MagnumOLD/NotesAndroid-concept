@@ -144,15 +144,14 @@ internal class NotesViewModel(
     fun importBackup(json: String): BackupImportResult {
         val imported = parseBackupJson(json)
         val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
+        val before = _snapshot.value
+        val merge = RecordOperations.mergeBackupWithIdMap(before, imported)
         imported.timeTracking?.let { backup ->
-            timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, backup) }
+            val remappedBackup = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
+            timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, remappedBackup) }
         }
-        var importedCount = 0
-        updateSnapshot { current ->
-            val merged = RecordOperations.mergeBackup(current, imported)
-            importedCount = RecordOperations.recordCount(merged) - RecordOperations.recordCount(current)
-            merged
-        }
+        val importedCount = RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
+        updateSnapshot { merge.snapshot }
         // Do not report a successful import while the merged records are only
         // waiting in the debounced autosave queue.
         flush()
