@@ -133,6 +133,39 @@ class TimeTrackingStatusSyncTest {
         assertEquals(null, resumed.protectionTimer)
     }
 
+    @Test fun deadlineExpiryStopsAnActiveSubtaskWhenTrackingStateIsReconciled() {
+        val previousZone = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+            val deadline = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                clear()
+                set(2026, java.util.Calendar.JANUARY, 2, 0, 0, 0)
+            }.timeInMillis
+            val beforeDeadline = deadline + 23L * 60L * 60L * 1_000L
+            val afterDeadline = deadline + 24L * 60L * 60L * 1_000L + 60L * 1_000L
+            val child = task(11, "Child", RecordStatus.IN_PROGRESS).copy(
+                dateMode = RecordDateMode.DEADLINE,
+                dateAt = deadline
+            )
+            val parent = task(10, "Parent", RecordStatus.WAITING, listOf(child))
+            val active = syncWorkSessionsForTaskChanges(
+                emptyList(), listOf(parent), TimeTrackingState(), beforeDeadline
+            )
+            assertTrue(active.activeSessions.containsKey(11L))
+
+            // Reconcile the same task tree after its local deadline has passed.
+            val reconciled = syncWorkSessionsForTaskChanges(
+                listOf(parent), listOf(parent), active, afterDeadline
+            )
+
+            assertFalse(reconciled.activeSessions.containsKey(11L))
+            assertEquals(WorkSessionEndReason.STOP, reconciled.sessions.single().endReason)
+            assertEquals(afterDeadline, reconciled.sessions.single().endedAtMillis)
+        } finally {
+            java.util.TimeZone.setDefault(previousZone)
+        }
+    }
+
     @Test fun pausingSubtaskSavesSessionWithPauseReason() {
         val before = task(10, "Parent", RecordStatus.WAITING, listOf(task(11, "Child", RecordStatus.IN_PROGRESS)))
         val active = syncWorkSessionsForTaskChanges(emptyList(), listOf(before), TimeTrackingState(), 100L)
