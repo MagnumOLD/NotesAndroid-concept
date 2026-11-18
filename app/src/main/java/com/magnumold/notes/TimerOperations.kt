@@ -30,8 +30,11 @@ internal object TimerOperations {
         return remainingMillis / 1_000L + if (remainingMillis % 1_000L == 0L) 0L else 1L
     }
 
-    fun startAt(nowMillis: Long, remainingSeconds: Long): Long =
-        nowMillis + normalizeDuration(remainingSeconds) * 1_000L
+    fun startAt(nowMillis: Long, remainingSeconds: Long): Long {
+        val durationMillis = normalizeDuration(remainingSeconds) * 1_000L
+        return if (nowMillis > Long.MAX_VALUE - durationMillis) Long.MAX_VALUE
+        else nowMillis + durationMillis
+    }
 
     fun format(seconds: Long): String {
         val safe = seconds.coerceAtLeast(0L)
