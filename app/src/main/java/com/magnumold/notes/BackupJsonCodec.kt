@@ -213,6 +213,28 @@ internal fun parseBackupJson(raw: String): BackupData {
                 }
             }
         }
+
+    // Record IDs are global across the whole backup, including nested tasks,
+    // collections, archive and trash. A duplicate makes the time-tracking
+    // reference remap ambiguous, so reject the backup before importing anything.
+    val recordIds = mutableSetOf<Long>()
+    fun validateRecordIds(items: List<Note>) {
+        items.forEach { note ->
+            require(recordIds.add(note.id)) { "Duplicate record ID in backup: ${note.id}" }
+            validateRecordIds(note.children)
+        }
+    }
+    validateRecordIds(notes)
+    collections.forEach { validateRecordIds(it.notes) }
+    archived.forEach { validateRecordIds(listOf(it.note)) }
+    trash.forEach { validateRecordIds(listOf(it.note)) }
+
+    val collectionIds = mutableSetOf<Long>()
+    collections.forEach { collection ->
+        require(collectionIds.add(collection.id)) {
+            "Duplicate collection ID in backup: ${collection.id}"
+        }
+    }
     return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries)
 }
 
