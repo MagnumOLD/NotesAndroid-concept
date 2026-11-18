@@ -592,6 +592,13 @@ internal fun NoteEditor(
                                         )
                                     }
                                     DropdownMenuItem(
+                                        text = { Text(if (note.favorite) "Убрать из избранного" else "В избранное") },
+                                        onClick = {
+                                            homeDateMenuExpanded = false
+                                            onChange(note.copy(favorite = !note.favorite))
+                                        }
+                                    )
+                                    DropdownMenuItem(
                                         text = { Text(if (note.showOnHome) "Скрыть с главной" else "Показывать на главной") },
                                         onClick = {
                                             homeDateMenuExpanded = false

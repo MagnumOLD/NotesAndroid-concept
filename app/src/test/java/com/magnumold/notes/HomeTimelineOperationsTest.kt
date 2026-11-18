@@ -172,6 +172,19 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun favoritesRangeReturnsOnlyFavoriteRecords() {
+        val records = listOf(
+            note(1).copy(favorite = true),
+            note(2),
+            note(3).copy(favorite = true)
+        )
+        assertEquals(
+            listOf(1L, 3L),
+            HomeTimelineOperations.filterByRange(records, HomeTimelineRange.FAVORITES, 100L).map { it.id }
+        )
+    }
+
+    @Test
     fun homeTimelineSortsByScheduledDayAndHidesExcludedRecords() {
         val yesterday = note(1, order = 100, created = 86_400_000L)
         val today = note(2, order = 10, created = 2 * 86_400_000L)

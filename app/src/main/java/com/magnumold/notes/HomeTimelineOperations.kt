@@ -5,7 +5,7 @@ package com.magnumold.notes
  * notebook/collection; only their home presentation order is shared.
  */
 internal enum class HomeTimelineRange {
-    ALL, TODAY, TOMORROW, WEEK, MONTH, HISTORY
+    ALL, TODAY, TOMORROW, WEEK, MONTH, HISTORY, FAVORITES
 }
 
 internal object HomeTimelineOperations {
@@ -19,6 +19,7 @@ internal object HomeTimelineOperations {
                 HomeTimelineRange.WEEK -> day in todayDay..(todayDay + 6)
                 HomeTimelineRange.MONTH -> day in todayDay..(todayDay + 29)
                 HomeTimelineRange.HISTORY -> day < todayDay
+                HomeTimelineRange.FAVORITES -> note.favorite
             }
         }
 
