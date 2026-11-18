@@ -55,8 +55,11 @@ internal fun syncWorkSessionsForTaskChanges(
             state = state.copy(protectionTimer = null)
         }
 
-        if (oldEntries[id]?.parentId != null &&
-            (entry.parentId == null || (oldStatus == RecordStatus.IN_PROGRESS && newStatus != RecordStatus.IN_PROGRESS))
+        val previousParentId = oldEntries[id]?.parentId
+        val parentChanged = previousParentId != entry.parentId
+        if (previousParentId != null &&
+            (entry.parentId == null || parentChanged ||
+                (oldStatus == RecordStatus.IN_PROGRESS && newStatus != RecordStatus.IN_PROGRESS))
         ) {
             val reason = when (newStatus) {
                 RecordStatus.COMPLETED -> WorkSessionEndReason.TASK_COMPLETED
@@ -67,7 +70,7 @@ internal fun syncWorkSessionsForTaskChanges(
         }
 
         val shouldStart = entry.parentId != null && newStatus == RecordStatus.IN_PROGRESS &&
-            (old == null || oldStatus != RecordStatus.IN_PROGRESS || oldEntries[id]?.parentId == null)
+            (old == null || oldStatus != RecordStatus.IN_PROGRESS || parentChanged)
         if (shouldStart && id !in state.activeSessions) {
             val ownTitle = title(note)
             val parentId = entry.parentId
