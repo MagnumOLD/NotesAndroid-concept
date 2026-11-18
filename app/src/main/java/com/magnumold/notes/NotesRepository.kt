@@ -78,7 +78,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         return try {
             parse(JSONArray(raw))
         } catch (_: Exception) {
-            preferences.preserveCorruptJson(key, raw)
+            preferences.preserveCorruptJson(key, raw, "[]")
             emptyValue
         }
     }
@@ -102,7 +102,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
  * empty fallback. This prevents the next normal save from destroying the only
  * copy of the user's damaged data.
  */
-internal fun SharedPreferences.preserveCorruptJson(sourceKey: String, raw: String) {
+internal fun SharedPreferences.preserveCorruptJson(sourceKey: String, raw: String, replacementValue: String) {
     val prefix = "recovery_corrupt_${sourceKey}_"
     val timestamp = System.currentTimeMillis()
     var recoveryKey = prefix + timestamp
@@ -110,7 +110,7 @@ internal fun SharedPreferences.preserveCorruptJson(sourceKey: String, raw: Strin
     while (contains(recoveryKey)) {
         recoveryKey = prefix + timestamp + "_" + suffix++
     }
-    check(edit().putString(recoveryKey, raw).commit()) {
+    check(edit().putString(recoveryKey, raw).putString(sourceKey, replacementValue).commit()) {
         "Не удалось сохранить повреждённые данные для восстановления: $sourceKey"
     }
 }

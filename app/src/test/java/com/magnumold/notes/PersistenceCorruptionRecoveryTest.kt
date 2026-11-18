@@ -18,7 +18,7 @@ class PersistenceCorruptionRecoveryTest {
             .also { it.edit().clear().commit() }
 
     @Test
-    fun damagedRecordJsonIsPreservedBeforeLaterSnapshotSave() {
+    fun damagedRecordJsonIsPreservedAndQuarantinedAtomically() {
         val prefs = preferences("corrupt_records_recovery_test")
         val damaged = "{not-valid-json"
         prefs.edit().putString("notes", damaged).commit()
@@ -29,14 +29,35 @@ class PersistenceCorruptionRecoveryTest {
 
         val recoveryKey = prefs.all.keys.single { it.startsWith("recovery_corrupt_notes_") }
         assertEquals(damaged, prefs.getString(recoveryKey, null))
+        assertEquals("[]", prefs.getString("notes", null))
+
+        repository.loadSnapshot()
+        assertEquals(1, prefs.all.keys.count { it.startsWith("recovery_corrupt_notes_") })
 
         repository.saveSnapshot(snapshot)
         assertEquals(damaged, prefs.getString(recoveryKey, null))
-        assertEquals("[]", prefs.getString("notes", null))
     }
 
     @Test
-    fun damagedTimeTrackingJsonIsPreservedBeforeValidStateCanBeSaved() {
+    fun damagedCollectionsArchiveAndTrashArePreservedAndQuarantined() {
+        val prefs = preferences("corrupt_vault_recovery_test")
+        prefs.edit()
+            .putString("collections", "{bad")
+            .putString("archive", "{bad")
+            .putString("trash", "{bad")
+            .commit()
+
+        NotesRepository(prefs).loadSnapshot()
+
+        listOf("collections", "archive", "trash").forEach { key ->
+            assertEquals("[]", prefs.getString(key, null))
+            val recoveryKey = prefs.all.keys.single { it.startsWith("recovery_corrupt_${key}_") }
+            assertEquals("{bad", prefs.getString(recoveryKey, null))
+        }
+    }
+
+    @Test
+    fun damagedTimeTrackingJsonIsPreservedAndQuarantinedAtomically() {
         val prefs = preferences("corrupt_time_recovery_test")
         val damaged = "[broken-time-tracking-json"
         prefs.edit().putString("time_tracking_state_v1", damaged).commit()
@@ -48,6 +69,12 @@ class PersistenceCorruptionRecoveryTest {
             it.startsWith("recovery_corrupt_time_tracking_state_v1_")
         }
         assertEquals(damaged, prefs.getString(recoveryKey, null))
+        assertEquals("{}", prefs.getString("time_tracking_state_v1", null))
+
+        repository.reload()
+        assertEquals(1, prefs.all.keys.count {
+            it.startsWith("recovery_corrupt_time_tracking_state_v1_")
+        })
 
         repository.save(TimeTrackingState())
         assertEquals(damaged, prefs.getString(recoveryKey, null))

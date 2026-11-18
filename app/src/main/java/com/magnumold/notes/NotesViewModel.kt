@@ -12,7 +12,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.runBlocking
 
 /**
  * Owns the complete record state and its persistence lifecycle.
@@ -25,26 +26,35 @@ internal class NotesViewModel(
     private val _snapshot = MutableStateFlow(repository.loadSnapshot())
     val snapshot: StateFlow<PersistenceSnapshot> = _snapshot.asStateFlow()
 
+    private var persistenceJob: kotlinx.coroutines.Job? = null
+
     init {
-        viewModelScope.launch {
+        startPersistenceObserver()
+    }
+
+    private fun startPersistenceObserver() {
+        persistenceJob = viewModelScope.launch(Dispatchers.IO) {
             _snapshot
                 .debounce(PERSISTENCE_DEBOUNCE_MS)
                 .distinctUntilChanged()
                 .collectLatest { value ->
-                    withContext(Dispatchers.IO) {
-                        repository.saveSnapshot(value)
-                    }
+                    repository.saveSnapshot(value)
                 }
         }
     }
 
     /**
-     * Commits the latest in-memory state before the Activity enters the stopped
-     * state. The debounce remains useful for normal editing, but is not relied
-     * on as the only persistence path when Android backgrounds the app.
+     * Finish any in-flight debounced write before committing the newest
+     * snapshot, so an older queued write cannot overwrite the lifecycle flush.
      */
     fun flush() {
+        val pendingJob = persistenceJob
+        persistenceJob = null
+        runBlocking {
+            pendingJob?.cancelAndJoin()
+        }
         repository.flushSnapshot(_snapshot.value)
+        startPersistenceObserver()
     }
 
     fun refreshFromRepository() {

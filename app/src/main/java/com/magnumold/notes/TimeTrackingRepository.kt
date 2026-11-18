@@ -51,7 +51,7 @@ internal class TimeTrackingRepository(
         return try {
             parseTimeTrackingJson(JSONObject(raw))
         } catch (_: Exception) {
-            preferences.preserveCorruptJson(KEY_STATE, raw)
+            preferences.preserveCorruptJson(KEY_STATE, raw, "{}")
             TimeTrackingState()
         }
     }
