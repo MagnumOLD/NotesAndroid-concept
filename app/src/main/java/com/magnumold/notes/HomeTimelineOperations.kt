@@ -8,6 +8,12 @@ internal object HomeTimelineOperations {
     fun records(snapshot: PersistenceSnapshot): List<Note> =
         snapshot.notes + snapshot.collections.flatMap { it.notes }
 
+    fun orderedVisibleRecords(notes: List<Note>): List<Note> =
+        notes.filter { it.showOnHome }.sortedWith(
+            compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
+                .thenByDescending { it.homeOrder }
+        )
+
     fun update(snapshot: PersistenceSnapshot, note: Note): PersistenceSnapshot {
         if (snapshot.notes.any { it.id == note.id }) {
             return snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
