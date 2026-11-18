@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -34,6 +35,17 @@ class ModuleRecordBackupTest {
         assertEquals(4, decoded[2].workoutSets)
         assertEquals(8, decoded[2].workoutReps)
         assertEquals(5.0, decoded[2].workoutWeightKg, 0.0)
+    }
+
+    @Test
+    fun malformedVaultEntryRejectsBackupInsteadOfSilentlyDroppingIt() {
+        val malformed = """{"format":"notes_backup","version":11,"notes":[],"collections":[],"archive":[{"note":null}]}"""
+        try {
+            parseBackupJson(malformed)
+            fail("Malformed archive entries must reject the backup")
+        } catch (_: Exception) {
+            // Expected: callers must not import a partially decoded backup.
+        }
     }
 
     @Test

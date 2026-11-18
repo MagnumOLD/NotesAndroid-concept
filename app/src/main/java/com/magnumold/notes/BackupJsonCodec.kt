@@ -49,8 +49,11 @@ internal fun vaultToJson(items: List<VaultNote>): JSONArray {
     }
     return array
 }
+private fun JSONObject.optionalArray(key: String): JSONArray =
+    if (!has(key) || isNull(key)) JSONArray() else getJSONArray(key)
+
 private fun parseNoteObject(obj: JSONObject, index: Int): Note {
-    val blocksJson = obj.optJSONArray("blocks") ?: JSONArray()
+    val blocksJson = obj.optionalArray("blocks")
     var blocks = (0 until blocksJson.length()).map { blockIndex ->
         val block = blocksJson.getJSONObject(blockIndex)
         NoteBlock(block.optString("text"), block.optBoolean("checked"), block.optBoolean("checklist"),
@@ -66,7 +69,7 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         else runCatching { RecordType.valueOf(storedType) }.getOrDefault(RecordType.NOTE)
     val status = runCatching { RecordStatus.valueOf(obj.optString("status", "WAITING")) }.getOrDefault(RecordStatus.WAITING)
     val dateMode = runCatching { RecordDateMode.valueOf(obj.optString("dateMode")) }.getOrNull()
-    val children = parseNotesArray(obj.optJSONArray("children") ?: JSONArray())
+    val children = parseNotesArray(obj.optionalArray("children"))
     val updated = obj.optLong("updated", System.currentTimeMillis())
     val created = obj.optLong("created",
         obj.optLong("id", updated).takeIf { it > 1_000_000_000_000L } ?: updated)
@@ -106,10 +109,11 @@ internal fun parseNotesArray(array: JSONArray): List<Note> =
         .filter { it.hasContent() }
 internal fun parseVaultArray(array: JSONArray?): List<VaultNote> {
     if (array == null) return emptyList()
-    return (0 until array.length()).mapNotNull { index ->
-        val obj = array.optJSONObject(index) ?: return@mapNotNull null
-        val noteObj = obj.optJSONObject("note") ?: return@mapNotNull null
-        val note = parseNoteObject(noteObj, index).takeIf { it.hasContent() } ?: return@mapNotNull null
+    return (0 until array.length()).map { index ->
+        val obj = array.getJSONObject(index)
+        val noteObj = obj.getJSONObject("note")
+        val note = parseNoteObject(noteObj, index)
+        require(note.hasContent()) { "Archive entry $index has no content" }
         val collectionId = if (obj.isNull("collectionId")) null else obj.optLong("collectionId")
         VaultNote(
             note = note,
@@ -136,7 +140,7 @@ internal fun parseCollectionsArray(array: JSONArray): List<NoteCollection> =
         NoteCollection(
             obj.optLong("id", System.currentTimeMillis() + index),
             obj.optString("name").ifBlank { "Подборка ${index + 1}" },
-            parseNotesArray(obj.optJSONArray("notes") ?: JSONArray())
+            parseNotesArray(obj.optionalArray("notes"))
         )
     }
 
@@ -154,9 +158,16 @@ internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
     require(root.optInt("version") in 1..11) { "Неподдерживаемая версия файла" }
-    val notes = parseNotesArray(root.optJSONArray("notes") ?: error("В файле нет списка заметок"))
-    val collections = parseCollectionsArray(root.optJSONArray("collections") ?: JSONArray())
-    return BackupData(notes, collections, parseVaultArray(root.optJSONArray("archive")), parseVaultArray(root.optJSONArray("trash")), root.optJSONObject("timeTracking")?.let(::parseTimeTrackingJson))
+    val notes = parseNotesArray(root.getJSONArray("notes"))
+    val collections = if (!root.has("collections") || root.isNull("collections")) emptyList()
+        else parseCollectionsArray(root.getJSONArray("collections"))
+    val archived = if (!root.has("archive") || root.isNull("archive")) emptyList()
+        else parseVaultArray(root.getJSONArray("archive"))
+    val trash = if (!root.has("trash") || root.isNull("trash")) emptyList()
+        else parseVaultArray(root.getJSONArray("trash"))
+    val timeTracking = if (!root.has("timeTracking") || root.isNull("timeTracking")) null
+        else parseTimeTrackingJson(root.getJSONObject("timeTracking"))
+    return BackupData(notes, collections, archived, trash, timeTracking)
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =

@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -86,6 +87,30 @@ class TimeTrackingJsonCodecTest {
         val json = createBackupJson(listOf(task), emptyList(), emptyList(), emptyList())
         val restored = parseBackupJson(json)
         assertEquals(true, restored.notes.single().timeTrackingEnabled)
+    }
+
+    @Test fun malformedSessionIsNotSilentlyDropped() {
+        val malformed = JSONObject("""{"sessions":[{"id":"broken"}]}""")
+        try {
+            parseTimeTrackingJson(malformed)
+            fail("Malformed sessions must invalidate the complete state")
+        } catch (_: Exception) {
+            // Expected: repository will quarantine the original JSON.
+        }
+    }
+
+    @Test fun malformedActiveSessionAndTimerAreNotSilentlyDropped() {
+        listOf(
+            JSONObject("""{"activeSessions":[{"id":"broken"}]}"""),
+            JSONObject("""{"protectionTimer":{"taskId":1}}""")
+        ).forEach { malformed ->
+            try {
+                parseTimeTrackingJson(malformed)
+                fail("Malformed tracking state must be rejected")
+            } catch (_: Exception) {
+                // Expected.
+            }
+        }
     }
 
     @Test fun missingTrackingObjectIsNotTreatedAsAnImportedEmptyHistory() {

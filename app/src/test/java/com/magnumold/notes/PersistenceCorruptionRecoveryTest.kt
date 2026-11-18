@@ -81,6 +81,36 @@ class PersistenceCorruptionRecoveryTest {
     }
 
     @Test
+    fun malformedVaultEntryIsQuarantinedInsteadOfSilentlyDropped() {
+        val prefs = preferences("corrupt_vault_entry_recovery_test")
+        val damaged = """[{"note":null}]"""
+        prefs.edit().putString("archive", damaged).commit()
+
+        val snapshot = NotesRepository(prefs).loadSnapshot()
+
+        assertTrue(snapshot.archived.isEmpty())
+        assertEquals("[]", prefs.getString("archive", null))
+        val recoveryKey = prefs.all.keys.single { it.startsWith("recovery_corrupt_archive_") }
+        assertEquals(damaged, prefs.getString(recoveryKey, null))
+    }
+
+    @Test
+    fun malformedTimeTrackingSessionQuarantinesTheWholeHistory() {
+        val prefs = preferences("corrupt_tracking_entry_recovery_test")
+        val damaged = """{"sessions":[{"id":"broken"}]}"""
+        prefs.edit().putString("time_tracking_state_v1", damaged).commit()
+
+        val repository = TimeTrackingRepository(prefs)
+
+        assertEquals(TimeTrackingState(), repository.load())
+        assertEquals("{}", prefs.getString("time_tracking_state_v1", null))
+        val recoveryKey = prefs.all.keys.single {
+            it.startsWith("recovery_corrupt_time_tracking_state_v1_")
+        }
+        assertEquals(damaged, prefs.getString(recoveryKey, null))
+    }
+
+    @Test
     fun explicitFlushPersistsLatestRecordSnapshot() {
         val prefs = preferences("explicit_snapshot_flush_test")
         val repository = NotesRepository(prefs)

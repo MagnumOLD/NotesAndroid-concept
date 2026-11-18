@@ -35,54 +35,55 @@ internal fun timeTrackingToJson(state: TimeTrackingState): JSONObject {
 
 internal fun parseTimeTrackingJson(json: JSONObject?): TimeTrackingState {
     if (json == null) return TimeTrackingState()
-    val sessionsArray = json.optJSONArray("sessions") ?: JSONArray()
-    val sessions = (0 until sessionsArray.length()).mapNotNull { index ->
-        val o = sessionsArray.optJSONObject(index) ?: return@mapNotNull null
-        runCatching {
-            WorkSession(
-                id = o.getString("id"),
-                taskId = o.getLong("taskId"),
-                parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId"),
-                taskTitle = o.getString("taskTitle"),
-                subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
-                startedAtMillis = o.getLong("startedAt"),
-                endedAtMillis = o.getLong("endedAt"),
-                durationMillis = o.getLong("duration"),
-                endReason = WorkSessionEndReason.valueOf(o.getString("endReason"))
-            )
-        }.getOrNull()
+    fun arrayOrEmpty(key: String): JSONArray =
+        if (!json.has(key) || json.isNull(key)) JSONArray() else json.getJSONArray(key)
+
+    val sessionsArray = arrayOrEmpty("sessions")
+    val sessions = (0 until sessionsArray.length()).map { index ->
+        val o = sessionsArray.getJSONObject(index)
+        WorkSession(
+            id = o.getString("id"),
+            taskId = o.getLong("taskId"),
+            parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId"),
+            taskTitle = o.getString("taskTitle"),
+            subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
+            startedAtMillis = o.getLong("startedAt"),
+            endedAtMillis = o.getLong("endedAt"),
+            durationMillis = o.getLong("duration"),
+            endReason = WorkSessionEndReason.valueOf(o.getString("endReason"))
+        )
     }
-    val activeArray = json.optJSONArray("activeSessions") ?: JSONArray()
+    val activeArray = arrayOrEmpty("activeSessions")
     val active = linkedMapOf<Long, ActiveWorkSession>()
     (0 until activeArray.length()).forEach { index ->
-        val o = activeArray.optJSONObject(index) ?: return@forEach
-        runCatching {
-            val item = ActiveWorkSession(
-                id = o.getString("id"),
-                taskId = o.getLong("taskId"),
-                parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId"),
-                taskTitle = o.getString("taskTitle"),
-                subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
-                startedAtMillis = o.getLong("startedAt")
-            )
-            active[item.taskId] = item
+        val o = activeArray.getJSONObject(index)
+        val item = ActiveWorkSession(
+            id = o.getString("id"),
+            taskId = o.getLong("taskId"),
+            parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId"),
+            taskTitle = o.getString("taskTitle"),
+            subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
+            startedAtMillis = o.getLong("startedAt")
+        )
+        require(active.put(item.taskId, item) == null) {
+            "Duplicate active time-tracking task: ${item.taskId}"
         }
     }
-    val timerObject = json.optJSONObject("protectionTimer")
-    val timer = timerObject?.let { o ->
-        runCatching {
-            ProtectionTimer(
-                taskId = o.getLong("taskId"),
-                taskTitle = o.getString("taskTitle"),
-                subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
-                startedAtMillis = o.getLong("startedAt"),
-                endsAtMillis = o.getLong("endsAt"),
-                endMode = ProtectionEndMode.valueOf(o.getString("endMode")),
-                soundUri = if (o.isNull("soundUri")) null else o.getString("soundUri"),
-                soundEnabled = o.optBoolean("soundEnabled", true),
-                parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId")
-            )
-        }.getOrNull()
+    val timer = if (!json.has("protectionTimer") || json.isNull("protectionTimer")) {
+        null
+    } else {
+        val o = json.getJSONObject("protectionTimer")
+        ProtectionTimer(
+            taskId = o.getLong("taskId"),
+            taskTitle = o.getString("taskTitle"),
+            subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
+            startedAtMillis = o.getLong("startedAt"),
+            endsAtMillis = o.getLong("endsAt"),
+            endMode = ProtectionEndMode.valueOf(o.getString("endMode")),
+            soundUri = if (o.isNull("soundUri")) null else o.getString("soundUri"),
+            soundEnabled = o.optBoolean("soundEnabled", true),
+            parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId")
+        )
     }
     val soundUri = if (json.isNull("soundUri")) null else json.optString("soundUri").takeIf { it.isNotBlank() }
     return TimeTrackingState(sessions, active, timer, soundUri, json.optBoolean("soundEnabled", true))
