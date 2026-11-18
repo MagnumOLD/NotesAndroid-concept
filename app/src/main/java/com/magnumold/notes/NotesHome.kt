@@ -49,7 +49,7 @@ internal fun NotesHome(
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
     onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
-    screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}
+    screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -71,7 +71,7 @@ internal fun NotesHome(
 
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val orderedNotes = notes.sortedByDescending { it.pinned }
+    val orderedNotes = if (timelineMode) {\n        notes.filter { it.showOnHome }.sortedWith(\n            compareByDescending<Note> { it.scheduledAt ?: it.created }\n                .thenByDescending { it.homeOrder }\n        )\n    } else notes.sortedByDescending { it.pinned }
     val filtered = orderedNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
     val homeBarColor = themeColors.topBar
