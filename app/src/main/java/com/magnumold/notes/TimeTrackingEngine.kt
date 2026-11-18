@@ -19,6 +19,10 @@ internal object TimeTrackingEngine {
     ): TimeTrackingState {
         require(taskId !in state.activeSessions) { "A work session is already active for this task." }
         require(taskTitle.isNotBlank())
+        require(sessionId.isNotBlank()) { "A work session ID must not be blank." }
+        require(state.sessions.none { it.id == sessionId } &&
+            state.activeSessions.values.none { it.id == sessionId }
+        ) { "A work session ID must be unique." }
         val active = ActiveWorkSession(
             id = sessionId,
             taskId = taskId,
