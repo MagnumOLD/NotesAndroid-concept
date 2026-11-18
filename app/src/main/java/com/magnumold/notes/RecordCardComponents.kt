@@ -292,6 +292,23 @@ internal fun DragHandleIcon(
     }
 }
 
+
+internal fun recordCardPrimaryText(note: Note): String {
+    val text = note.titleText.trim()
+    return when (note.type) {
+        RecordType.TIMER -> text.ifBlank { "Таймер" }
+        RecordType.NUTRITION -> text.ifBlank { "Запись КБЖУ" }
+        RecordType.WORKOUT -> text.ifBlank { "Тренировка" }
+        else -> if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && text.isNotBlank()) {
+            text
+        } else {
+            note.blocks.asSequence().mapNotNull { block ->
+                block.text.lineSequence().map(String::trim).firstOrNull { line -> line.isNotEmpty() }
+            }.firstOrNull() ?: "Пустая заметка"
+        }
+    }
+}
+
 internal fun recordStatusCompactText(status: RecordStatus): String = when (status) {
     RecordStatus.WAITING -> "Ожидает"
     RecordStatus.IN_PROGRESS -> "Выполняется"
@@ -364,10 +381,7 @@ internal fun NoteRow(
     colorSwipeEnabled: Boolean, onChangeColor: (Int) -> Unit,
     onMeasuredHeight: (Int) -> Unit = {}
 ) {
-    val firstLine = if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && note.titleText.isNotBlank()) note.titleText.trim()
-    else note.blocks.asSequence().mapNotNull {
-        it.text.lineSequence().map(String::trim).firstOrNull { line -> line.isNotEmpty() }
-    }.firstOrNull() ?: "Пустая заметка"
+    val firstLine = recordCardPrimaryText(note)
     var swipeProgress by remember(note.id) { mutableFloatStateOf(0f) }
     val fillAnimation = remember(note.id) { Animatable(0f) }
     val scope = rememberCoroutineScope()

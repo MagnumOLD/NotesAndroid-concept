@@ -151,9 +151,13 @@ internal fun parseBackupJson(raw: String): BackupData {
 
 private fun Note.sameRecordContent(other: Note): Boolean =
     type == other.type && blocks.toPlainText() == other.blocks.toPlainText() &&
+        titleText == other.titleText && descriptionText == other.descriptionText &&
+        timerDurationSeconds == other.timerDurationSeconds &&
+        timerRemainingSeconds == other.timerRemainingSeconds &&
         nutritionGrams == other.nutritionGrams && nutritionCalories == other.nutritionCalories &&
         nutritionProtein == other.nutritionProtein && nutritionFat == other.nutritionFat && nutritionCarbs == other.nutritionCarbs &&
-        titleText == other.titleText && descriptionText == other.descriptionText
+        purchaseQuantity == other.purchaseQuantity && purchaseUnitPrice == other.purchaseUnitPrice &&
+        workoutSets == other.workoutSets && workoutReps == other.workoutReps && workoutWeightKg == other.workoutWeightKg
 
 internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): List<Note> {
     val result = existing.toMutableList()
