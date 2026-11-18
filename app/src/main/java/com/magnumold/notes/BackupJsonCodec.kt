@@ -160,8 +160,17 @@ internal fun parseBackupJson(raw: String): BackupData {
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =
-    type == other.type && blocks.toPlainText() == other.blocks.toPlainText() &&
+    // Content equality is used to make repeated imports idempotent across devices.
+    // Creation time and task scheduling/state are part of a record's identity:
+    // two tasks with the same text but different deadlines must remain separate.
+    created == other.created &&
+        type == other.type &&
+        blocks.map { Triple(it.text, it.checked, it.isChecklist) } ==
+            other.blocks.map { Triple(it.text, it.checked, it.isChecklist) } &&
         titleText == other.titleText && descriptionText == other.descriptionText &&
+        status == other.status && dateMode == other.dateMode && dateAt == other.dateAt &&
+        scheduledAt == other.scheduledAt && deadlineResumeOverride == other.deadlineResumeOverride &&
+        timeTrackingEnabled == other.timeTrackingEnabled &&
         timerDurationSeconds == other.timerDurationSeconds &&
         timerEndsAtMillis == other.timerEndsAtMillis &&
         timerRemainingSeconds == other.timerRemainingSeconds &&
