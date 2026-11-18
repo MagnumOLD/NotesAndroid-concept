@@ -21,6 +21,12 @@ internal fun NotesApp(
             val moduleSettingsStore = remember(activity) {
                 ModuleSettingsStore(activity.getSharedPreferences("notes_modules", Context.MODE_PRIVATE))
             }
+            val cardInteractionStore = remember(activity) {
+                CardInteractionSettingsStore(activity.getSharedPreferences("notes_card_behavior", Context.MODE_PRIVATE))
+            }
+            var interactiveCardsEnabled by remember(cardInteractionStore) {
+                androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
+            }
             val trashRetentionStore = remember(activity) {
                 TrashRetentionStore(activity.getSharedPreferences("notes_storage", Context.MODE_PRIVATE))
             }
@@ -160,6 +166,11 @@ internal fun NotesApp(
                         onOpenArchive = { navigation.openVault("archive") },
                         onOpenTrash = { navigation.openVault("trash") },
                         trashRetentionDays = trashRetentionDays,
+                        interactiveCardsEnabled = interactiveCardsEnabled,
+                        onInteractiveCardsEnabledChange = { enabled ->
+                            interactiveCardsEnabled = enabled
+                            cardInteractionStore.save(enabled)
+                        },
                         onTrashRetentionDaysChange = { days ->
                             trashRetentionDays = days
                             trashRetentionStore.saveDays(days)
@@ -224,6 +235,24 @@ internal fun NotesApp(
                         screenTitle = navigation.activeModule.title,
                         onOpenModules = { navigation.openModules() },
                         timelineMode = homeTimelineMode,
+                        interactiveCards = interactiveCardsEnabled,
+                        onQuickAction = { record ->
+                            val now = System.currentTimeMillis()
+                            val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
+                            if (record.type == RecordType.TASK) {
+                                val updatedTimeState = syncWorkSessionsForTaskChanges(
+                                    oldRoots = listOf(record),
+                                    newRoots = listOf(changed),
+                                    currentState = timeTrackingState,
+                                    nowMillis = now
+                                )
+                                if (updatedTimeState != timeTrackingState) timeTrackingRepository.save(updatedTimeState)
+                            }
+                            val updated = changed.copy(updated = now)
+                            if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
+                            else recordsViewModel.updateActiveRecord(activeCollectionId, updated)
+                            if (record.type == RecordType.TIMER) recordTimerScheduler.sync(updated)
+                        },
                         onCreate = { requestedType ->
                             val type = navigation.activeModule.recordType ?: requestedType
                             val now = System.currentTimeMillis()

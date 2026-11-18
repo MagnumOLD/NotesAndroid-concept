@@ -135,6 +135,8 @@ internal fun SettingsScreen(
     onOpenArchive: () -> Unit,
     onOpenTrash: () -> Unit,
     trashRetentionDays: Int,
+    interactiveCardsEnabled: Boolean = false,
+    onInteractiveCardsEnabledChange: (Boolean) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -267,6 +269,16 @@ internal fun SettingsScreen(
                     leadingContent = { AppIcon(NoteIcon.Palette, contentDescription = null) },
                     trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.clickable { personalizationVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                ListItem(headlineContent = { Text("Поведение карточек", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                ListItem(
+                    headlineContent = { Text("Интерактивные карточки") },
+                    supportingContent = { Text("Быстро отмечать задачи и покупки, запускать и ставить на паузу таймеры прямо в списке") },
+                    trailingContent = {
+                        Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange)
+                    },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))

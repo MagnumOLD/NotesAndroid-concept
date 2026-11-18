@@ -49,7 +49,8 @@ internal fun NotesHome(
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
     onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
-    screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false
+    screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false,
+    interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {}
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -562,6 +563,8 @@ internal fun NotesHome(
                                         onLongPress = { selectedNoteIds = selectedNoteIds + note.id },
                                         colorSwipeEnabled = !selectionMode && !isDragging,
                                         onChangeColor = { next -> onChangeNoteColor(note.id, next) },
+                                        interactiveCards = interactiveCards,
+                                        onQuickAction = { onQuickAction(note) },
                                         onMeasuredHeight = { heightPx ->
                                             if (measuredNoteCardHeights[note.id] != heightPx) {
                                                 measuredNoteCardHeights[note.id] = heightPx

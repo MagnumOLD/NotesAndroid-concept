@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.RadioButtonUnchecked
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
@@ -416,6 +417,8 @@ internal fun NoteRow(
     note: Note, dark: Boolean, noteColors: List<Color>, customSelectionColor: Color? = null, pinned: Boolean, selected: Boolean,
     onClick: () -> Unit, onLongPress: () -> Unit,
     colorSwipeEnabled: Boolean, onChangeColor: (Int) -> Unit,
+    interactiveCards: Boolean = false,
+    onQuickAction: () -> Unit = {},
     onMeasuredHeight: (Int) -> Unit = {}
 ) {
     val firstLine = recordCardPrimaryText(note)
@@ -569,6 +572,27 @@ internal fun NoteRow(
                     contentAlignment = Alignment.Center
                 ) {
                     DragHandleIcon(color = rowTextColor)
+                }
+                if (interactiveCards && note.type in setOf(RecordType.TASK, RecordType.PURCHASE, RecordType.TIMER)) {
+                    val actionIcon = when (note.type) {
+                        RecordType.TIMER -> if (note.timerEndsAtMillis != null) Icons.Outlined.PauseCircleOutline else Icons.Outlined.PlayCircleOutline
+                        else -> if (note.status == RecordStatus.COMPLETED) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked
+                    }
+                    val actionLabel = when (note.type) {
+                        RecordType.TIMER -> if (note.timerEndsAtMillis != null) "Пауза таймера" else "Запустить таймер"
+                        else -> if (note.status == RecordStatus.COMPLETED) "Вернуть в список" else "Отметить выполненным"
+                    }
+                    Box(
+                        modifier = Modifier.size(CardDimensions.sideRailControlSize).clickable(onClick = onQuickAction),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = actionIcon,
+                            contentDescription = actionLabel,
+                            tint = if (note.status == RecordStatus.COMPLETED) Color(0xFF2196F3) else rowTextColor.copy(alpha = 0.82f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
                 if (pinned) {
                     Box(
