@@ -5,9 +5,12 @@ import java.util.Locale
 internal object ModuleSummaryOperations {
     fun summary(title: String, records: List<Note>, todayDay: Long, nowMillis: Long = System.currentTimeMillis()): String? {
         val today = records.filter { timelineDayKey(it) == todayDay }
-        fun number(value: Double): String =
-            if (value % 1.0 == 0.0) value.toLong().toString()
+        fun number(value: Double): String {
+            if (!value.isFinite()) return "—"
+            val decimal = java.math.BigDecimal.valueOf(value).stripTrailingZeros()
+            return if (decimal.scale() <= 0) decimal.toPlainString()
             else "%.1f".format(Locale.getDefault(), value)
+        }
 
         return when (title) {
             "Задачи" -> {
