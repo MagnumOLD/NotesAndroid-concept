@@ -44,7 +44,9 @@ internal object RecordListOperations {
     ): PersistenceSnapshot {
         val current = activeNotes(snapshot, collectionId)
         val reordered = NoteReorderModel.moveSelected(current, ids, afterId)
-        return if (reordered == current) snapshot else replace(snapshot, collectionId, reordered)
+        if (reordered == current) return snapshot
+        val orderBase = System.currentTimeMillis()
+        val orderedWithTimelinePosition = reordered.mapIndexed { index, note ->\n            note.copy(homeOrder = orderBase + index)\n        }\n        return replace(snapshot, collectionId, orderedWithTimelinePosition)
     }
 
     fun togglePinned(
