@@ -15,14 +15,53 @@ internal fun mergeTimeTrackingBackup(
     imported: TimeTrackingState
 ): TimeTrackingState {
     val sessionsById = linkedMapOf<String, WorkSession>()
-    (current.sessions + imported.sessions).forEach { session ->
+    current.sessions.forEach { sessionsById[it.id] = it }
+
+    fun uniqueSessionId(original: String, used: Set<String>): String {
+        var suffix = 1
+        var candidate = "$original-imported-$suffix"
+        while (candidate in used) {
+            suffix++
+            candidate = "$original-imported-$suffix"
+        }
+        return candidate
+    }
+
+    imported.sessions.forEach { session ->
         val previous = sessionsById[session.id]
-        if (previous == null || session.endedAtMillis > previous.endedAtMillis) {
+        if (previous == null) {
             sessionsById[session.id] = session
+        } else if (
+            previous.taskId == session.taskId &&
+            previous.parentTaskId == session.parentTaskId &&
+            previous.startedAtMillis == session.startedAtMillis
+        ) {
+            // Same logical session from a newer backup: retain its latest saved revision.
+            if (session.endedAtMillis > previous.endedAtMillis) {
+                sessionsById[session.id] = session
+            }
+        } else {
+            // Different work intervals must never overwrite one another just because
+            // independently-created backups happen to contain the same UUID.
+            val newId = uniqueSessionId(session.id, sessionsById.keys)
+            sessionsById[newId] = session.copy(id = newId)
         }
     }
+
     val active = current.activeSessions.toMutableMap()
-    imported.activeSessions.forEach { (taskId, session) -> active.putIfAbsent(taskId, session) }
+    val usedSessionIds = sessionsById.keys.toMutableSet().apply {
+        addAll(active.values.map { it.id })
+    }
+    imported.activeSessions.forEach { (taskId, session) ->
+        if (taskId !in active) {
+            val safeSession = if (session.id in usedSessionIds) {
+                val newId = uniqueSessionId(session.id, usedSessionIds)
+                session.copy(id = newId)
+            } else session
+            active[taskId] = safeSession
+            usedSessionIds += safeSession.id
+        }
+    }
     return TimeTrackingState(
         sessions = sessionsById.values.sortedBy { it.startedAtMillis },
         activeSessions = active,
