@@ -11,7 +11,7 @@ import androidx.compose.runtime.setValue
  */
 @Stable
 internal class AppNavigationState {
-    var activeCollectionId by mutableStateOf<Long?>(null)
+    var activeModule by mutableStateOf(AppModule.ALL)\n        private set\n    var modulesVisible by mutableStateOf(false)\n        private set\n    var activeCollectionId by mutableStateOf<Long?>(null)
         private set
     var selectedId by mutableStateOf<Long?>(null)
         private set
@@ -25,7 +25,7 @@ internal class AppNavigationState {
         private set
     var vaultScreen by mutableStateOf<String?>(null)
         private set
-    fun selectCollection(id: Long?) {
+    fun openModules() { modulesVisible = true }\n\n    fun closeModules() { modulesVisible = false }\n\n    fun selectModule(module: AppModule) {\n        activeModule = module\n        activeCollectionId = null\n        selectedId = null\n        modulesVisible = false\n        search = ""\n        searchVisible = false\n    }\n\n    fun selectCollection(id: Long?) {
         activeCollectionId = id
         selectedId = null
     }
