@@ -62,7 +62,10 @@ internal data class Note(
     val nutritionFat: Double = 0.0,
     val nutritionCarbs: Double = 0.0,
     val purchaseQuantity: Double = 1.0,
-    val purchaseUnitPrice: Double = 0.0
+    val purchaseUnitPrice: Double = 0.0,
+    val workoutSets: Int = 3,
+    val workoutReps: Int = 10,
+    val workoutWeightKg: Double = 0.0
 )
 
 internal data class NoteCollection(val id: Long, val name: String, val notes: List<Note> = emptyList())
