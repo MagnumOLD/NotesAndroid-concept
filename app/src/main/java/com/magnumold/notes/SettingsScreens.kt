@@ -141,8 +141,6 @@ internal fun SettingsScreen(
     onCardPreviewFieldsChange: (Set<String>) -> Unit = {},
     collectionVisibleModules: Set<AppModule> = ModuleConfiguration().enabled,
     onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
-    collectionVisibleModules: Set<AppModule> = ModuleConfiguration().enabled,
-    onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -326,24 +324,6 @@ internal fun SettingsScreen(
                     )
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(
-                    headlineContent = { Text("Подборки по модулям", style = AppTypography.emphasisBodyStyle()) },
-                    supportingContent = { Text("Скрытие подборок не удаляет их и содержащиеся в них записи") },
-                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
-                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
-                    ListItem(
-                        headlineContent = { Text(module.title) },
-                        supportingContent = { Text("Показывать подборки в этом модуле") },
-                        trailingContent = {
-                            Switch(
-                                checked = module in collectionVisibleModules,
-                                onCheckedChange = { onCollectionVisibilityChange(module, it) }
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                    )
-                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(

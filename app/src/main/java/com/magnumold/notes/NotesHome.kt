@@ -53,7 +53,6 @@ internal fun NotesHome(
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
      showCollections: Boolean = true,
-     showCollections: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }

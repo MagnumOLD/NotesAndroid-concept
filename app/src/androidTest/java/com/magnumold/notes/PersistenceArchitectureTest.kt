@@ -83,6 +83,22 @@ class PersistenceArchitectureTest {
     }
 
     @Test
+    fun collectionVisibilityPreferencesPersistAcrossStoreInstances() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferences = context.getSharedPreferences("collection_visibility_instrumentation_test", Context.MODE_PRIVATE)
+        preferences.edit().clear().commit()
+        try {
+            val store = CollectionVisibilitySettingsStore(preferences)
+            assertEquals(ModuleConfiguration().enabled, store.load())
+            val selected = setOf(AppModule.NOTES, AppModule.TASKS)
+            store.save(selected)
+            assertEquals(selected, CollectionVisibilitySettingsStore(preferences).load())
+        } finally {
+            preferences.edit().clear().commit()
+        }
+    }
+
+    @Test
     fun legacyUniversalRecordsAreMigratedToTasks() {
         val legacyRecord = JSONObject()
             .put("id", 21)
