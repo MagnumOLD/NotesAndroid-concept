@@ -28,7 +28,7 @@ internal object HomeTimelineOperations {
 
     fun orderedVisibleRecords(notes: List<Note>): List<Note> =
         notes.filter { it.showOnHome }.sortedWith(
-            compareByDescending<Note> { (it.scheduledAt ?: it.created) / 86_400_000L }
+            compareByDescending<Note> { timelineDayKey(it) }
                 .thenByDescending { it.pinned }
                 .thenByDescending { it.homeOrder }
         )
@@ -108,8 +108,7 @@ internal object HomeTimelineOperations {
         }
     }
 
-    private fun dayKey(note: Note): Long =
-        (note.scheduledAt ?: note.created) / 86_400_000L
+    private fun dayKey(note: Note): Long = timelineDayKey(note)
 
     fun moveToVault(
         snapshot: PersistenceSnapshot,
@@ -153,4 +152,37 @@ internal object HomeTimelineOperations {
             collection.copy(notes = collection.notes.map(transform))
         }
     )
+}
+
+
+/**
+ * Converts record timestamps into a stable calendar-day key.
+ * Scheduled dates are stored as DatePicker UTC-midnight values; creation
+ * timestamps are real instants and must be interpreted in the device timezone.
+ */
+internal fun timelineDayKey(note: Note): Long =
+    timelineDayKey(note.scheduledAt ?: note.created, isDateOnly = note.scheduledAt != null)
+
+internal fun currentTimelineDayKey(now: Long = System.currentTimeMillis()): Long =
+    timelineDayKey(now, isDateOnly = false)
+
+internal fun timelineDayKey(
+    timestamp: Long,
+    isDateOnly: Boolean,
+    timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()
+): Long {
+    val sourceZone = if (isDateOnly) java.util.TimeZone.getTimeZone("UTC") else timeZone
+    val sourceCalendar = java.util.Calendar.getInstance(sourceZone).apply {
+        timeInMillis = timestamp
+    }
+    val utcCalendar = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+        clear()
+        set(
+            sourceCalendar.get(java.util.Calendar.YEAR),
+            sourceCalendar.get(java.util.Calendar.MONTH),
+            sourceCalendar.get(java.util.Calendar.DAY_OF_MONTH),
+            0, 0, 0
+        )
+    }
+    return utcCalendar.timeInMillis / 86_400_000L
 }

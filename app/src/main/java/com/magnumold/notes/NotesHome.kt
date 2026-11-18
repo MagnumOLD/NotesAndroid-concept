@@ -75,7 +75,7 @@ internal fun NotesHome(
     val orderedNotes = if (timelineMode) {
         HomeTimelineOperations.orderedVisibleRecords(notes)
     } else notes.sortedByDescending { it.pinned }
-    val todayDay = System.currentTimeMillis() / 86_400_000L
+    val todayDay = currentTimelineDayKey()
     val rangeNotes = if (timelineMode) {
         HomeTimelineOperations.filterByRange(orderedNotes, timelineRange, todayDay)
     } else orderedNotes
@@ -140,8 +140,8 @@ internal fun NotesHome(
             val neighbourNotes = dragBaseRows[neighbourKey]?.notes.orEmpty()
             val movingPinStates = movingNotes.map { it.pinned }.distinct()
             val neighbourPinStates = neighbourNotes.map { it.pinned }.distinct()
-            val movingDay = movingNotes.firstOrNull()?.let { (it.scheduledAt ?: it.created) / 86_400_000L }
-            val neighbourDay = neighbourNotes.firstOrNull()?.let { (it.scheduledAt ?: it.created) / 86_400_000L }
+            val movingDay = movingNotes.firstOrNull()?.let { timelineDayKey(it) }
+            val neighbourDay = neighbourNotes.firstOrNull()?.let { timelineDayKey(it) }
             movingPinStates.size == 1 && neighbourPinStates.size == 1 &&
                 movingPinStates.single() == neighbourPinStates.single() &&
                 movingDay == neighbourDay
@@ -489,9 +489,9 @@ internal fun NotesHome(
                             )
                             val anchorNoteId = dragRow.key.toLongOrNull()
                             val anchorNote = dragRow.notes.firstOrNull { it.id == anchorNoteId } ?: dragRow.notes.first()
-                            val rowDay = (anchorNote.scheduledAt ?: anchorNote.created) / 86_400_000L
+                            val rowDay = timelineDayKey(anchorNote)
                             val previousDay = visibleDragRows.getOrNull(index - 1)?.notes?.firstOrNull()
-                                ?.let { (it.scheduledAt ?: it.created) / 86_400_000L }
+                                ?.let { timelineDayKey(it) }
                             Column(Modifier.fillMaxWidth()) {
                                 if (timelineMode && !isDragging && (index == 0 || rowDay != previousDay)) {
                                     Text(
