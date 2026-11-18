@@ -488,9 +488,26 @@ internal fun NotesHome(
                             )
                             val anchorNoteId = dragRow.key.toLongOrNull()
                             val anchorNote = dragRow.notes.firstOrNull { it.id == anchorNoteId } ?: dragRow.notes.first()
-                            Box(
-                                Modifier.fillMaxWidth().then(rowPlacementModifier)
-                            ) {
+                            val rowDay = (anchorNote.scheduledAt ?: anchorNote.created) / 86_400_000L
+                            val previousDay = visibleDragRows.getOrNull(index - 1)?.notes?.firstOrNull()
+                                ?.let { (it.scheduledAt ?: it.created) / 86_400_000L }
+                            Column(Modifier.fillMaxWidth()) {
+                                if (timelineMode && !isDragging && (index == 0 || rowDay != previousDay)) {
+                                    Text(
+                                        text = homeTimelineDayLabel(rowDay, todayDay),
+                                        modifier = Modifier.fillMaxWidth().padding(
+                                            start = AppSpacing.screenHorizontal,
+                                            end = AppSpacing.screenHorizontal,
+                                            top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
+                                            bottom = AppSpacing.xs
+                                        ),
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Box(
+                                    Modifier.fillMaxWidth().then(rowPlacementModifier)
+                                ) {
                                 if (dragRow.notes.size > 1) {
                                     DraggedNotesGroup(
                                         notes = dragRow.notes,
@@ -537,6 +554,7 @@ internal fun NotesHome(
 
                                     )
                                 }
+                                }
                             }
                         }
                     }
@@ -581,3 +599,14 @@ internal fun NotesHome(
 }
 
 
+
+private fun homeTimelineDayLabel(day: Long, todayDay: Long): String {
+    return when (day) {
+        todayDay -> "Сегодня"
+        todayDay + 1 -> "Завтра"
+        todayDay - 1 -> "Вчера"
+        else -> java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault())
+            .format(java.util.Date(day * 86_400_000L))
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+    }
+}
