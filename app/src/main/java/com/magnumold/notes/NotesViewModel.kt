@@ -38,6 +38,15 @@ internal class NotesViewModel(
         }
     }
 
+    /**
+     * Commits the latest in-memory state before the Activity enters the stopped
+     * state. The debounce remains useful for normal editing, but is not relied
+     * on as the only persistence path when Android backgrounds the app.
+     */
+    fun flush() {
+        repository.flushSnapshot(_snapshot.value)
+    }
+
     fun refreshFromRepository() {
         _snapshot.value = repository.loadSnapshot()
     }

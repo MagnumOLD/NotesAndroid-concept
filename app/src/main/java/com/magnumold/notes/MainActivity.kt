@@ -66,6 +66,9 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        if (::recordsViewModel.isInitialized) {
+            recordsViewModel.flush()
+        }
         unregisterReceiver(taskStatusReceiver)
         super.onStop()
     }

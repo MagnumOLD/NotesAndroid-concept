@@ -15,15 +15,24 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         trash = loadVault("trash")
     )
 
+    @Synchronized
     fun saveSnapshot(snapshot: PersistenceSnapshot) {
-        // A single editor transaction keeps the four record collections consistent.
+        snapshotEditor(snapshot).apply()
+    }
+
+    @Synchronized
+    fun flushSnapshot(snapshot: PersistenceSnapshot) {
+        check(snapshotEditor(snapshot).commit()) {
+            "Не удалось сохранить записи"
+        }
+    }
+
+    private fun snapshotEditor(snapshot: PersistenceSnapshot): SharedPreferences.Editor =
         preferences.edit()
             .putString("notes", notesToJson(snapshot.notes).toString())
             .putString("collections", collectionsToJson(snapshot.collections).toString())
             .putString("archive", vaultToJson(snapshot.archived).toString())
             .putString("trash", vaultToJson(snapshot.trash).toString())
-            .apply()
-    }
 
     fun findTask(taskId: Long): Note? {
         val snapshot = loadSnapshot()

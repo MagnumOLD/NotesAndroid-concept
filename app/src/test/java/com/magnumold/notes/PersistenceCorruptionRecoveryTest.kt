@@ -52,4 +52,26 @@ class PersistenceCorruptionRecoveryTest {
         repository.save(TimeTrackingState())
         assertEquals(damaged, prefs.getString(recoveryKey, null))
     }
+
+    @Test
+    fun explicitFlushPersistsLatestRecordSnapshot() {
+        val prefs = preferences("explicit_snapshot_flush_test")
+        val repository = NotesRepository(prefs)
+        val note = Note(
+            id = 42L,
+            title = "",
+            blocks = listOf(NoteBlock("flush this record")),
+            updated = 100L
+        )
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        repository.flushSnapshot(snapshot)
+
+        assertEquals(42L, NotesRepository(prefs).loadSnapshot().notes.single().id)
+    }
 }
