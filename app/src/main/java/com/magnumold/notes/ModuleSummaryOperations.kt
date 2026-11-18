@@ -14,8 +14,8 @@ internal object ModuleSummaryOperations {
                 val entries = today.filter { it.type == RecordType.TASK }
                 if (entries.isEmpty()) "На сегодня задач нет"
                 else {
-                    val completed = entries.count { it.recordStatus() == RecordStatus.COMPLETED }
-                    val missed = entries.count { it.recordStatus() == RecordStatus.MISSED }
+                    val completed = entries.count { it.recordStatus(nowMillis) == RecordStatus.COMPLETED }
+                    val missed = entries.count { it.recordStatus(nowMillis) == RecordStatus.MISSED }
                     "Задач: ${entries.size} · Выполнено: $completed · Просрочено: $missed"
                 }
             }
