@@ -81,8 +81,13 @@ internal fun syncWorkSessionsForTaskChanges(
     removedIds.forEach { removedId ->
         state = TimeTrackingEngine.finish(state, removedId, nowMillis, WorkSessionEndReason.STOP)
     }
-    if (state.protectionTimer?.taskId?.let { it in removedIds } == true) {
-        state = state.copy(protectionTimer = null)
+    if (state.protectionTimer?.taskId?.let { it in removedIds } == true ||
+        state.firedProtectionAlert?.taskId?.let { it in removedIds } == true
+    ) {
+        state = state.copy(
+            protectionTimer = state.protectionTimer?.takeUnless { it.taskId in removedIds },
+            firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId in removedIds }
+        )
     }
 
     newEntries.forEach { (id, entry) ->
@@ -91,8 +96,11 @@ internal fun syncWorkSessionsForTaskChanges(
             if (id in state.activeSessions) {
                 state = TimeTrackingEngine.finish(state, id, nowMillis, WorkSessionEndReason.STOP)
             }
-            if (state.protectionTimer?.taskId == id) {
-                state = state.copy(protectionTimer = null)
+            if (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id) {
+                state = state.copy(
+                    protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
+                    firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id }
+                )
             }
             return@forEach
         }
@@ -101,8 +109,13 @@ internal fun syncWorkSessionsForTaskChanges(
         // A task can become MISSED without its persisted raw status changing.
         val oldStatus = old?.recordStatus(nowMillis)
         val newStatus = note.recordStatus(nowMillis)
-        if (newStatus == RecordStatus.COMPLETED && state.protectionTimer?.taskId == id) {
-            state = state.copy(protectionTimer = null)
+        if (newStatus == RecordStatus.COMPLETED &&
+            (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id)
+        ) {
+            state = state.copy(
+                protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
+                firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id }
+            )
         }
 
         val previousParentId = oldEntries[id]?.parentId
