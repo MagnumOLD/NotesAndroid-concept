@@ -163,16 +163,22 @@ internal class NotesViewModel(
         val before = _snapshot.value
         val currentTimeTracking = timeTrackingRepository.load()
         val merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
-        val mergedTimeTracking = imported.timeTracking?.let { backup ->
-            val remappedBackup = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
-            mergeTimeTrackingBackup(currentTimeTracking, remappedBackup)
+        val remappedTrackingBackup = imported.timeTracking?.let { backup ->
+            remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
+        }
+        var previousTimeTracking = currentTimeTracking
+        val mergedTimeTracking = remappedTrackingBackup?.let { backup ->
+            timeTrackingRepository.update { current ->
+                previousTimeTracking = current
+                mergeTimeTrackingBackup(current, backup)
+            }
         }
         val importedCount = RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
 
         // Persist the merged records and tracking references as one logical
         // operation. If the record snapshot cannot be committed, roll back the
-        // tracking state so it cannot point at records that were never saved.
-        if (mergedTimeTracking != null) timeTrackingRepository.save(mergedTimeTracking)
+        // tracking state only if no newer service/UI update has replaced it.
+
         updateSnapshot { merge.snapshot }
         try {
             flush()
@@ -181,8 +187,9 @@ internal class NotesViewModel(
             runCatching { repository.flushSnapshot(before) }
                 .exceptionOrNull()?.let(failure::addSuppressed)
             if (mergedTimeTracking != null) {
-                runCatching { timeTrackingRepository.restoreBackup(currentTimeTracking) }
-                    .exceptionOrNull()?.let(failure::addSuppressed)
+                runCatching {
+                    timeTrackingRepository.restoreBackupIfCurrent(mergedTimeTracking, previousTimeTracking)
+                }.exceptionOrNull()?.let(failure::addSuppressed)
             }
             throw failure
         }
