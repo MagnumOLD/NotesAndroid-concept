@@ -10,6 +10,26 @@ private data class TaskTreeEntry(
  * Applies the approved status-to-stopwatch transitions to a changed note tree.
  * A task with children is a parent and never owns a stopwatch.
  */
+/** Returns the first instant after the selected local deadline day (DST-safe). */
+internal fun deadlineEndExclusiveMillis(
+    dateAt: Long,
+    timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()
+): Long {
+    val utcDate = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+        timeInMillis = dateAt
+    }
+    return java.util.Calendar.getInstance(timeZone).apply {
+        clear()
+        set(
+            utcDate.get(java.util.Calendar.YEAR),
+            utcDate.get(java.util.Calendar.MONTH),
+            utcDate.get(java.util.Calendar.DAY_OF_MONTH),
+            0, 0, 0
+        )
+        add(java.util.Calendar.DAY_OF_MONTH, 1)
+    }.timeInMillis
+}
+
 internal fun syncWorkSessionsForTaskChanges(
     oldRoots: List<Note>,
     newRoots: List<Note>,
@@ -83,7 +103,16 @@ internal fun syncWorkSessionsForTaskChanges(
                 RecordStatus.PAUSED -> WorkSessionEndReason.PAUSE
                 else -> WorkSessionEndReason.STOP
             }
-            state = TimeTrackingEngine.finish(state, id, nowMillis, reason)
+            // If a date-only deadline expired while the app/device was inactive,
+            // close the stopwatch at the actual local-day boundary, not at the
+            // later time when reconciliation happened (which would count idle time).
+            val endedAt = if (
+                newStatus == RecordStatus.MISSED &&
+                note.dateMode == RecordDateMode.DEADLINE &&
+                note.dateAt != null
+            ) deadlineEndExclusiveMillis(note.dateAt)
+            else nowMillis
+            state = TimeTrackingEngine.finish(state, id, endedAt, reason)
         }
 
         val shouldStart = entry.parentId != null && newStatus == RecordStatus.IN_PROGRESS &&
