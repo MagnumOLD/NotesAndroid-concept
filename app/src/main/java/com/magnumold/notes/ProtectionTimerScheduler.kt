@@ -73,8 +73,16 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
         var state = repository.load()
         val now = System.currentTimeMillis()
         val bootTime = now - SystemClock.elapsedRealtime()
-        // Split work sessions at the reboot boundary: the stopwatch resumes,
-        // but time while the device was powered off is never counted as work.
+        val notesRepository = NotesRepository(
+            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        )
+        val records = HomeTimelineOperations.records(notesRepository.loadSnapshot())
+        // Apply deadline-derived task states before splitting sessions at boot.
+        // This closes an expired task at its real deadline boundary instead of
+        // counting powered-off time up to the next device boot.
+        state = reconcileBootTimeTrackingState(records, state, now)
+        // Remaining sessions resume from bootTime; their active intervals are
+        // split so the reboot itself does not merge the before/after segments.
         state.activeSessions.values.toList().forEach { active ->
             if (active.startedAtMillis < bootTime) {
                 state = TimeTrackingEngine.finish(
@@ -90,13 +98,6 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
                 )
             }
         }
-        val notesRepository = NotesRepository(
-            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
-        )
-        val records = HomeTimelineOperations.records(notesRepository.loadSnapshot())
-        // A deadline may have expired while the device was powered off. Do not
-        // resume its stopwatch from bootTime until the next manual app launch.
-        state = reconcileBootTimeTrackingState(records, state, now)
         if (state != repository.load()) repository.save(state)
         state.protectionTimer?.let { timer ->
             // Scheduling even an already-expired alarm lets AlarmManager deliver it
