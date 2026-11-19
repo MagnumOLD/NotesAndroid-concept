@@ -231,6 +231,7 @@ class TimeTrackingStatusSyncTest {
                 clear()
                 set(2026, java.util.Calendar.JANUARY, 2, 0, 0, 0)
             }.timeInMillis
+            val sessionStart = deadline + 12L * 60L * 60L * 1_000L
             val bootTime = deadline + 24L * 60L * 60L * 1_000L + 5L * 60L * 1_000L
             val now = bootTime + 30L * 60L * 1_000L
             val child = task(11, "Child", RecordStatus.IN_PROGRESS).copy(
@@ -244,7 +245,7 @@ class TimeTrackingStatusSyncTest {
                 parentTaskId = 10L,
                 taskTitle = "Parent",
                 subtaskTitle = "Child",
-                startedAtMillis = bootTime
+                startedAtMillis = sessionStart
             )
             val initial = TimeTrackingState(activeSessions = mapOf(11L to active))
 
@@ -252,8 +253,8 @@ class TimeTrackingStatusSyncTest {
 
             assertFalse(reconciled.activeSessions.containsKey(11L))
             assertEquals(WorkSessionEndReason.STOP, reconciled.sessions.single().endReason)
-            assertEquals(bootTime, reconciled.sessions.single().endedAtMillis)
-            assertEquals(0L, reconciled.sessions.single().durationMillis)
+            assertEquals(deadline + 24L * 60L * 60L * 1_000L, reconciled.sessions.single().endedAtMillis)
+            assertEquals(12L * 60L * 60L * 1_000L, reconciled.sessions.single().durationMillis)
         } finally {
             java.util.TimeZone.setDefault(previousZone)
         }
