@@ -19,6 +19,9 @@ internal fun recordTimerNotificationTag(recordId: Long): String =
 internal class ProtectionTimerAlertService : Service() {
     private var ringtone: Ringtone? = null
     private var wakeLock: PowerManager.WakeLock? = null
+    // Both alarm types share this service. A record timer must never replace
+    // or tear down an already-running protection alert.
+    private var protectionAlertActive = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -33,7 +36,9 @@ internal class ProtectionTimerAlertService : Service() {
 
     private fun handleAlarm() {
         createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification(null, null))
+        if (!protectionAlertActive) {
+            startForeground(NOTIFICATION_ID, buildNotification(null, null))
+        }
         val repository = timeRepository()
         val timer = repository.load().protectionTimer
         if (timer == null) {
@@ -60,6 +65,7 @@ internal class ProtectionTimerAlertService : Service() {
             sendTaskStatusChanged()
         }
 
+        protectionAlertActive = true
         if (timer.soundEnabled) {
             acquireWakeLock()
             playAlarmSound(timer.soundUri)
@@ -71,10 +77,12 @@ internal class ProtectionTimerAlertService : Service() {
     private fun handleRecordTimerAlarm(intent: Intent, startId: Int) {
         val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
         createRecordTimerChannel()
-        startForeground(
-            RecordTimerContract.NOTIFICATION_ID,
-            buildRecordTimerNotification("Проверка таймера", recordId)
-        )
+        if (!protectionAlertActive) {
+            startForeground(
+                RecordTimerContract.NOTIFICATION_ID,
+                buildRecordTimerNotification("Проверка таймера", recordId)
+            )
+        }
         if (!intent.hasExtra(RecordTimerContract.EXTRA_RECORD_ID)) {
             finishRecordTimerService(startId)
             return
@@ -106,11 +114,13 @@ internal class ProtectionTimerAlertService : Service() {
         sendTaskStatusChanged()
 
         val notificationManager = getSystemService(NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
+        if (!protectionAlertActive) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
         }
         // A stable tag per record prevents two timers ending together from
         // replacing each other's notifications despite sharing the Android ID.
@@ -119,17 +129,19 @@ internal class ProtectionTimerAlertService : Service() {
             RecordTimerContract.NOTIFICATION_ID,
             buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" }, recordId)
         )
-        stopSelfResult(startId)
+        if (!protectionAlertActive) stopSelfResult(startId)
     }
 
     private fun finishRecordTimerService(startId: Int) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
+        if (!protectionAlertActive) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+            stopSelfResult(startId)
         }
-        stopSelfResult(startId)
     }
 
     private fun buildRecordTimerNotification(title: String, recordId: Long): Notification {
@@ -336,6 +348,7 @@ internal class ProtectionTimerAlertService : Service() {
     }
 
     private fun stopAlertAndService() {
+        protectionAlertActive = false
         stopRingtone()
         releaseWakeLock()
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
