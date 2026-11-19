@@ -174,7 +174,10 @@ internal fun clearProtectionTimerForTask(
     state: TimeTrackingState,
     taskId: Long
 ): TimeTrackingState =
-    if (state.protectionTimer?.taskId == taskId) state.copy(protectionTimer = null) else state
+    state.copy(
+        protectionTimer = state.protectionTimer?.takeUnless { it.taskId == taskId },
+        firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == taskId }
+    )
 
 /**
  * Rejects stale notification actions when a newer protection alert/timer has
@@ -186,7 +189,8 @@ internal fun isProtectionTimerActionCurrent(
     persistedTimer: ProtectionTimer?,
     taskId: Long,
     startedAtMillis: Long?,
-    endsAtMillis: Long?
+    endsAtMillis: Long?,
+    persistedFiredAlert: ProtectionTimer? = null
 ): Boolean {
     fun matches(timer: ProtectionTimer): Boolean =
         timer.taskId == taskId &&
@@ -195,14 +199,9 @@ internal fun isProtectionTimerActionCurrent(
             timer.startedAtMillis == startedAtMillis &&
             timer.endsAtMillis == endsAtMillis
 
-    if (activeAlert != null) {
-        // The fired timer is removed from persistence before the alert is shown.
-        // Any persisted timer while this alert is ringing is therefore newer.
-        return persistedTimer == null && matches(activeAlert)
-    }
-    // After a process restart the active alert is no longer in memory. If a
-    // different timer is persisted, an action from the old alert is stale too.
-    return persistedTimer?.let(::matches) ?: true
+    if (persistedTimer != null) return false
+    if (activeAlert != null) return activeAlert == persistedFiredAlert && matches(activeAlert)
+    return persistedFiredAlert?.let(::matches) ?: false
 }
 
 /** Completes an expired protection timer only if it is still the exact timer that fired. */
@@ -218,8 +217,8 @@ internal fun completeProtectionTimerIfCurrent(
             expectedTimer.taskId,
             nowMillis,
             WorkSessionEndReason.AUTOMATIC_PAUSE
-        ).copy(protectionTimer = null)
-        ProtectionEndMode.SIGNAL_ONLY -> state.copy(protectionTimer = null)
+        ).copy(protectionTimer = null, firedProtectionAlert = expectedTimer)
+        ProtectionEndMode.SIGNAL_ONLY -> state.copy(protectionTimer = null, firedProtectionAlert = expectedTimer)
     }
 }
 
@@ -231,7 +230,7 @@ internal fun stopWorkAfterProtectionTimer(
 ): TimeTrackingState = clearProtectionTimerForTask(
     TimeTrackingEngine.finish(state, taskId, nowMillis, WorkSessionEndReason.STOP),
     taskId
-)
+).copy(firedProtectionAlert = null)
 
 internal fun resumeWorkAfterProtectionTimer(
     state: TimeTrackingState,
@@ -241,7 +240,7 @@ internal fun resumeWorkAfterProtectionTimer(
     subtaskTitle: String?,
     nowMillis: Long
 ): TimeTrackingState {
-    val clean = state.copy(protectionTimer = null)
+    val clean = state.copy(protectionTimer = null, firedProtectionAlert = null)
     if (parentTaskId == null || taskId in clean.activeSessions) return clean
     return TimeTrackingEngine.start(
         state = clean,
