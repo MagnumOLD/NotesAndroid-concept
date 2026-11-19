@@ -6,10 +6,6 @@ private data class TaskTreeEntry(
     val parentTitle: String?
 )
 
-/**
- * Applies the approved status-to-stopwatch transitions to a changed note tree.
- * A task with children is a parent and never owns a stopwatch.
- */
 /** Returns the first instant after the selected local deadline day (DST-safe). */
 internal fun deadlineEndExclusiveMillis(
     dateAt: Long,
@@ -30,6 +26,10 @@ internal fun deadlineEndExclusiveMillis(
     }.timeInMillis
 }
 
+/**
+ * Applies the approved status-to-stopwatch transitions to a changed note tree.
+ * A task with children is a parent and never owns a stopwatch.
+ */
 internal fun syncWorkSessionsForTaskChanges(
     oldRoots: List<Note>,
     newRoots: List<Note>,
