@@ -15,7 +15,7 @@ class PurchaseOperationsTest {
 
     @Test
     fun fractionalPurchaseAmountsKeepOneDecimalPlace() {
-        assertEquals("12.5", PurchaseOperations.formatAmount(12.56, Locale.US))
+        assertEquals("12.6", PurchaseOperations.formatAmount(12.56, Locale.US))
         assertEquals("12", PurchaseOperations.formatAmount(12.0, Locale.US))
     }
 
