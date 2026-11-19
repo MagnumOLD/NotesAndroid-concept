@@ -70,7 +70,8 @@ internal data class TimeTrackingState(
     val activeSessions: Map<Long, ActiveWorkSession> = emptyMap(),
     val protectionTimer: ProtectionTimer? = null,
     val soundUri: String? = null,
-    val soundEnabled: Boolean = true
+    val soundEnabled: Boolean = true,
+    val firedProtectionAlert: ProtectionTimer? = null
 )
 
 internal enum class ProtectionEndMode {
