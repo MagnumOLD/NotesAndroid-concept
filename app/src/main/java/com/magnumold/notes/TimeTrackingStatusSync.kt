@@ -195,7 +195,11 @@ internal fun isProtectionTimerActionCurrent(
             timer.startedAtMillis == startedAtMillis &&
             timer.endsAtMillis == endsAtMillis
 
-    if (activeAlert != null) return matches(activeAlert)
+    if (activeAlert != null) {
+        // The fired timer is removed from persistence before the alert is shown.
+        // Any persisted timer while this alert is ringing is therefore newer.
+        return persistedTimer == null && matches(activeAlert)
+    }
     // After a process restart the active alert is no longer in memory. If a
     // different timer is persisted, an action from the old alert is stale too.
     return persistedTimer?.let(::matches) ?: true
