@@ -90,17 +90,19 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
                 )
             }
         }
+        val notesRepository = NotesRepository(
+            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        )
+        val records = HomeTimelineOperations.records(notesRepository.loadSnapshot())
+        // A deadline may have expired while the device was powered off. Do not
+        // resume its stopwatch from bootTime until the next manual app launch.
+        state = reconcileBootTimeTrackingState(records, state, now)
         if (state != repository.load()) repository.save(state)
         state.protectionTimer?.let { timer ->
             // Scheduling even an already-expired alarm lets AlarmManager deliver it
             // through the same receiver path as a normal expiry after reboot.
             ProtectionTimerScheduler(context).schedule(timer)
         }
-        val notesRepository = NotesRepository(
-            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
-        )
-        RecordTimerScheduler(context).scheduleAll(
-            HomeTimelineOperations.records(notesRepository.loadSnapshot())
-        )
+        RecordTimerScheduler(context).scheduleAll(records)
     }
 }
