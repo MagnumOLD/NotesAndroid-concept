@@ -109,10 +109,17 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
             } else {
                 context.startService(serviceIntent)
             }
-        } catch (_: android.app.ForegroundServiceStartNotAllowedException) {
-            // The platform can still reject an FGS start for reasons other than
-            // exact-alarm access. Preserve the alarm as a user-visible notification.
-            deliverInexactAlarm(context)
+        } catch (error: RuntimeException) {
+            // Avoid linking the API-31 exception class on older Android versions.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                error.javaClass.name == "android.app.ForegroundServiceStartNotAllowedException"
+            ) {
+                // The platform can still reject an FGS start for reasons other than
+                // exact-alarm access. Preserve the alarm as a user-visible notification.
+                deliverInexactAlarm(context)
+            } else {
+                throw error
+            }
         }
     }
 
