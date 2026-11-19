@@ -221,7 +221,7 @@ internal class ProtectionTimerAlertService : Service() {
 
     private fun handleStopTracking(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
-        if (taskId <= 0L || !isCurrentProtectionAction(intent, taskId)) {
+        if (taskId <= 0L) {
             if (!protectionAlertActive) finishService(startId)
             return
         }
@@ -251,18 +251,16 @@ internal class ProtectionTimerAlertService : Service() {
 
     private fun handleContinueWork(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
-        if (taskId <= 0L || !isCurrentProtectionAction(intent, taskId)) {
+        if (taskId <= 0L) {
             if (!protectionAlertActive) finishService(startId)
             return
         }
         val notes = notesRepository()
-        val taskUpdated = notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)
-        // Notification actions may outlive the task or its current location.
-        // Never leave an expired protection alarm persisted if the task was
-        // deleted, archived, or otherwise cannot be resolved anymore.
-        val context = if (taskUpdated) {
-            findTaskTrackingContext(HomeTimelineOperations.records(notes.loadSnapshot()), taskId)
-        } else null
+        // Resolve task context without mutating it. The notification identity
+        // must be claimed atomically in the tracking repository before changing
+        // the task status; otherwise a stale tap can race a timer replacement
+        // and pause/resume a task even though its tracking action is rejected.
+        val context = findTaskTrackingContext(HomeTimelineOperations.records(notes.loadSnapshot()), taskId)
         var actionApplied = false
         timeRepository().update { state ->
             if (!isProtectionTimerActionCurrent(
@@ -297,6 +295,7 @@ internal class ProtectionTimerAlertService : Service() {
             if (!protectionAlertActive) finishService(startId)
             return
         }
+        val taskUpdated = notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)
         if (taskUpdated) sendTaskStatusChanged(taskId, RecordStatus.IN_PROGRESS)
         else sendTaskStatusChanged()
         stopAlertAndService(startId)
