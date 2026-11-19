@@ -12,6 +12,7 @@ import android.os.Build
 internal object RecordTimerContract {
     const val ACTION_ALARM = "com.magnumold.notes.action.RECORD_TIMER_ALARM"
     const val EXTRA_RECORD_ID = "record_timer_id"
+    const val NOTIFICATION_ID = 7433
 }
 
 internal class RecordTimerScheduler(private val context: Context) {
@@ -19,7 +20,7 @@ internal class RecordTimerScheduler(private val context: Context) {
 
     fun cancel(recordId: Long) {
         alarmManager.cancel(pendingIntent(recordId))
-        notificationManager().cancel(recordTimerNotificationTag(recordId), RECORD_TIMER_NOTIFICATION_ID)
+        notificationManager().cancel(recordTimerNotificationTag(recordId), RecordTimerContract.NOTIFICATION_ID)
     }
 
     fun sync(note: Note) {
@@ -30,11 +31,11 @@ internal class RecordTimerScheduler(private val context: Context) {
             // Keep a just-posted completion notification, but clear stale
             // notifications when a completed timer is reset or paused.
             if (note.status != RecordStatus.COMPLETED) {
-                notificationManager().cancel(recordTimerNotificationTag(note.id), RECORD_TIMER_NOTIFICATION_ID)
+                notificationManager().cancel(recordTimerNotificationTag(note.id), RecordTimerContract.NOTIFICATION_ID)
             }
             return
         }
-        notificationManager().cancel(recordTimerNotificationTag(note.id), RECORD_TIMER_NOTIFICATION_ID)
+        notificationManager().cancel(recordTimerNotificationTag(note.id), RecordTimerContract.NOTIFICATION_ID)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
             alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endAt, pendingIntent)
         } else {
