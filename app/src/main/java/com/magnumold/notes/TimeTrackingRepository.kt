@@ -107,12 +107,12 @@ internal class TimeTrackingRepository(
     private val _state = MutableStateFlow(loadStoredState())
     val state: StateFlow<TimeTrackingState> = _state.asStateFlow()
 
-    @Synchronized
-    fun load(): TimeTrackingState = _state.value
+    fun load(): TimeTrackingState = synchronized(LOCK) { _state.value }
 
-    @Synchronized
     fun reload() {
-        _state.value = loadStoredState()
+        synchronized(LOCK) {
+            _state.value = loadStoredState()
+        }
     }
 
     private fun loadStoredState(): TimeTrackingState {
@@ -125,27 +125,33 @@ internal class TimeTrackingRepository(
         }
     }
 
-    @Synchronized
     fun save(state: TimeTrackingState) {
-        check(preferences.edit().putString(KEY_STATE, timeTrackingToJson(state).toString()).commit()) {
-            "Не удалось сохранить учёт времени"
+        synchronized(LOCK) {
+            check(preferences.edit().putString(KEY_STATE, timeTrackingToJson(state).toString()).commit()) {
+                "Не удалось сохранить учёт времени"
+            }
+            _state.value = state
         }
-        _state.value = state
     }
 
-    @Synchronized
     fun restoreBackup(backupState: TimeTrackingState) {
         save(backupState)
     }
 
-    @Synchronized
-    fun update(transform: (TimeTrackingState) -> TimeTrackingState): TimeTrackingState {
-        val updated = transform(load())
-        save(updated)
-        return updated
-    }
+    fun update(transform: (TimeTrackingState) -> TimeTrackingState): TimeTrackingState =
+        synchronized(LOCK) {
+            // Each component may own a repository instance. Refresh from the
+            // shared durable value before a read-modify-write so a service
+            // cannot overwrite a timer created by the Activity a moment earlier.
+            val latest = loadStoredState()
+            _state.value = latest
+            val updated = transform(latest)
+            save(updated)
+            updated
+        }
 
     private companion object {
         const val KEY_STATE = "time_tracking_state_v1"
+        val LOCK = Any()
     }
 }
