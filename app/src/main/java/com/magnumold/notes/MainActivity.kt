@@ -20,20 +20,21 @@ class MainActivity : ComponentActivity() {
     private var lastExternalTimerStateUpdate: Long = 0L
     private val taskStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            val receivedIntent = intent ?: return
             if (::recordsViewModel.isInitialized &&
-                intent?.action == ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED
+                receivedIntent.action == ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED
             ) {
-                val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, -1L)
-                val status = intent.getStringExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS)
+                val taskId = receivedIntent.getLongExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, -1L)
+                val status = receivedIntent.getStringExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS)
                     ?.let { runCatching { RecordStatus.valueOf(it) }.getOrNull() }
                 if (taskId > 0L && status != null) {
                     recordsViewModel.applyExternalTaskStatus(taskId, status)
-                    lastExternalTaskStatusUpdate = getPreferences(Context.MODE_PRIVATE)
+                    lastExternalTaskStatusUpdate = getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
                         .getLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, lastExternalTaskStatusUpdate)
                 }
-                if (intent.getBooleanExtra(ProtectionTimerContract.EXTRA_TIMER_STATE_CHANGED, false)) {
+                if (receivedIntent.getBooleanExtra(ProtectionTimerContract.EXTRA_TIMER_STATE_CHANGED, false)) {
                     recordsViewModel.refreshTimerStatesFromRepository()
-                    lastExternalTimerStateUpdate = getPreferences(Context.MODE_PRIVATE)
+                    lastExternalTimerStateUpdate = getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
                         .getLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, lastExternalTimerStateUpdate)
                 }
                 if (::timeTrackingRepository.isInitialized) timeTrackingRepository.reload()
