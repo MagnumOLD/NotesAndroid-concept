@@ -17,14 +17,25 @@ class MainActivity : ComponentActivity() {
     private lateinit var timeTrackingRepository: TimeTrackingRepository
     private lateinit var recoveryDataRepository: RecoveryDataRepository
     private var lastExternalTaskStatusUpdate: Long = 0L
+    private var lastExternalTimerStateUpdate: Long = 0L
     private val taskStatusReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (::recordsViewModel.isInitialized &&
                 intent?.action == ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED
             ) {
-                recordsViewModel.refreshFromRepository()
-                lastExternalTaskStatusUpdate = getPreferences(Context.MODE_PRIVATE)
-                    .getLong("external_task_status_update", lastExternalTaskStatusUpdate)
+                val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, -1L)
+                val status = intent.getStringExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS)
+                    ?.let { runCatching { RecordStatus.valueOf(it) }.getOrNull() }
+                if (taskId > 0L && status != null) {
+                    recordsViewModel.applyExternalTaskStatus(taskId, status)
+                    lastExternalTaskStatusUpdate = getPreferences(Context.MODE_PRIVATE)
+                        .getLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, lastExternalTaskStatusUpdate)
+                }
+                if (intent.getBooleanExtra(ProtectionTimerContract.EXTRA_TIMER_STATE_CHANGED, false)) {
+                    recordsViewModel.refreshTimerStatesFromRepository()
+                    lastExternalTimerStateUpdate = getPreferences(Context.MODE_PRIVATE)
+                        .getLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, lastExternalTimerStateUpdate)
+                }
                 if (::timeTrackingRepository.isInitialized) timeTrackingRepository.reload()
             }
         }
@@ -48,11 +59,23 @@ class MainActivity : ComponentActivity() {
             // Re-reading preferences on every resume can replace a newer in-memory
             // snapshot with stale data while the debounced write is still pending.
             // Refresh only when the background service explicitly marks an update.
-            val marker = getPreferences(Context.MODE_PRIVATE)
-                .getLong("external_task_status_update", lastExternalTaskStatusUpdate)
+            val recordPreferences = getPreferences(Context.MODE_PRIVATE)
+            val marker = recordPreferences.getLong(
+                ExternalRecordUpdateKeys.TASK_STATUS_AT, lastExternalTaskStatusUpdate
+            )
             if (marker > lastExternalTaskStatusUpdate) {
-                recordsViewModel.refreshFromRepository()
+                val taskId = recordPreferences.getLong(ExternalRecordUpdateKeys.TASK_STATUS_ID, -1L)
+                val status = recordPreferences.getString(ExternalRecordUpdateKeys.TASK_STATUS_VALUE, null)
+                    ?.let { runCatching { RecordStatus.valueOf(it) }.getOrNull() }
+                if (taskId > 0L && status != null) recordsViewModel.applyExternalTaskStatus(taskId, status)
                 lastExternalTaskStatusUpdate = marker
+            }
+            val timerMarker = recordPreferences.getLong(
+                ExternalRecordUpdateKeys.TIMER_STATE_AT, lastExternalTimerStateUpdate
+            )
+            if (timerMarker > lastExternalTimerStateUpdate) {
+                recordsViewModel.refreshTimerStatesFromRepository()
+                lastExternalTimerStateUpdate = timerMarker
             }
             RecordTimerScheduler(this).scheduleAll(
                 HomeTimelineOperations.records(recordsViewModel.snapshot.value)
@@ -128,7 +151,8 @@ class MainActivity : ComponentActivity() {
         val repository = NotesRepository(recordPreferences)
         timeTrackingRepository = TimeTrackingRepository(timeTrackingPreferences)
         recoveryDataRepository = RecoveryDataRepository(recordPreferences, timeTrackingPreferences)
-        lastExternalTaskStatusUpdate = recordPreferences.getLong("external_task_status_update", 0L)
+        lastExternalTaskStatusUpdate = recordPreferences.getLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, 0L)
+        lastExternalTimerStateUpdate = recordPreferences.getLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, 0L)
         recordsViewModel = ViewModelProvider(
             this,
             NotesViewModelFactory(repository, timeTrackingRepository, recoveryDataRepository)
