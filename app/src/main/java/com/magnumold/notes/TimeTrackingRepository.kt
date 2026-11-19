@@ -199,6 +199,18 @@ internal class TimeTrackingRepository(
         save(backupState)
     }
 
+    /** Rolls back an import only if no newer tracking update has replaced it. */
+    fun restoreBackupIfCurrent(
+        expectedCurrent: TimeTrackingState,
+        restoreState: TimeTrackingState
+    ): Boolean = synchronized(LOCK) {
+        val latest = loadStoredState()
+        _state.value = latest
+        if (latest != expectedCurrent) return@synchronized false
+        save(restoreState)
+        true
+    }
+
     fun update(transform: (TimeTrackingState) -> TimeTrackingState): TimeTrackingState =
         synchronized(LOCK) {
             // Each component may own a repository instance. Refresh from the
