@@ -240,7 +240,7 @@ class TimeTrackingStatusSyncTest {
 
         assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 100L, 200L, newerTimer))
         assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L, null))
-        assertTrue(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L, newerTimer))
+        assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L, newerTimer))
     }
 
     @Test fun completedProtectionActionSurvivesServiceProcessRestart() {
