@@ -219,18 +219,28 @@ class TimeTrackingStatusSyncTest {
         val oldAlert = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
         val newAlert = oldAlert.copy(startedAtMillis = 300L, endsAtMillis = 400L)
 
-        assertTrue(isProtectionTimerActionCurrent(newAlert, null, 11L, 300L, 400L))
-        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 11L, 100L, 200L))
-        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 22L, 300L, 400L))
+        assertTrue(isProtectionTimerActionCurrent(newAlert, null, 11L, 300L, 400L, newAlert))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 11L, 100L, 200L, newAlert))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 22L, 300L, 400L, newAlert))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 11L, 300L, 400L, oldAlert))
         val newerPendingTimer = newAlert.copy(taskId = 22L, startedAtMillis = 500L, endsAtMillis = 900L)
-        assertFalse(isProtectionTimerActionCurrent(newAlert, newerPendingTimer, 11L, 300L, 400L))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, newerPendingTimer, 11L, 300L, 400L, newAlert))
+    }
+
+    @Test fun firedAlertActionRequiresDurableIdentityAfterProcessRestart() {
+        val fired = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        assertTrue(isProtectionTimerActionCurrent(null, null, 11L, 100L, 200L, fired))
+        assertFalse(isProtectionTimerActionCurrent(null, null, 11L, 100L, 200L, null))
+        assertFalse(isProtectionTimerActionCurrent(null, null, 22L, 100L, 200L, fired))
+        assertFalse(isProtectionTimerActionCurrent(null, null, 11L, 100L, 201L, fired))
     }
 
     @Test fun staleProtectionActionCannotConsumeANewerTimerForTheSameTask() {
         val newerTimer = ProtectionTimer(11L, "Parent", "Child", 300L, 900L, ProtectionEndMode.STOP_AND_PAUSE)
 
-        assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 100L, 200L))
-        assertTrue(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L))
+        assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 100L, 200L, newerTimer))
+        assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L, null))
+        assertTrue(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L, newerTimer))
     }
 
     @Test fun completedProtectionActionSurvivesServiceProcessRestart() {
