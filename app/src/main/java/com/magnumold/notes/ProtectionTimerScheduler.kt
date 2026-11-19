@@ -105,10 +105,22 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
             }
             reconciled
         }
-        state.protectionTimer?.let { timer ->
-            // Scheduling even an already-expired alarm lets AlarmManager deliver it
-            // through the same receiver path as a normal expiry after reboot.
-            ProtectionTimerScheduler(context).schedule(timer)
+        if (shouldRestoreProtectionAlertOnBoot(state)) {
+            // A fired alert survives in durable storage, but its foreground
+            // service and notification do not survive a device reboot.
+            val alertIntent = Intent(context, ProtectionTimerAlertService::class.java)
+                .setAction(ProtectionTimerContract.ACTION_ALARM)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(alertIntent)
+            } else {
+                context.startService(alertIntent)
+            }
+        } else {
+            state.protectionTimer?.let { timer ->
+                // Scheduling even an already-expired alarm lets AlarmManager deliver it
+                // through the same receiver path as a normal expiry after reboot.
+                ProtectionTimerScheduler(context).schedule(timer)
+            }
         }
         RecordTimerScheduler(context).scheduleAll(records)
     }
