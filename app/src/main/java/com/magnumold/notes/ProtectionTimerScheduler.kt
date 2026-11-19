@@ -60,13 +60,43 @@ internal class ProtectionTimerScheduler(private val context: Context) {
     }
 }
 
+internal data class ProtectionAlarmResolution(
+    val state: TimeTrackingState,
+    val expiredTimer: ProtectionTimer? = null,
+    val rescheduleTimer: ProtectionTimer? = null
+)
+
+internal fun shouldUseProtectionAlarmNotificationFallback(
+    sdkInt: Int,
+    canScheduleExactAlarms: Boolean
+): Boolean = sdkInt >= Build.VERSION_CODES.S && !canScheduleExactAlarms
+
+internal fun resolveProtectionAlarm(
+    persisted: TimeTrackingState,
+    nowMillis: Long
+): ProtectionAlarmResolution {
+    if (persisted.firedProtectionAlert != null) {
+        return ProtectionAlarmResolution(persisted)
+    }
+    val timer = persisted.protectionTimer ?: return ProtectionAlarmResolution(persisted)
+    if (nowMillis < timer.endsAtMillis) {
+        return ProtectionAlarmResolution(persisted, rescheduleTimer = timer)
+    }
+    return ProtectionAlarmResolution(
+        state = completeProtectionTimerIfCurrent(persisted, timer, nowMillis),
+        expiredTimer = timer
+    )
+}
+
 internal class ProtectionTimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         // An inexact alarm is not exempt from Android 12+ background FGS-start
         // restrictions. When exact-alarm access is denied, complete the timer
         // and post an audible notification instead of trying to start a service.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
-            !context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+        if (shouldUseProtectionAlarmNotificationFallback(
+                Build.VERSION.SDK_INT,
+                context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+            )
         ) {
             deliverInexactAlarm(context)
             return
@@ -91,30 +121,17 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
             context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         )
         val now = System.currentTimeMillis()
-        var expiredTimer: ProtectionTimer? = null
-        var rescheduleTimer: ProtectionTimer? = null
+        var resolution = ProtectionAlarmResolution(TimeTrackingState())
         val state = trackingRepository.update { persisted ->
-            // A reboot-restored alert is already consumed; only restore its
-            // notification. Otherwise consume the exact persisted timer once.
-            if (persisted.firedProtectionAlert != null) {
-                persisted
-            } else {
-                val timer = persisted.protectionTimer ?: return@update persisted
-                if (now < timer.endsAtMillis) {
-                    rescheduleTimer = timer
-                    persisted
-                } else {
-                    expiredTimer = timer
-                    completeProtectionTimerIfCurrent(persisted, timer, now)
-                }
-            }
+            resolution = resolveProtectionAlarm(persisted, now)
+            resolution.state
         }
-        rescheduleTimer?.let {
+        resolution.rescheduleTimer?.let {
             ProtectionTimerScheduler(context).schedule(it)
             return
         }
         val alert = state.firedProtectionAlert ?: return
-        if (expiredTimer?.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
+        if (resolution.expiredTimer?.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
             val updated = NotesRepository(
                 context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
             ).updateTaskStatus(alert.taskId, RecordStatus.PAUSED)
