@@ -13,10 +13,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 
-internal fun recordTimerNotificationTag(recordId: Long): String {
-    require(recordId > 0L) { "Record timer ID must be positive" }
-    return "record-timer:$recordId"
-}
+internal fun recordTimerNotificationTag(recordId: Long): String =
+    "record-timer:$recordId"
 
 internal class ProtectionTimerAlertService : Service() {
     private var ringtone: Ringtone? = null
@@ -71,16 +69,16 @@ internal class ProtectionTimerAlertService : Service() {
 
 
     private fun handleRecordTimerAlarm(intent: Intent, startId: Int) {
-        val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, -1L)
         createRecordTimerChannel()
         startForeground(
             RECORD_TIMER_NOTIFICATION_ID,
             buildRecordTimerNotification("Проверка таймера", recordId)
         )
-        if (recordId <= 0L) {
+        if (!intent.hasExtra(RecordTimerContract.EXTRA_RECORD_ID)) {
             finishRecordTimerService(startId)
             return
         }
+        val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
 
         val repository = notesRepository()
         val snapshot = repository.loadSnapshot()
