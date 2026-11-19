@@ -322,7 +322,7 @@ internal class ProtectionTimerAlertService : Service() {
     )
 
     private fun notesRepository() = NotesRepository(
-        getSharedPreferences("MainActivity_preferences", MODE_PRIVATE)
+        getSharedPreferences(NotesRepository.PREFERENCES_NAME, MODE_PRIVATE)
     )
 
     private fun sendTaskStatusChanged(taskId: Long? = null, status: RecordStatus? = null) {
