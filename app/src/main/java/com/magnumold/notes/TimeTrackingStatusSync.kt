@@ -196,8 +196,9 @@ internal fun isProtectionTimerActionCurrent(
             timer.endsAtMillis == endsAtMillis
 
     if (activeAlert != null) return matches(activeAlert)
-    val pendingForTask = persistedTimer?.takeIf { it.taskId == taskId }
-    return pendingForTask == null || matches(pendingForTask)
+    // After a process restart the active alert is no longer in memory. If a
+    // different timer is persisted, an action from the old alert is stale too.
+    return persistedTimer?.let(::matches) ?: true
 }
 
 /** Stops the requested task and clears a protection timer only when it belongs to that task. */
