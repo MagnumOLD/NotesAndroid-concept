@@ -106,14 +106,11 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
             reconciled
         }
         if (shouldRestoreProtectionAlertOnBoot(state)) {
-            // A fired alert survives in durable storage, but its foreground
-            // service and notification do not survive a device reboot.
-            val alertIntent = Intent(context, ProtectionTimerAlertService::class.java)
-                .setAction(ProtectionTimerContract.ACTION_ALARM)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(alertIntent)
-            } else {
-                context.startService(alertIntent)
+            // The alert identity survives reboot, but its foreground service does
+            // not. Re-deliver it through AlarmManager: Android 15 restricts
+            // starting mediaPlayback foreground services directly from BOOT_COMPLETED.
+            state.firedProtectionAlert?.let { alert ->
+                ProtectionTimerScheduler(context).schedule(alert)
             }
         } else {
             state.protectionTimer?.let { timer ->
