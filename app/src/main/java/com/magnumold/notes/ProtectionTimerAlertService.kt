@@ -50,7 +50,7 @@ internal class ProtectionTimerAlertService : Service() {
         val now = System.currentTimeMillis()
         if (now < timer.endsAtMillis) {
             ProtectionTimerScheduler(this).schedule(timer)
-            finishService()
+            finishService(startId)
             return
         }
 
