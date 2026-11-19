@@ -176,6 +176,30 @@ internal fun clearProtectionTimerForTask(
 ): TimeTrackingState =
     if (state.protectionTimer?.taskId == taskId) state.copy(protectionTimer = null) else state
 
+/**
+ * Rejects stale notification actions when a newer protection alert/timer has
+ * replaced the one the notification was created for. A missing persisted timer
+ * is expected after the alarm has fired and the alert is being shown.
+ */
+internal fun isProtectionTimerActionCurrent(
+    activeAlert: ProtectionTimer?,
+    persistedTimer: ProtectionTimer?,
+    taskId: Long,
+    startedAtMillis: Long?,
+    endsAtMillis: Long?
+): Boolean {
+    fun matches(timer: ProtectionTimer): Boolean =
+        timer.taskId == taskId &&
+            startedAtMillis != null &&
+            endsAtMillis != null &&
+            timer.startedAtMillis == startedAtMillis &&
+            timer.endsAtMillis == endsAtMillis
+
+    if (activeAlert != null) return matches(activeAlert)
+    val pendingForTask = persistedTimer?.takeIf { it.taskId == taskId }
+    return pendingForTask == null || matches(pendingForTask)
+}
+
 /** Stops the requested task and clears a protection timer only when it belongs to that task. */
 internal fun stopWorkAfterProtectionTimer(
     state: TimeTrackingState,
