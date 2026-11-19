@@ -95,6 +95,31 @@ class TimeTrackingStatusSyncTest {
         assertEquals("Child", updated.protectionTimer?.subtaskTitle)
     }
 
+    @Test fun protectionTimerActionResolvesTheTaskCurrentParentAfterItMoves() {
+        val child = task(11, "Child", RecordStatus.PAUSED)
+        val currentTree = listOf(
+            task(10, "Old parent", RecordStatus.WAITING),
+            task(20, "Current parent", RecordStatus.IN_PROGRESS, listOf(child))
+        )
+
+        val context = findTaskTrackingContext(currentTree, 11L)
+
+        assertEquals(11L, context?.task?.id)
+        assertEquals(20L, context?.parent?.id)
+        assertEquals("Current parent", context?.parent?.trackingDisplayTitle())
+        assertEquals("Child", context?.task?.trackingDisplayTitle())
+    }
+
+    @Test fun protectionTimerActionDoesNotTreatMovedRootTaskAsSubtask() {
+        val context = findTaskTrackingContext(
+            listOf(task(11, "Child", RecordStatus.PAUSED)),
+            11L
+        )
+
+        assertEquals(11L, context?.task?.id)
+        assertEquals(null, context?.parent)
+    }
+
     @Test fun protectionTimerContinueResumesSubtaskWithoutLegacyOptInFlag() {
         val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE, parentTaskId = 10L)
         val initial = TimeTrackingState(
