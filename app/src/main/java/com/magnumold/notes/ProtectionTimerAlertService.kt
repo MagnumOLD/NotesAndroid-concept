@@ -217,7 +217,8 @@ internal class ProtectionTimerAlertService : Service() {
                     state.protectionTimer,
                     taskId,
                     intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
-                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT),
+                    state.firedProtectionAlert
                 )
             ) state
             else {
@@ -254,7 +255,8 @@ internal class ProtectionTimerAlertService : Service() {
                     state.protectionTimer,
                     taskId,
                     intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
-                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT),
+                    state.firedProtectionAlert
                 )
             ) state
             else {
@@ -291,7 +293,8 @@ internal class ProtectionTimerAlertService : Service() {
             timeRepository().load().protectionTimer,
             taskId,
             intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
-            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT),
+            timeRepository().load().firedProtectionAlert
         )
 
     private fun Intent.getLongExtraOrNull(name: String): Long? =
