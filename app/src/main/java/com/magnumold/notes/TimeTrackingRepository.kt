@@ -139,6 +139,9 @@ internal fun mergeTimeTrackingUiChange(
     (previousUiState.activeSessions.keys + requestedUiState.activeSessions.keys)
         .filter { previousUiState.activeSessions[it] != requestedUiState.activeSessions[it] }
         .forEach { taskId ->
+            if (current.activeSessions[taskId] != previousUiState.activeSessions[taskId]) {
+                return@forEach
+            }
             val requested = requestedUiState.activeSessions[taskId]
             if (requested == null) activeSessions.remove(taskId)
             else activeSessions[taskId] = requested
@@ -147,9 +150,10 @@ internal fun mergeTimeTrackingUiChange(
     return current.copy(
         sessions = mergeSessions(current.sessions, previousUiState.sessions, requestedUiState.sessions),
         activeSessions = activeSessions,
-        protectionTimer = if (requestedUiState.protectionTimer != previousUiState.protectionTimer) {
-            requestedUiState.protectionTimer
-        } else current.protectionTimer,
+        protectionTimer = if (
+            requestedUiState.protectionTimer != previousUiState.protectionTimer &&
+            current.protectionTimer == previousUiState.protectionTimer
+        ) requestedUiState.protectionTimer else current.protectionTimer,
         soundUri = if (requestedUiState.soundUri != previousUiState.soundUri) {
             requestedUiState.soundUri
         } else current.soundUri,
