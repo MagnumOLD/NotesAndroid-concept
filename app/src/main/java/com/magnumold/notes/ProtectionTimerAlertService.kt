@@ -35,6 +35,8 @@ internal class ProtectionTimerAlertService : Service() {
     }
 
     private fun handleAlarm() {
+        // Duplicate alarm deliveries must not dismiss an alert already ringing.
+        if (protectionAlertActive) return
         createNotificationChannel()
         if (!protectionAlertActive) {
             startForeground(NOTIFICATION_ID, buildNotification(null, null))
