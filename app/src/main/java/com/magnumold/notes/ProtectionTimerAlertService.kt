@@ -301,18 +301,6 @@ internal class ProtectionTimerAlertService : Service() {
         stopAlertAndService(startId)
     }
 
-    private fun isCurrentProtectionAction(intent: Intent, taskId: Long): Boolean {
-        val state = timeRepository().load()
-        return isProtectionTimerActionCurrent(
-            activeProtectionAlert,
-            state.protectionTimer,
-            taskId,
-            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
-            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT),
-            state.firedProtectionAlert
-        )
-    }
-
     private fun Intent.getLongExtraOrNull(name: String): Long? =
         if (hasExtra(name)) getLongExtra(name, 0L) else null
 
