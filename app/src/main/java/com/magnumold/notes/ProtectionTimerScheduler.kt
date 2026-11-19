@@ -1,10 +1,16 @@
 package com.magnumold.notes
 
 import android.app.AlarmManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 
@@ -56,13 +62,132 @@ internal class ProtectionTimerScheduler(private val context: Context) {
 
 internal class ProtectionTimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
+        // An inexact alarm is not exempt from Android 12+ background FGS-start
+        // restrictions. When exact-alarm access is denied, complete the timer
+        // and post an audible notification instead of trying to start a service.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            !context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+        ) {
+            deliverInexactAlarm(context)
+            return
+        }
         val serviceIntent = Intent(context, ProtectionTimerAlertService::class.java)
             .setAction(ProtectionTimerContract.ACTION_ALARM)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            context.startForegroundService(serviceIntent)
-        } else {
-            context.startService(serviceIntent)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(serviceIntent)
+            } else {
+                context.startService(serviceIntent)
+            }
+        } catch (_: android.app.ForegroundServiceStartNotAllowedException) {
+            // The platform can still reject an FGS start for reasons other than
+            // exact-alarm access. Preserve the alarm as a user-visible notification.
+            deliverInexactAlarm(context)
         }
+    }
+
+    private fun deliverInexactAlarm(context: Context) {
+        val trackingRepository = TimeTrackingRepository(
+            context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
+        )
+        val now = System.currentTimeMillis()
+        var expiredTimer: ProtectionTimer? = null
+        var rescheduleTimer: ProtectionTimer? = null
+        val state = trackingRepository.update { persisted ->
+            // A reboot-restored alert is already consumed; only restore its
+            // notification. Otherwise consume the exact persisted timer once.
+            if (persisted.firedProtectionAlert != null) {
+                persisted
+            } else {
+                val timer = persisted.protectionTimer ?: return@update persisted
+                if (now < timer.endsAtMillis) {
+                    rescheduleTimer = timer
+                    persisted
+                } else {
+                    expiredTimer = timer
+                    completeProtectionTimerIfCurrent(persisted, timer, now)
+                }
+            }
+        }
+        rescheduleTimer?.let {
+            ProtectionTimerScheduler(context).schedule(it)
+            return
+        }
+        val alert = state.firedProtectionAlert ?: return
+        if (expiredTimer?.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
+            val updated = NotesRepository(
+                context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+            ).updateTaskStatus(alert.taskId, RecordStatus.PAUSED)
+            if (updated) {
+                context.sendBroadcast(
+                    Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED)
+                        .setPackage(context.packageName)
+                        .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, alert.taskId)
+                        .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS, RecordStatus.PAUSED.name)
+                )
+            }
+        }
+        postFallbackNotification(context, alert)
+    }
+
+    private fun postFallbackNotification(context: Context, alert: ProtectionTimer) {
+        val manager = context.getSystemService(NotificationManager::class.java)
+        val soundUri = if (alert.soundEnabled) {
+            alert.soundUri?.let(Uri::parse)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+        } else null
+        val channelId = "protection_timer_fallback_${if (soundUri == null) "silent" else soundUri.toString().hashCode()}"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            manager.getNotificationChannel(channelId) == null
+        ) {
+            manager.createNotificationChannel(
+                NotificationChannel(
+                    channelId,
+                    if (soundUri == null) "Сигнал таймера (без звука)" else "Сигнал таймера",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Резервное уведомление об окончании таймера защиты"
+                    enableVibration(true)
+                    setSound(
+                        soundUri,
+                        AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
+                    )
+                }
+            )
+        }
+        val openApp = PendingIntent.getActivity(
+            context,
+            alert.taskId.hashCode(),
+            Intent(context, MainActivity::class.java)
+                .setData(Uri.parse("notesandroid://protection-timer-fallback/${alert.taskId}/${alert.startedAtMillis}"))
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(context, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(context)
+        }
+        builder
+            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setContentTitle("Время вышло")
+            .setContentText(alert.subtaskTitle ?: alert.taskTitle)
+            .setContentIntent(openApp)
+            .setCategory(Notification.CATEGORY_ALARM)
+            .setPriority(Notification.PRIORITY_MAX)
+            .setOngoing(true)
+            .setAutoCancel(false)
+            .setShowWhen(false)
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O && soundUri != null) {
+            @Suppress("DEPRECATION")
+            builder.setSound(soundUri)
+        }
+        manager.notify(FALLBACK_NOTIFICATION_ID, builder.build())
+    }
+
+    private companion object {
+        const val FALLBACK_NOTIFICATION_ID = 7432
     }
 }
 
