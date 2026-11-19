@@ -1,5 +1,6 @@
 package com.magnumold.notes
 
+import android.content.Context
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotEquals
@@ -7,12 +8,37 @@ import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.json.JSONObject
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class TimeTrackingJsonCodecTest {
+    @Test fun updatesFromSeparateRepositoryInstancesReadTheLatestPersistedState() {
+        val preferences = RuntimeEnvironment.getApplication().getSharedPreferences(
+            "time_tracking_repository_concurrency_${System.nanoTime()}",
+            Context.MODE_PRIVATE
+        )
+        val first = TimeTrackingRepository(preferences)
+        val second = TimeTrackingRepository(preferences)
+        second.load() // Keep a stale in-memory snapshot in the second instance.
+
+        val timer = ProtectionTimer(
+            taskId = 11L,
+            taskTitle = "Parent",
+            subtaskTitle = "Child",
+            startedAtMillis = 100L,
+            endsAtMillis = 200L,
+            endMode = ProtectionEndMode.STOP_AND_PAUSE
+        )
+        first.update { it.copy(protectionTimer = timer) }
+        second.update { it.copy(soundEnabled = false) }
+
+        assertEquals(timer, second.load().protectionTimer)
+        assertEquals(false, second.load().soundEnabled)
+    }
+
     @Test fun trackingStateRoundTripsSessionsActiveStopwatchesAndTimer() {
         val session = WorkSession(
             id = "session-1",
