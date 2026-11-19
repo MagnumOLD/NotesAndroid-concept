@@ -402,4 +402,40 @@ class TimeTrackingStatusSyncTest {
         }
     }
 
+
+    @Test fun uiSoundChangePreservesProtectionTimerCreatedByServiceAfterUiSnapshot() {
+        val previousUi = TimeTrackingState(soundEnabled = true)
+        val timer = ProtectionTimer(
+            11L, "Parent", "Child", 100L, 900L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val latest = previousUi.copy(protectionTimer = timer)
+        val requested = previousUi.copy(soundEnabled = false)
+
+        val merged = mergeTimeTrackingUiChange(latest, previousUi, requested)
+
+        assertEquals(timer, merged.protectionTimer)
+        assertFalse(merged.soundEnabled)
+    }
+
+    @Test fun addingManualSessionFromUiPreservesConcurrentActiveSession() {
+        val previousUi = TimeTrackingState()
+        val manual = WorkSession(
+            id = "manual", taskId = 11L, parentTaskId = 10L,
+            taskTitle = "Parent", subtaskTitle = "Child",
+            startedAtMillis = 100L, endedAtMillis = 200L,
+            durationMillis = 100L, endReason = WorkSessionEndReason.STOP
+        )
+        val requested = previousUi.copy(sessions = listOf(manual))
+        val active = ActiveWorkSession(
+            id = "active", taskId = 22L, parentTaskId = 20L,
+            taskTitle = "Other parent", subtaskTitle = "Other child",
+            startedAtMillis = 300L
+        )
+        val latest = previousUi.copy(activeSessions = mapOf(22L to active))
+
+        val merged = mergeTimeTrackingUiChange(latest, previousUi, requested)
+
+        assertEquals(listOf(manual), merged.sessions)
+        assertEquals(active, merged.activeSessions[22L])
+    }
 }
