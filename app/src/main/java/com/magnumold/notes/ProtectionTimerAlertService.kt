@@ -69,6 +69,7 @@ internal class ProtectionTimerAlertService : Service() {
 
 
     private fun handleRecordTimerAlarm(intent: Intent, startId: Int) {
+        val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
         createRecordTimerChannel()
         startForeground(
             RECORD_TIMER_NOTIFICATION_ID,
@@ -78,7 +79,6 @@ internal class ProtectionTimerAlertService : Service() {
             finishRecordTimerService(startId)
             return
         }
-        val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
 
         val repository = notesRepository()
         val snapshot = repository.loadSnapshot()
