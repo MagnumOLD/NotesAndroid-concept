@@ -176,6 +176,16 @@ internal fun clearProtectionTimerForTask(
 ): TimeTrackingState =
     if (state.protectionTimer?.taskId == taskId) state.copy(protectionTimer = null) else state
 
+/** Stops the requested task and clears a protection timer only when it belongs to that task. */
+internal fun stopWorkAfterProtectionTimer(
+    state: TimeTrackingState,
+    taskId: Long,
+    nowMillis: Long
+): TimeTrackingState = clearProtectionTimerForTask(
+    TimeTrackingEngine.finish(state, taskId, nowMillis, WorkSessionEndReason.STOP),
+    taskId
+)
+
 internal fun resumeWorkAfterProtectionTimer(
     state: TimeTrackingState,
     taskId: Long,
