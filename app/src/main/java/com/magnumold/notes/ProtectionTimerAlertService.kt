@@ -196,8 +196,7 @@ internal class ProtectionTimerAlertService : Service() {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
         if (taskId > 0L) {
             timeRepository().update { state ->
-                TimeTrackingEngine.finish(state, taskId, System.currentTimeMillis(), WorkSessionEndReason.STOP)
-                    .copy(protectionTimer = null)
+                stopWorkAfterProtectionTimer(state, taskId, System.currentTimeMillis())
             }
             sendTaskStatusChanged()
         }
