@@ -403,6 +403,18 @@ class TimeTrackingStatusSyncTest {
     }
 
 
+
+    @Test fun bootRestoresPersistedFiredProtectionAlert() {
+        val fired = ProtectionTimer(
+            11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        assertTrue(shouldRestoreProtectionAlertOnBoot(TimeTrackingState(firedProtectionAlert = fired)))
+    }
+
+    @Test fun bootDoesNotRestoreAlertWhenNoneIsPersisted() {
+        assertFalse(shouldRestoreProtectionAlertOnBoot(TimeTrackingState()))
+    }
+
     @Test fun uiSoundChangePreservesProtectionTimerCreatedByServiceAfterUiSnapshot() {
         val previousUi = TimeTrackingState(soundEnabled = true)
         val timer = ProtectionTimer(
