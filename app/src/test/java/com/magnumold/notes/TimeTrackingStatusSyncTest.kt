@@ -438,4 +438,20 @@ class TimeTrackingStatusSyncTest {
         assertEquals(listOf(manual), merged.sessions)
         assertEquals(active, merged.activeSessions[22L])
     }
+
+    @Test fun staleUiTimerStartCannotReplaceTimerCreatedConcurrently() {
+        val previousUi = TimeTrackingState()
+        val concurrentTimer = ProtectionTimer(
+            22L, "Other task", null, 300L, 900L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val requestedTimer = ProtectionTimer(
+            11L, "Task", null, 400L, 1_000L, ProtectionEndMode.STOP_AND_PAUSE
+        )
+        val latest = previousUi.copy(protectionTimer = concurrentTimer)
+        val requested = previousUi.copy(protectionTimer = requestedTimer)
+
+        val merged = mergeTimeTrackingUiChange(latest, previousUi, requested)
+
+        assertEquals(concurrentTimer, merged.protectionTimer)
+    }
 }
