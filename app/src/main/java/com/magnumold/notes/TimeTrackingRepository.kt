@@ -65,7 +65,9 @@ internal fun mergeTimeTrackingBackup(
     return TimeTrackingState(
         sessions = sessionsById.values.sortedBy { it.startedAtMillis },
         activeSessions = active,
-        protectionTimer = current.protectionTimer ?: imported.protectionTimer,
+        protectionTimer = if (current.firedProtectionAlert != null) {
+            null
+        } else current.protectionTimer ?: imported.protectionTimer,
         firedProtectionAlert = current.firedProtectionAlert,
         soundUri = imported.soundUri ?: current.soundUri,
         soundEnabled = imported.soundEnabled
@@ -156,7 +158,8 @@ internal fun mergeTimeTrackingUiChange(
         activeSessions = activeSessions,
         protectionTimer = if (
             requestedUiState.protectionTimer != previousUiState.protectionTimer &&
-            current.protectionTimer == previousUiState.protectionTimer
+            current.protectionTimer == previousUiState.protectionTimer &&
+            current.firedProtectionAlert == previousUiState.firedProtectionAlert
         ) requestedUiState.protectionTimer else current.protectionTimer,
         soundUri = if (requestedUiState.soundUri != previousUiState.soundUri) {
             requestedUiState.soundUri
@@ -164,9 +167,10 @@ internal fun mergeTimeTrackingUiChange(
         soundEnabled = if (requestedUiState.soundEnabled != previousUiState.soundEnabled) {
             requestedUiState.soundEnabled
         } else current.soundEnabled,
-        firedProtectionAlert = if (requestedUiState.firedProtectionAlert != previousUiState.firedProtectionAlert) {
-            requestedUiState.firedProtectionAlert
-        } else current.firedProtectionAlert
+        firedProtectionAlert = if (
+            requestedUiState.firedProtectionAlert != previousUiState.firedProtectionAlert &&
+            current.firedProtectionAlert == previousUiState.firedProtectionAlert
+        ) requestedUiState.firedProtectionAlert else current.firedProtectionAlert
     )
 }
 
