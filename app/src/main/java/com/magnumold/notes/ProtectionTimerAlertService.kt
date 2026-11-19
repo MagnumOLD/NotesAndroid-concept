@@ -207,22 +207,30 @@ internal class ProtectionTimerAlertService : Service() {
     private fun handleContinueWork(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
         if (taskId > 0L) {
-            val parentId = if (intent.hasExtra(ProtectionTimerContract.EXTRA_PARENT_TASK_ID)) {
-                intent.getLongExtra(ProtectionTimerContract.EXTRA_PARENT_TASK_ID, -1L).takeIf { it > 0L }
-            } else null
-            val taskTitle = intent.getStringExtra(ProtectionTimerContract.EXTRA_TASK_TITLE) ?: "Задача"
-            val subtaskTitle = intent.getStringExtra(ProtectionTimerContract.EXTRA_SUBTASK_TITLE)
             val notes = notesRepository()
             if (notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)) {
-                timeRepository().update { state ->
-                    resumeWorkAfterProtectionTimer(
-                        state = state,
-                        taskId = taskId,
-                        parentTaskId = parentId,
-                        taskTitle = taskTitle,
-                        subtaskTitle = subtaskTitle,
-                        nowMillis = System.currentTimeMillis()
-                    )
+                // Notification actions can be tapped long after the alert was
+                // created. Resolve the task's current location and names instead
+                // of trusting parent/title extras captured by the old notification.
+                val context = findTaskTrackingContext(
+                    HomeTimelineOperations.records(notes.loadSnapshot()),
+                    taskId
+                )
+                if (context != null) {
+                    val parent = context.parent
+                    val subtaskTitle = context.task.trackingDisplayTitle().takeIf { parent != null }
+                    val taskTitle = (parent ?: context.task).trackingDisplayTitle()
+                    val now = System.currentTimeMillis()
+                    timeRepository().update { state ->
+                        resumeWorkAfterProtectionTimer(
+                            state = state,
+                            taskId = taskId,
+                            parentTaskId = parent?.id,
+                            taskTitle = taskTitle,
+                            subtaskTitle = subtaskTitle,
+                            nowMillis = now
+                        )
+                    }
                 }
                 sendTaskStatusChanged(taskId, RecordStatus.IN_PROGRESS)
             }
