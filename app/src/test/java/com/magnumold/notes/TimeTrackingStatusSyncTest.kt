@@ -454,4 +454,24 @@ class TimeTrackingStatusSyncTest {
 
         assertEquals(concurrentTimer, merged.protectionTimer)
     }
+
+    @Test fun staleUiTimerStartCannotClearAlertThatFiredConcurrently() {
+        val previousUi = TimeTrackingState()
+        val fired = ProtectionTimer(
+            22L, "Other task", null, 100L, 200L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val requestedTimer = ProtectionTimer(
+            11L, "Task", null, 300L, 900L, ProtectionEndMode.STOP_AND_PAUSE
+        )
+        val latest = previousUi.copy(firedProtectionAlert = fired)
+        val requested = previousUi.copy(
+            protectionTimer = requestedTimer,
+            firedProtectionAlert = null
+        )
+
+        val merged = mergeTimeTrackingUiChange(latest, previousUi, requested)
+
+        assertEquals(null, merged.protectionTimer)
+        assertEquals(fired, merged.firedProtectionAlert)
+    }
 }
