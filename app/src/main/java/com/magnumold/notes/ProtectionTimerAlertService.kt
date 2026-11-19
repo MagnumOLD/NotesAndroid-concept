@@ -25,16 +25,16 @@ internal class ProtectionTimerAlertService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ProtectionTimerContract.ACTION_ALARM -> handleAlarm()
+            ProtectionTimerContract.ACTION_ALARM -> handleAlarm(startId)
             RecordTimerContract.ACTION_ALARM -> handleRecordTimerAlarm(intent, startId)
-            ProtectionTimerContract.ACTION_STOP_TRACKING -> handleStopTracking(intent)
-            ProtectionTimerContract.ACTION_CONTINUE_WORK -> handleContinueWork(intent)
+            ProtectionTimerContract.ACTION_STOP_TRACKING -> handleStopTracking(intent, startId)
+            ProtectionTimerContract.ACTION_CONTINUE_WORK -> handleContinueWork(intent, startId)
             else -> stopSelf(startId)
         }
         return START_NOT_STICKY
     }
 
-    private fun handleAlarm() {
+    private fun handleAlarm(startId: Int) {
         // Duplicate alarm deliveries must not dismiss an alert already ringing.
         if (protectionAlertActive) return
         createNotificationChannel()
@@ -44,7 +44,7 @@ internal class ProtectionTimerAlertService : Service() {
         val repository = timeRepository()
         val timer = repository.load().protectionTimer
         if (timer == null) {
-            finishService()
+            finishService(startId)
             return
         }
         val now = System.currentTimeMillis()
@@ -191,7 +191,7 @@ internal class ProtectionTimerAlertService : Service() {
         }
     }
 
-    private fun handleStopTracking(intent: Intent) {
+    private fun handleStopTracking(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
         if (taskId > 0L) {
             timeRepository().update { state ->
@@ -200,10 +200,10 @@ internal class ProtectionTimerAlertService : Service() {
             }
             sendTaskStatusChanged()
         }
-        stopAlertAndService()
+        stopAlertAndService(startId)
     }
 
-    private fun handleContinueWork(intent: Intent) {
+    private fun handleContinueWork(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
         if (taskId > 0L) {
             val parentId = if (intent.hasExtra(ProtectionTimerContract.EXTRA_PARENT_TASK_ID)) {
@@ -226,7 +226,7 @@ internal class ProtectionTimerAlertService : Service() {
                 sendTaskStatusChanged()
             }
         }
-        stopAlertAndService()
+        stopAlertAndService(startId)
     }
 
     private fun buildNotification(
@@ -349,22 +349,22 @@ internal class ProtectionTimerAlertService : Service() {
         }
     }
 
-    private fun stopAlertAndService() {
+    private fun stopAlertAndService(startId: Int) {
         protectionAlertActive = false
         stopRingtone()
         releaseWakeLock()
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
-        finishService()
+        finishService(startId)
     }
 
-    private fun finishService() {
+    private fun finishService(startId: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
             @Suppress("DEPRECATION")
             stopForeground(true)
         }
-        stopSelf()
+        stopSelfResult(startId)
     }
 
     override fun onDestroy() {
