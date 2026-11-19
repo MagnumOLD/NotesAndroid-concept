@@ -264,3 +264,7 @@ internal fun resumeWorkAfterProtectionTimer(
         nowMillis = nowMillis
     )
 }
+
+/** Whether a persisted alert must be relaunched after Android restarts. */
+internal fun shouldRestoreProtectionAlertOnBoot(state: TimeTrackingState): Boolean =
+    state.firedProtectionAlert != null
