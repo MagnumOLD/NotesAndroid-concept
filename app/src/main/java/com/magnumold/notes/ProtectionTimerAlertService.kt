@@ -55,12 +55,17 @@ internal class ProtectionTimerAlertService : Service() {
             return
         }
 
+        var timerConsumed = false
         val updatedState = repository.update { state ->
-            completeProtectionTimerIfCurrent(state, timer, now)
+            if (state.protectionTimer != timer) state
+            else {
+                timerConsumed = true
+                completeProtectionTimerIfCurrent(state, timer, now)
+            }
         }
-        if (updatedState.protectionTimer == timer) {
-            // The timer was replaced after this alarm was delivered. Do not
-            // pause its task or show an alert for an obsolete timer.
+        if (!timerConsumed) {
+            // The timer was replaced or cancelled after this alarm was
+            // delivered. Do not pause its task or show an obsolete alert.
             updatedState.protectionTimer?.let { ProtectionTimerScheduler(this).schedule(it) }
             finishService(startId)
             return
