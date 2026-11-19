@@ -79,7 +79,7 @@ internal fun NutritionRecordEditor(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                "${note.nutritionCalories.toInt()} ккал  •  Б ${note.nutritionProtein} г  •  Ж ${note.nutritionFat} г  •  У ${note.nutritionCarbs} г",
+                "${NutritionOperations.formatCalories(note.nutritionCalories)} ккал  •  Б ${note.nutritionProtein} г  •  Ж ${note.nutritionFat} г  •  У ${note.nutritionCarbs} г",
                 style = MaterialTheme.typography.bodyLarge
             )
         }
