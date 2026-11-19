@@ -6,6 +6,30 @@ private data class TaskTreeEntry(
     val parentTitle: String?
 )
 
+internal data class TaskTrackingContext(
+    val task: Note,
+    val parent: Note?
+)
+
+internal fun findTaskTrackingContext(
+    roots: List<Note>,
+    taskId: Long
+): TaskTrackingContext? {
+    fun find(note: Note, parent: Note?): TaskTrackingContext? {
+        if (note.id == taskId) return TaskTrackingContext(note, parent)
+        note.children.forEach { child ->
+            find(child, note)?.let { return it }
+        }
+        return null
+    }
+    roots.forEach { root -> find(root, null)?.let { return it } }
+    return null
+}
+
+internal fun Note.trackingDisplayTitle(): String =
+    titleText.takeIf { titleEnabled && it.isNotBlank() }
+        ?: blocks.toPlainText().lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "Задача" }
+
 /** Returns the first instant after the selected local deadline day (DST-safe). */
 internal fun deadlineEndExclusiveMillis(
     dateAt: Long,
@@ -36,9 +60,7 @@ internal fun syncWorkSessionsForTaskChanges(
     currentState: TimeTrackingState,
     nowMillis: Long
 ): TimeTrackingState {
-    fun title(note: Note): String =
-        note.titleText.takeIf { note.titleEnabled && it.isNotBlank() }
-            ?: note.blocks.toPlainText().lineSequence().firstOrNull()?.trim().orEmpty().ifBlank { "Задача" }
+    fun title(note: Note): String = note.trackingDisplayTitle()
 
     fun flatten(roots: List<Note>): Map<Long, TaskTreeEntry> {
         val result = linkedMapOf<Long, TaskTreeEntry>()
