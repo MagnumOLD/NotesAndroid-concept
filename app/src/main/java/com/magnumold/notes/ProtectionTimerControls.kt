@@ -106,7 +106,7 @@ internal fun ProtectionTimerControls(
                                 soundUri = state.soundUri, soundEnabled = state.soundEnabled,
                                 parentTaskId = parentTaskId
                             )
-                            onStateChange(state.copy(protectionTimer = newTimer))
+                            onStateChange(state.copy(protectionTimer = newTimer, firedProtectionAlert = null))
                             minutesText = ""
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                 val alarms = context.getSystemService(AlarmManager::class.java)
