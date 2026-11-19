@@ -58,6 +58,11 @@ class PersistenceArchitectureTest {
     }
 
     @Test
+    fun backgroundServicesUseTheSamePreferencesFileAsMainActivity() {
+        assertEquals(MainActivity::class.java.simpleName, NotesRepository.PREFERENCES_NAME)
+    }
+
+    @Test
     fun repositoryRoundTripPreservesAllFourPreferenceCollections() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val preferences = context.getSharedPreferences("notes_repository_test", Context.MODE_PRIVATE)
