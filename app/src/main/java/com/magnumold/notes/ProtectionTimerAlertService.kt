@@ -43,9 +43,24 @@ internal class ProtectionTimerAlertService : Service() {
             startForeground(NOTIFICATION_ID, buildNotification(null, null))
         }
         val repository = timeRepository()
-        val timer = repository.load().protectionTimer
+        val storedState = repository.load()
+        val timer = storedState.protectionTimer
         if (timer == null) {
-            finishService(startId)
+            // A process may be recreated while the alert notification is still
+            // active. Restore its identity and foreground presentation instead
+            // of treating the already-consumed alarm as an empty timer.
+            val firedAlert = storedState.firedProtectionAlert
+            if (firedAlert != null) {
+                protectionAlertActive = true
+                activeProtectionAlert = firedAlert
+                if (firedAlert.soundEnabled) {
+                    acquireWakeLock()
+                    playAlarmSound(firedAlert.soundUri)
+                }
+                startForeground(NOTIFICATION_ID, buildNotification(firedAlert, actionPendingIntent(firedAlert)))
+            } else {
+                finishService(startId)
+            }
             return
         }
         val now = System.currentTimeMillis()
@@ -287,15 +302,17 @@ internal class ProtectionTimerAlertService : Service() {
         stopAlertAndService(startId)
     }
 
-    private fun isCurrentProtectionAction(intent: Intent, taskId: Long): Boolean =
-        isProtectionTimerActionCurrent(
+    private fun isCurrentProtectionAction(intent: Intent, taskId: Long): Boolean {
+        val state = timeRepository().load()
+        return isProtectionTimerActionCurrent(
             activeProtectionAlert,
-            timeRepository().load().protectionTimer,
+            state.protectionTimer,
             taskId,
             intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
             intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT),
-            timeRepository().load().firedProtectionAlert
+            state.firedProtectionAlert
         )
+    }
 
     private fun Intent.getLongExtraOrNull(name: String): Long? =
         if (hasExtra(name)) getLongExtra(name, 0L) else null
