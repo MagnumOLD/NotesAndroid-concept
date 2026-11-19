@@ -160,10 +160,28 @@ class TimeTrackingStatusSyncTest {
 
             assertFalse(reconciled.activeSessions.containsKey(11L))
             assertEquals(WorkSessionEndReason.STOP, reconciled.sessions.single().endReason)
-            assertEquals(afterDeadline, reconciled.sessions.single().endedAtMillis)
+            assertEquals(deadline + 24L * 60L * 60L * 1_000L, reconciled.sessions.single().endedAtMillis)
         } finally {
             java.util.TimeZone.setDefault(previousZone)
         }
+    }
+
+
+    @Test fun deadlineTrackingStopsAtTheCorrectLocalBoundaryAcrossSpringDst() {
+        val zone = java.util.TimeZone.getTimeZone("Europe/Vienna")
+        val deadline = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(2026, java.util.Calendar.MARCH, 29, 0, 0, 0)
+        }.timeInMillis
+
+        val boundary = deadlineEndExclusiveMillis(deadline, zone)
+        val expected = java.util.Calendar.getInstance(zone).apply {
+            clear()
+            set(2026, java.util.Calendar.MARCH, 30, 0, 0, 0)
+        }.timeInMillis
+
+        assertEquals(expected, boundary)
+        assertEquals(23L * 60L * 60L * 1_000L, boundary - deadline)
     }
 
     @Test fun pausingSubtaskSavesSessionWithPauseReason() {
