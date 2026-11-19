@@ -84,15 +84,15 @@ class MainActivity : ComponentActivity() {
         }
         if (::timeTrackingRepository.isInitialized) {
             timeTrackingRepository.reload()
-            val currentTracking = timeTrackingRepository.load()
             val records = HomeTimelineOperations.records(recordsViewModel.snapshot.value)
-            val reconciledTracking = syncWorkSessionsForTaskChanges(
-                oldRoots = records,
-                newRoots = records,
-                currentState = currentTracking,
-                nowMillis = System.currentTimeMillis()
-            )
-            if (reconciledTracking != currentTracking) timeTrackingRepository.save(reconciledTracking)
+            timeTrackingRepository.update { current ->
+                syncWorkSessionsForTaskChanges(
+                    oldRoots = records,
+                    newRoots = records,
+                    currentState = current,
+                    nowMillis = System.currentTimeMillis()
+                )
+            }
             timeTrackingRepository.load().protectionTimer?.let {
                 ProtectionTimerScheduler(this).schedule(it)
             }
