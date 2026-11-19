@@ -20,7 +20,7 @@ internal class ProtectionTimerAlertService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ProtectionTimerContract.ACTION_ALARM -> handleAlarm()
-            RecordTimerContract.ACTION_ALARM -> handleRecordTimerAlarm(intent)
+            RecordTimerContract.ACTION_ALARM -> handleRecordTimerAlarm(intent, startId)
             ProtectionTimerContract.ACTION_STOP_TRACKING -> handleStopTracking(intent)
             ProtectionTimerContract.ACTION_CONTINUE_WORK -> handleContinueWork(intent)
             else -> stopSelf(startId)
@@ -65,12 +65,15 @@ internal class ProtectionTimerAlertService : Service() {
     }
 
 
-    private fun handleRecordTimerAlarm(intent: Intent) {
+    private fun handleRecordTimerAlarm(intent: Intent, startId: Int) {
         val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, -1L)
         createRecordTimerChannel()
-        startForeground(RECORD_TIMER_NOTIFICATION_ID, buildRecordTimerNotification("Проверка таймера"))
+        startForeground(
+            RECORD_TIMER_NOTIFICATION_ID,
+            buildRecordTimerNotification("Проверка таймера", recordId)
+        )
         if (recordId <= 0L) {
-            finishService()
+            finishRecordTimerService(startId)
             return
         }
 
@@ -79,14 +82,14 @@ internal class ProtectionTimerAlertService : Service() {
         val note = HomeTimelineOperations.records(snapshot).firstOrNull { it.id == recordId }
         val endAt = note?.timerEndsAtMillis
         if (note == null || note.type != RecordType.TIMER || endAt == null) {
-            finishService()
+            finishRecordTimerService(startId)
             return
         }
 
         val now = System.currentTimeMillis()
         if (now < endAt) {
             RecordTimerScheduler(this).sync(note)
-            finishService()
+            finishRecordTimerService(startId)
             return
         }
 
@@ -100,20 +103,33 @@ internal class ProtectionTimerAlertService : Service() {
         sendTaskStatusChanged()
 
         val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.notify(
-            RECORD_TIMER_NOTIFICATION_ID,
-            buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" })
-        )
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_DETACH)
+            stopForeground(STOP_FOREGROUND_REMOVE)
         } else {
             @Suppress("DEPRECATION")
-            stopForeground(false)
+            stopForeground(true)
         }
-        stopSelf()
+        // A stable tag per record prevents two timers ending together from
+        // replacing each other's notifications despite sharing the Android ID.
+        notificationManager.notify(
+            recordId.toString(),
+            RECORD_TIMER_NOTIFICATION_ID,
+            buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" }, recordId)
+        )
+        stopSelfResult(startId)
     }
 
-    private fun buildRecordTimerNotification(title: String): Notification {
+    private fun finishRecordTimerService(startId: Int) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        stopSelfResult(startId)
+    }
+
+    private fun buildRecordTimerNotification(title: String, recordId: Long): Notification {
         val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Notification.Builder(this, RECORD_TIMER_CHANNEL_ID)
         } else {
@@ -122,8 +138,9 @@ internal class ProtectionTimerAlertService : Service() {
         }
         val openApp = PendingIntent.getActivity(
             this,
-            RECORD_TIMER_NOTIFICATION_ID,
-            Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            Intent(this, MainActivity::class.java)
+                .setData(Uri.parse("notesandroid://record-timer-notification/$recordId"))
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         return builder
