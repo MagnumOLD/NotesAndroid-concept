@@ -102,6 +102,66 @@ internal fun remapTimeTrackingTaskIds(
     )
 }
 
+/**
+ * Applies only fields changed by a UI event to the latest persisted state.
+ * This prevents a stale Compose snapshot from overwriting service-side timer
+ * or session transitions that happened while the screen was open.
+ */
+internal fun mergeTimeTrackingUiChange(
+    current: TimeTrackingState,
+    previousUiState: TimeTrackingState,
+    requestedUiState: TimeTrackingState
+): TimeTrackingState {
+    fun mergeSessions(
+        latest: List<WorkSession>,
+        previous: List<WorkSession>,
+        requested: List<WorkSession>
+    ): List<WorkSession> {
+        val previousById = previous.associateBy { it.id }
+        val requestedById = requested.associateBy { it.id }
+        val changedIds = (previousById.keys + requestedById.keys)
+            .filter { previousById[it] != requestedById[it] }
+        if (changedIds.isEmpty()) return latest
+        val result = latest.toMutableList()
+        changedIds.forEach { id ->
+            val replacement = requestedById[id]
+            val index = result.indexOfFirst { it.id == id }
+            when {
+                replacement == null && index >= 0 -> result.removeAt(index)
+                replacement != null && index >= 0 -> result[index] = replacement
+                replacement != null -> result += replacement
+            }
+        }
+        return result.sortedBy { it.startedAtMillis }
+    }
+
+    val activeSessions = current.activeSessions.toMutableMap()
+    (previousUiState.activeSessions.keys + requestedUiState.activeSessions.keys)
+        .filter { previousUiState.activeSessions[it] != requestedUiState.activeSessions[it] }
+        .forEach { taskId ->
+            val requested = requestedUiState.activeSessions[taskId]
+            if (requested == null) activeSessions.remove(taskId)
+            else activeSessions[taskId] = requested
+        }
+
+    return current.copy(
+        sessions = mergeSessions(current.sessions, previousUiState.sessions, requestedUiState.sessions),
+        activeSessions = activeSessions,
+        protectionTimer = if (requestedUiState.protectionTimer != previousUiState.protectionTimer) {
+            requestedUiState.protectionTimer
+        } else current.protectionTimer,
+        soundUri = if (requestedUiState.soundUri != previousUiState.soundUri) {
+            requestedUiState.soundUri
+        } else current.soundUri,
+        soundEnabled = if (requestedUiState.soundEnabled != previousUiState.soundEnabled) {
+            requestedUiState.soundEnabled
+        } else current.soundEnabled,
+        firedProtectionAlert = if (requestedUiState.firedProtectionAlert != previousUiState.firedProtectionAlert) {
+            requestedUiState.firedProtectionAlert
+        } else current.firedProtectionAlert
+    )
+}
+
 internal class TimeTrackingRepository(
     private val preferences: SharedPreferences
 ) {
