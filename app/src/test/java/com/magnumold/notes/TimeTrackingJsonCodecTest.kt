@@ -74,6 +74,7 @@ class TimeTrackingJsonCodecTest {
             sessions = listOf(session),
             activeSessions = mapOf(3L to active),
             protectionTimer = timer,
+            firedProtectionAlert = timer.copy(startedAtMillis = 800L, endsAtMillis = 900L),
             soundUri = "content://alarm/tone",
             soundEnabled = false
         )
