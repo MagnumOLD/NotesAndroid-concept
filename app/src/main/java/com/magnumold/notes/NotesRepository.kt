@@ -8,6 +8,11 @@ import org.json.JSONArray
  * Preference names and JSON keys are preserved for upgrade compatibility.
  */
 internal class NotesRepository(private val preferences: SharedPreferences) {
+    companion object {
+        // Activity.getPreferences() uses the Activity's local class name.
+        // Services and receivers must open this exact same file.
+        const val PREFERENCES_NAME = "MainActivity"
+    }
     fun loadSnapshot() = PersistenceSnapshot(
         notes = loadNotes(),
         collections = loadCollections(),
