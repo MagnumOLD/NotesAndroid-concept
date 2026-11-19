@@ -57,6 +57,13 @@ internal fun ProtectionTimerControls(
 
     TimeTrackingSection(title = "Таймер защиты") {
         when {
+            state.firedProtectionAlert != null -> {
+                val alert = state.firedProtectionAlert
+                Text(
+                    "Сигнал для задачи «${alert.subtaskTitle ?: alert.taskTitle}» активен. Завершите его через уведомление.",
+                    style = AppTypography.compactBodyStyle()
+                )
+            }
             timer != null && timer.taskId != taskId -> {
                 Text("Уже запущен: ${timer.subtaskTitle ?: timer.taskTitle}", style = AppTypography.compactBodyStyle())
                 Text("Осталось ${formatProtectionDuration(ProtectionTimerEngine.remainingMillis(timer, nowMillis))}", style = AppTypography.compactBodyStyle())
