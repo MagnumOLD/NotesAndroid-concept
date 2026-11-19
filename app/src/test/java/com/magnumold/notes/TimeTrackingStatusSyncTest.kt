@@ -222,4 +222,41 @@ class TimeTrackingStatusSyncTest {
         assertEquals(WorkSessionEndReason.PAUSE, state.sessions.single().endReason)
         assertEquals(500L, state.sessions.single().durationMillis)
     }
+
+    @Test fun bootReconciliationStopsDeadlineExpiredSessionBeforeAppLaunch() {
+        val previousZone = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("UTC"))
+            val deadline = java.util.Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC")).apply {
+                clear()
+                set(2026, java.util.Calendar.JANUARY, 2, 0, 0, 0)
+            }.timeInMillis
+            val bootTime = deadline + 24L * 60L * 60L * 1_000L + 5L * 60L * 1_000L
+            val now = bootTime + 30L * 60L * 1_000L
+            val child = task(11, "Child", RecordStatus.IN_PROGRESS).copy(
+                dateMode = RecordDateMode.DEADLINE,
+                dateAt = deadline
+            )
+            val parent = task(10, "Parent", RecordStatus.WAITING, listOf(child))
+            val active = ActiveWorkSession(
+                id = "after-boot",
+                taskId = 11L,
+                parentTaskId = 10L,
+                taskTitle = "Parent",
+                subtaskTitle = "Child",
+                startedAtMillis = bootTime
+            )
+            val initial = TimeTrackingState(activeSessions = mapOf(11L to active))
+
+            val reconciled = reconcileBootTimeTrackingState(listOf(parent), initial, now)
+
+            assertFalse(reconciled.activeSessions.containsKey(11L))
+            assertEquals(WorkSessionEndReason.STOP, reconciled.sessions.single().endReason)
+            assertEquals(deadline + 24L * 60L * 60L * 1_000L, reconciled.sessions.single().endedAtMillis)
+            assertEquals(24L * 60L * 60L * 1_000L - 5L * 60L * 1_000L, reconciled.sessions.single().durationMillis)
+        } finally {
+            java.util.TimeZone.setDefault(previousZone)
+        }
+    }
+
 }
