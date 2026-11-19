@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
             // Re-reading preferences on every resume can replace a newer in-memory
             // snapshot with stale data while the debounced write is still pending.
             // Refresh only when the background service explicitly marks an update.
-            val recordPreferences = getPreferences(Context.MODE_PRIVATE)
+            val recordPreferences = getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
             val marker = recordPreferences.getLong(
                 ExternalRecordUpdateKeys.TASK_STATUS_AT, lastExternalTaskStatusUpdate
             )
