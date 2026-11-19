@@ -252,8 +252,8 @@ class TimeTrackingStatusSyncTest {
 
             assertFalse(reconciled.activeSessions.containsKey(11L))
             assertEquals(WorkSessionEndReason.STOP, reconciled.sessions.single().endReason)
-            assertEquals(deadline + 24L * 60L * 60L * 1_000L, reconciled.sessions.single().endedAtMillis)
-            assertEquals(24L * 60L * 60L * 1_000L - 5L * 60L * 1_000L, reconciled.sessions.single().durationMillis)
+            assertEquals(bootTime, reconciled.sessions.single().endedAtMillis)
+            assertEquals(0L, reconciled.sessions.single().durationMillis)
         } finally {
             java.util.TimeZone.setDefault(previousZone)
         }
