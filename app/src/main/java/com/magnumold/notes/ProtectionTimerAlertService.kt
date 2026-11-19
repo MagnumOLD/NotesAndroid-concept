@@ -72,7 +72,7 @@ internal class ProtectionTimerAlertService : Service() {
         val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
         createRecordTimerChannel()
         startForeground(
-            RECORD_TIMER_NOTIFICATION_ID,
+            RecordTimerContract.NOTIFICATION_ID,
             buildRecordTimerNotification("Проверка таймера", recordId)
         )
         if (!intent.hasExtra(RecordTimerContract.EXTRA_RECORD_ID)) {
@@ -116,7 +116,7 @@ internal class ProtectionTimerAlertService : Service() {
         // replacing each other's notifications despite sharing the Android ID.
         notificationManager.notify(
             recordTimerNotificationTag(recordId),
-            RECORD_TIMER_NOTIFICATION_ID,
+            RecordTimerContract.NOTIFICATION_ID,
             buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" }, recordId)
         )
         stopSelfResult(startId)
@@ -141,7 +141,7 @@ internal class ProtectionTimerAlertService : Service() {
         }
         val openApp = PendingIntent.getActivity(
             this,
-            RECORD_TIMER_NOTIFICATION_ID,
+            RecordTimerContract.NOTIFICATION_ID,
             Intent(this, MainActivity::class.java)
                 .setData(Uri.parse("notesandroid://record-timer-notification/$recordId"))
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
@@ -364,6 +364,5 @@ internal class ProtectionTimerAlertService : Service() {
         const val CHANNEL_ID = "protection_timer_alerts"
         const val NOTIFICATION_ID = 7432
         const val RECORD_TIMER_CHANNEL_ID = "record_timer_alerts"
-        const val RECORD_TIMER_NOTIFICATION_ID = 7433
     }
 }
