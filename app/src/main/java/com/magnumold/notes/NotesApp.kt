@@ -76,13 +76,14 @@ internal fun NotesApp(
             }
             fun closeActiveSessionsForRemoved(records: List<Note>) {
                 if (records.isEmpty()) return
-                val updated = syncWorkSessionsForTaskChanges(
-                    oldRoots = records,
-                    newRoots = emptyList(),
-                    currentState = timeTrackingRepository.load(),
-                    nowMillis = System.currentTimeMillis()
-                )
-                if (updated != timeTrackingRepository.load()) timeTrackingRepository.save(updated)
+                timeTrackingRepository.update { current ->
+                    syncWorkSessionsForTaskChanges(
+                        oldRoots = records,
+                        newRoots = emptyList(),
+                        currentState = current,
+                        nowMillis = System.currentTimeMillis()
+                    )
+                }
             }
             val systemDark = isSystemInDarkTheme()
             val themeState = remember(themeSettings, savedThemeMode, initialThemeColorSets) {
@@ -306,13 +307,14 @@ internal fun NotesApp(
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
                             if (record.type == RecordType.TASK) {
-                                val updatedTimeState = syncWorkSessionsForTaskChanges(
-                                    oldRoots = listOf(record),
-                                    newRoots = listOf(changed),
-                                    currentState = timeTrackingState,
-                                    nowMillis = now
-                                )
-                                if (updatedTimeState != timeTrackingState) timeTrackingRepository.save(updatedTimeState)
+                                timeTrackingRepository.update { current ->
+                                    syncWorkSessionsForTaskChanges(
+                                        oldRoots = listOf(record),
+                                        newRoots = listOf(changed),
+                                        currentState = current,
+                                        nowMillis = now
+                                    )
+                                }
                             }
                             val updated = changed.copy(updated = now)
                             if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
@@ -406,7 +408,9 @@ internal fun NotesApp(
                         autoFocus = autoFocusNewNote,
                         timeTrackingState = timeTrackingState,
                         onTimeTrackingStateChange = { updated ->
-                            timeTrackingRepository.save(updated)
+                            timeTrackingRepository.update { current ->
+                                mergeTimeTrackingUiChange(current, timeTrackingState, updated)
+                            }
                         },
                         onBack = {
                             if (!selected.hasContent()) {
@@ -418,14 +422,13 @@ internal fun NotesApp(
                         onChange = { changed ->
                             val previous = activeNotes.firstOrNull { it.id == changed.id } ?: selected
                             val now = System.currentTimeMillis()
-                            val updatedTimeState = syncWorkSessionsForTaskChanges(
-                                oldRoots = listOf(previous),
-                                newRoots = listOf(changed),
-                                currentState = timeTrackingState,
-                                nowMillis = now
-                            )
-                            if (updatedTimeState != timeTrackingState) {
-                                timeTrackingRepository.save(updatedTimeState)
+                            timeTrackingRepository.update { current ->
+                                syncWorkSessionsForTaskChanges(
+                                    oldRoots = listOf(previous),
+                                    newRoots = listOf(changed),
+                                    currentState = current,
+                                    nowMillis = now
+                                )
                             }
                             val index = activeNotes.indexOfFirst { it.id == changed.id }
                             if (index >= 0) {
