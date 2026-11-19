@@ -66,6 +66,7 @@ internal fun mergeTimeTrackingBackup(
         sessions = sessionsById.values.sortedBy { it.startedAtMillis },
         activeSessions = active,
         protectionTimer = current.protectionTimer ?: imported.protectionTimer,
+        firedProtectionAlert = current.firedProtectionAlert ?: imported.firedProtectionAlert,
         soundUri = imported.soundUri ?: current.soundUri,
         soundEnabled = imported.soundEnabled
     )
@@ -93,10 +94,10 @@ internal fun remapTimeTrackingTaskIds(
             )
         },
         protectionTimer = state.protectionTimer?.let { timer ->
-            timer.copy(
-                taskId = mapped(timer.taskId),
-                parentTaskId = mappedParent(timer.parentTaskId)
-            )
+            timer.copy(taskId = mapped(timer.taskId), parentTaskId = mappedParent(timer.parentTaskId))
+        },
+        firedProtectionAlert = state.firedProtectionAlert?.let { timer ->
+            timer.copy(taskId = mapped(timer.taskId), parentTaskId = mappedParent(timer.parentTaskId))
         }
     )
 }
