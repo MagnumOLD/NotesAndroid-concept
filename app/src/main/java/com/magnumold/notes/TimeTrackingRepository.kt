@@ -124,6 +124,10 @@ internal fun mergeTimeTrackingUiChange(
         if (changedIds.isEmpty()) return latest
         val result = latest.toMutableList()
         changedIds.forEach { id ->
+            // Apply an edit/removal only while the persisted version still
+            // matches the UI snapshot. New manual sessions are appended unless
+            // their generated ID has already appeared concurrently.
+            if (latest.firstOrNull { it.id == id } != previousById[id]) return@forEach
             val replacement = requestedById[id]
             val index = result.indexOfFirst { it.id == id }
             when {
