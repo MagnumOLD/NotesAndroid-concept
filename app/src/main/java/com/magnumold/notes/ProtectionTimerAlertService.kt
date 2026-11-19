@@ -13,6 +13,11 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 
+internal fun recordTimerNotificationTag(recordId: Long): String {
+    require(recordId > 0L) { "Record timer ID must be positive" }
+    return "record-timer:$recordId"
+}
+
 internal class ProtectionTimerAlertService : Service() {
     private var ringtone: Ringtone? = null
     private var wakeLock: PowerManager.WakeLock? = null
@@ -112,7 +117,7 @@ internal class ProtectionTimerAlertService : Service() {
         // A stable tag per record prevents two timers ending together from
         // replacing each other's notifications despite sharing the Android ID.
         notificationManager.notify(
-            recordId.toString(),
+            recordTimerNotificationTag(recordId),
             RECORD_TIMER_NOTIFICATION_ID,
             buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" }, recordId)
         )
