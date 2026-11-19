@@ -144,6 +144,18 @@ class TimeTrackingStatusSyncTest {
         assertEquals(null, resumed.protectionTimer)
     }
 
+    @Test fun staleProtectionTimerActionClearsOnlyItsOwnTimer() {
+        val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        val otherTimer = timer.copy(taskId = 22L)
+        val state = TimeTrackingState(protectionTimer = timer)
+
+        val cleared = clearProtectionTimerForTask(state, 11L)
+        val untouched = clearProtectionTimerForTask(state, 22L)
+
+        assertEquals(null, cleared.protectionTimer)
+        assertEquals(timer, untouched.protectionTimer)
+    }
+
     @Test fun protectionTimerContinueDoesNotStartStopwatchForParentTask() {
         val timer = ProtectionTimer(10L, "Parent", null, 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
         val resumed = resumeWorkAfterProtectionTimer(
