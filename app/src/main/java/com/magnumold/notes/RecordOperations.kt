@@ -130,6 +130,73 @@ internal object RecordOperations {
         return BackupMergeResult(mergedWithRemappedVaultLinks, importedNoteIdMap)
     }
 
+    fun updateTaskStatus(
+        snapshot: PersistenceSnapshot,
+        taskId: Long,
+        status: RecordStatus
+    ): PersistenceSnapshot {
+        var found = false
+        fun updateTree(notes: List<Note>): List<Note> = notes.map { note ->
+            val children = updateTree(note.children)
+            if (note.id == taskId && note.type == RecordType.TASK) {
+                found = true
+                note.copy(
+                    status = status,
+                    deadlineResumeOverride = status == RecordStatus.IN_PROGRESS,
+                    children = children
+                )
+            } else if (children != note.children) note.copy(children = children)
+            else note
+        }
+        val notes = updateTree(snapshot.notes)
+        val collections = snapshot.collections.map { collection ->
+            collection.copy(notes = updateTree(collection.notes))
+        }
+        return if (!found) snapshot else snapshot.copy(notes = notes, collections = collections)
+    }
+
+    /**
+     * Reconcile only service-owned countdown fields. The ViewModel may contain
+     * newer unsaved edits, so replacing whole records from SharedPreferences
+     * here could discard user input made during the persistence debounce.
+     */
+    fun refreshTimerStates(
+        current: PersistenceSnapshot,
+        persisted: PersistenceSnapshot
+    ): PersistenceSnapshot {
+        val timerStates = mutableMapOf<Long, Note>()
+        fun collect(notes: List<Note>) {
+            notes.forEach { note ->
+                if (note.type == RecordType.TIMER) timerStates[note.id] = note
+                collect(note.children)
+            }
+        }
+        collect(persisted.notes)
+        persisted.collections.forEach { collect(it.notes) }
+
+        fun updateTree(notes: List<Note>): List<Note> = notes.map { note ->
+            val children = updateTree(note.children)
+            val timer = timerStates[note.id]?.takeIf { note.type == RecordType.TIMER }
+            when {
+                timer != null -> note.copy(
+                    status = timer.status,
+                    timerEndsAtMillis = timer.timerEndsAtMillis,
+                    timerRemainingSeconds = timer.timerRemainingSeconds,
+                    updated = timer.updated,
+                    children = children
+                )
+                children != note.children -> note.copy(children = children)
+                else -> note
+            }
+        }
+        return current.copy(
+            notes = updateTree(current.notes),
+            collections = current.collections.map { collection ->
+                collection.copy(notes = updateTree(collection.notes))
+            }
+        )
+    }
+
     fun restoreVaultEntry(
         snapshot: PersistenceSnapshot,
         entry: VaultNote,
