@@ -156,6 +156,32 @@ class TimeTrackingStatusSyncTest {
         assertEquals(timer, untouched.protectionTimer)
     }
 
+    @Test fun protectionNotificationActionMustMatchTheAlertThatIsCurrentlyRinging() {
+        val oldAlert = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        val newAlert = oldAlert.copy(startedAtMillis = 300L, endsAtMillis = 400L)
+
+        assertTrue(isProtectionTimerActionCurrent(newAlert, null, 11L, 300L, 400L))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 11L, 100L, 200L))
+        assertFalse(isProtectionTimerActionCurrent(newAlert, null, 22L, 300L, 400L))
+    }
+
+    @Test fun staleProtectionActionCannotConsumeANewerTimerForTheSameTask() {
+        val newerTimer = ProtectionTimer(11L, "Parent", "Child", 300L, 900L, ProtectionEndMode.STOP_AND_PAUSE)
+
+        assertFalse(isProtectionTimerActionCurrent(null, newerTimer, 11L, 100L, 200L))
+        assertTrue(isProtectionTimerActionCurrent(null, newerTimer, 11L, 300L, 900L))
+    }
+
+    @Test fun completedProtectionActionSurvivesServiceProcessRestart() {
+        assertTrue(isProtectionTimerActionCurrent(null, null, 11L, 100L, 200L))
+    }
+
+    @Test fun staleActionForAnotherTaskDoesNotConsumeThePendingProtectionTimer() {
+        val otherTimer = ProtectionTimer(22L, "Other parent", "Other child", 300L, 900L, ProtectionEndMode.STOP_AND_PAUSE)
+
+        assertTrue(isProtectionTimerActionCurrent(null, otherTimer, 11L, 100L, 200L))
+    }
+
     @Test fun staleStopTrackingActionPreservesAnotherTasksProtectionTimer() {
         val timer = ProtectionTimer(22L, "Other parent", "Other child", 100L, 900L, ProtectionEndMode.SIGNAL_ONLY)
         val active = TimeTrackingEngine.start(
