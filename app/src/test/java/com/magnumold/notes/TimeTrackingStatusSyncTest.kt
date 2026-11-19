@@ -176,10 +176,11 @@ class TimeTrackingStatusSyncTest {
         assertTrue(isProtectionTimerActionCurrent(null, null, 11L, 100L, 200L))
     }
 
-    @Test fun staleActionForAnotherTaskDoesNotConsumeThePendingProtectionTimer() {
+    @Test fun staleActionForAnotherTaskIsRejectedWhileAnotherTimerIsPending() {
         val otherTimer = ProtectionTimer(22L, "Other parent", "Other child", 300L, 900L, ProtectionEndMode.STOP_AND_PAUSE)
 
-        assertTrue(isProtectionTimerActionCurrent(null, otherTimer, 11L, 100L, 200L))
+        assertFalse(isProtectionTimerActionCurrent(null, otherTimer, 11L, 100L, 200L))
+        assertTrue(isProtectionTimerActionCurrent(null, otherTimer, 22L, 300L, 900L))
     }
 
     @Test fun staleStopTrackingActionPreservesAnotherTasksProtectionTimer() {
