@@ -67,6 +67,15 @@ internal class NotesViewModel(
         _snapshot.value = repository.loadSnapshot()
     }
 
+    fun applyExternalTaskStatus(taskId: Long, status: RecordStatus) {
+        updateSnapshot { RecordOperations.updateTaskStatus(it, taskId, status) }
+    }
+
+    fun refreshTimerStatesFromRepository() {
+        val persisted = repository.loadSnapshot()
+        updateSnapshot { RecordOperations.refreshTimerStates(it, persisted) }
+    }
+
     private fun updateSnapshot(transform: (PersistenceSnapshot) -> PersistenceSnapshot) {
         _snapshot.update(transform)
     }
