@@ -163,6 +163,8 @@ class TimeTrackingStatusSyncTest {
         assertTrue(isProtectionTimerActionCurrent(newAlert, null, 11L, 300L, 400L))
         assertFalse(isProtectionTimerActionCurrent(newAlert, null, 11L, 100L, 200L))
         assertFalse(isProtectionTimerActionCurrent(newAlert, null, 22L, 300L, 400L))
+        val newerPendingTimer = newAlert.copy(taskId = 22L, startedAtMillis = 500L, endsAtMillis = 900L)
+        assertFalse(isProtectionTimerActionCurrent(newAlert, newerPendingTimer, 11L, 300L, 400L))
     }
 
     @Test fun staleProtectionActionCannotConsumeANewerTimerForTheSameTask() {
