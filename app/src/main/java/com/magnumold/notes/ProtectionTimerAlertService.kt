@@ -143,6 +143,7 @@ internal class ProtectionTimerAlertService : Service() {
         }
         val openApp = PendingIntent.getActivity(
             this,
+            RECORD_TIMER_NOTIFICATION_ID,
             Intent(this, MainActivity::class.java)
                 .setData(Uri.parse("notesandroid://record-timer-notification/$recordId"))
                 .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
