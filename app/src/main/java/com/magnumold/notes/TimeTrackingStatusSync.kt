@@ -169,6 +169,13 @@ internal fun reconcileBootTimeTrackingState(
  * Resumes a stopwatch after the protection timer action. Only subtasks own
  * work sessions; the old per-record opt-in flag is intentionally ignored.
  */
+/** Clears only the matching protection timer when its task no longer exists. */
+internal fun clearProtectionTimerForTask(
+    state: TimeTrackingState,
+    taskId: Long
+): TimeTrackingState =
+    if (state.protectionTimer?.taskId == taskId) state.copy(protectionTimer = null) else state
+
 internal fun resumeWorkAfterProtectionTimer(
     state: TimeTrackingState,
     taskId: Long,
