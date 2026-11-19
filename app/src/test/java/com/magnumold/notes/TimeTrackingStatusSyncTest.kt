@@ -144,6 +144,65 @@ class TimeTrackingStatusSyncTest {
         assertEquals(null, resumed.protectionTimer)
     }
 
+    @Test fun expiredOldProtectionAlarmCannotConsumeReplacementTimerOrStopItsSession() {
+        val oldTimer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        val replacement = oldTimer.copy(taskId = 22L, startedAtMillis = 300L, endsAtMillis = 900L)
+        val active = TimeTrackingEngine.start(
+            state = TimeTrackingState(protectionTimer = replacement),
+            taskId = 22L,
+            parentTaskId = 20L,
+            taskTitle = "Other parent",
+            subtaskTitle = "Other child",
+            nowMillis = 350L,
+            sessionId = "replacement-active"
+        )
+
+        val result = completeProtectionTimerIfCurrent(active, oldTimer, 500L)
+
+        assertEquals(replacement, result.protectionTimer)
+        assertTrue(result.activeSessions.containsKey(22L))
+        assertTrue(result.sessions.isEmpty())
+    }
+
+    @Test fun expiredStopAndPauseProtectionTimerClosesOnlyItsOwnSession() {
+        val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
+        val active = TimeTrackingEngine.start(
+            state = TimeTrackingState(protectionTimer = timer),
+            taskId = 11L,
+            parentTaskId = 10L,
+            taskTitle = "Parent",
+            subtaskTitle = "Child",
+            nowMillis = 100L,
+            sessionId = "active-child"
+        )
+
+        val result = completeProtectionTimerIfCurrent(active, timer, 250L)
+
+        assertEquals(null, result.protectionTimer)
+        assertTrue(result.activeSessions.isEmpty())
+        assertEquals(WorkSessionEndReason.AUTOMATIC_PAUSE, result.sessions.single().endReason)
+        assertEquals(150L, result.sessions.single().durationMillis)
+    }
+
+    @Test fun expiredSignalOnlyProtectionTimerDoesNotStopWorkSession() {
+        val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.SIGNAL_ONLY)
+        val active = TimeTrackingEngine.start(
+            state = TimeTrackingState(protectionTimer = timer),
+            taskId = 11L,
+            parentTaskId = 10L,
+            taskTitle = "Parent",
+            subtaskTitle = "Child",
+            nowMillis = 100L,
+            sessionId = "active-child"
+        )
+
+        val result = completeProtectionTimerIfCurrent(active, timer, 250L)
+
+        assertEquals(null, result.protectionTimer)
+        assertTrue(result.activeSessions.containsKey(11L))
+        assertTrue(result.sessions.isEmpty())
+    }
+
     @Test fun staleProtectionTimerActionClearsOnlyItsOwnTimer() {
         val timer = ProtectionTimer(11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.STOP_AND_PAUSE)
         val otherTimer = timer.copy(taskId = 22L)
