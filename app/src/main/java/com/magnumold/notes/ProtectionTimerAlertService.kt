@@ -328,6 +328,9 @@ internal class ProtectionTimerAlertService : Service() {
         }
         val intent = Intent(this, ProtectionTimerAlertService::class.java)
             .setAction(action)
+            // PendingIntent identity must include the timer instance, not only
+            // taskId: old and new alerts for one task must not share an action.
+            .setData(Uri.parse("notesandroid://protection-timer-action/${timer.taskId}/${timer.startedAtMillis}/${timer.endsAtMillis}"))
             .putExtra(ProtectionTimerContract.EXTRA_TASK_ID, timer.taskId)
             .putExtra(ProtectionTimerContract.EXTRA_TASK_TITLE, timer.taskTitle)
             .putExtra(ProtectionTimerContract.EXTRA_SUBTASK_TITLE, timer.subtaskTitle)
