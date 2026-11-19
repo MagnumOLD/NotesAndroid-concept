@@ -18,6 +18,9 @@ internal object ProtectionTimerContract {
     const val EXTRA_TASK_TITLE = "task_title"
     const val EXTRA_SUBTASK_TITLE = "subtask_title"
     const val EXTRA_END_MODE = "end_mode"
+    const val EXTRA_CHANGED_TASK_ID = "changed_task_id"
+    const val EXTRA_CHANGED_TASK_STATUS = "changed_task_status"
+    const val EXTRA_TIMER_STATE_CHANGED = "timer_state_changed"
     const val REQUEST_CODE = 7431
 }
 
