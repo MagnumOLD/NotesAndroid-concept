@@ -155,6 +155,17 @@ internal fun syncWorkSessionsForTaskChanges(
 }
 
 /**
+ * Reconciles sessions after the device has booted. Boot-time splitting is done
+ * by the receiver first; this pass then applies task changes that happened
+ * while the device was powered off (notably date-only deadline expiry).
+ */
+internal fun reconcileBootTimeTrackingState(
+    records: List<Note>,
+    state: TimeTrackingState,
+    nowMillis: Long
+): TimeTrackingState = syncWorkSessionsForTaskChanges(records, records, state, nowMillis)
+
+/**
  * Resumes a stopwatch after the protection timer action. Only subtasks own
  * work sessions; the old per-record opt-in flag is intentionally ignored.
  */
