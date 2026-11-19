@@ -5,6 +5,80 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecordOperationsTest {
+    @Test
+    fun externalTaskStatusUpdatePreservesPendingRecordEdits() {
+        val child = Note(
+            id = 22L,
+            title = "",
+            blocks = listOf(NoteBlock("unsaved text")),
+            updated = 10L,
+            type = RecordType.TASK,
+            status = RecordStatus.IN_PROGRESS,
+            deadlineResumeOverride = true
+        )
+        val parent = Note(
+            id = 21L,
+            title = "",
+            blocks = listOf(NoteBlock("parent")),
+            updated = 10L,
+            type = RecordType.TASK,
+            children = listOf(child)
+        )
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(parent),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val updated = RecordOperations.updateTaskStatus(snapshot, 22L, RecordStatus.PAUSED)
+        val result = updated.notes.single().children.single()
+
+        assertEquals("unsaved text", result.blocks.single().text)
+        assertEquals(RecordStatus.PAUSED, result.status)
+        assertEquals(false, result.deadlineResumeOverride)
+    }
+
+    @Test
+    fun externalTimerRefreshUpdatesOnlyTimerStateAndPreservesPendingEdits() {
+        val currentTimer = Note(
+            id = 31L,
+            title = "",
+            blocks = listOf(NoteBlock("unsaved timer title")),
+            updated = 10L,
+            type = RecordType.TIMER,
+            status = RecordStatus.IN_PROGRESS,
+            timerDurationSeconds = 600L,
+            timerEndsAtMillis = 20_000L,
+            timerRemainingSeconds = null
+        )
+        val persistedTimer = currentTimer.copy(
+            status = RecordStatus.COMPLETED,
+            timerEndsAtMillis = null,
+            timerRemainingSeconds = 0L,
+            updated = 30L,
+            blocks = listOf(NoteBlock("old persisted title")),
+            timerDurationSeconds = 300L
+        )
+        val current = PersistenceSnapshot(
+            notes = listOf(currentTimer),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+        val persisted = current.copy(notes = listOf(persistedTimer))
+
+        val refreshed = RecordOperations.refreshTimerStates(current, persisted)
+        val result = refreshed.notes.single()
+
+        assertEquals("unsaved timer title", result.blocks.single().text)
+        assertEquals(600L, result.timerDurationSeconds)
+        assertEquals(RecordStatus.COMPLETED, result.status)
+        assertEquals(null, result.timerEndsAtMillis)
+        assertEquals(0L, result.timerRemainingSeconds)
+        assertEquals(30L, result.updated)
+    }
+
     private fun note(id: Long, text: String) = Note(
         id = id,
         title = text,
