@@ -5,6 +5,29 @@ import org.junit.Test
 
 class RecordCardComponentsTest {
     @Test
+    fun purchaseCardPreviewPreservesLargeCalculatedTotal() {
+        val previousLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val purchase = Note(
+                id = 2L,
+                title = "",
+                blocks = emptyList(),
+                updated = 1L,
+                type = RecordType.PURCHASE,
+                purchaseQuantity = 1.0e12,
+                purchaseUnitPrice = 1.0e12
+            )
+
+            val preview = recordCardSecondaryText(purchase).orEmpty()
+
+            org.junit.Assert.assertTrue(preview.contains("= 1000000000000000000000000"))
+        } finally {
+            java.util.Locale.setDefault(previousLocale)
+        }
+    }
+
+    @Test
     fun dateOnlyTaskPreviewDoesNotShiftInTimeZonesWestOfUtc() {
         val previousZone = java.util.TimeZone.getDefault()
         try {
