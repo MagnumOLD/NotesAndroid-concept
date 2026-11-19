@@ -61,6 +61,14 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
+            val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
+                HomeTimelineOperations.records(snapshot).filter {
+                    it.type == RecordType.TIMER && it.timerEndsAtMillis != null
+                }
+            }
+            LaunchedEffect(activeTimerRecords.map { it.id to it.timerEndsAtMillis }) {
+                activeTimerRecords.forEach(recordTimerScheduler::sync)
+            }
             LaunchedEffect(timeTrackingState.protectionTimer) {
                 val timer = timeTrackingState.protectionTimer
                 if (timer == null) protectionTimerScheduler.cancel()
