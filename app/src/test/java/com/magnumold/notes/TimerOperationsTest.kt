@@ -64,4 +64,15 @@ class TimerOperationsTest {
         assertEquals("04:09", TimerOperations.format(249L))
         assertEquals("1:01:01", TimerOperations.format(3_661L))
     }
+
+    @Test
+    fun simultaneousRecordTimersHaveDistinctStableNotificationTags() {
+        val first = recordTimerNotificationTag(101L)
+        val second = recordTimerNotificationTag(202L)
+
+        assertEquals("record-timer:101", first)
+        assertEquals("record-timer:101", recordTimerNotificationTag(101L))
+        org.junit.Assert.assertNotEquals(first, second)
+    }
+
 }
