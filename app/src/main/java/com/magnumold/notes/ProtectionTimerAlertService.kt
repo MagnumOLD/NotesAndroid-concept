@@ -61,7 +61,7 @@ internal class ProtectionTimerAlertService : Service() {
                 ).copy(protectionTimer = null)
             }
             notesRepository().updateTaskStatus(timer.taskId, RecordStatus.PAUSED)
-            sendTaskStatusChanged()
+            sendTaskStatusChanged(timer.taskId, RecordStatus.PAUSED)
         } else {
             repository.update { it.copy(protectionTimer = null) }
             sendTaskStatusChanged()
@@ -113,7 +113,8 @@ internal class ProtectionTimerAlertService : Service() {
             updated = now
         )
         repository.flushSnapshot(HomeTimelineOperations.update(snapshot, completed))
-        sendTaskStatusChanged()
+        repository.markExternalTimerStateUpdate()
+        sendRecordTimerStateChanged()
 
         val notificationManager = getSystemService(NotificationManager::class.java)
         if (!protectionAlertActive) {
@@ -223,7 +224,7 @@ internal class ProtectionTimerAlertService : Service() {
                         nowMillis = System.currentTimeMillis()
                     )
                 }
-                sendTaskStatusChanged()
+                sendTaskStatusChanged(taskId, RecordStatus.IN_PROGRESS)
             }
         }
         stopAlertAndService(startId)
@@ -324,9 +325,20 @@ internal class ProtectionTimerAlertService : Service() {
         getSharedPreferences("MainActivity_preferences", MODE_PRIVATE)
     )
 
-    private fun sendTaskStatusChanged() {
+    private fun sendTaskStatusChanged(taskId: Long? = null, status: RecordStatus? = null) {
+        val intent = Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED).setPackage(packageName)
+        if (taskId != null && status != null) {
+            intent.putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, taskId)
+            intent.putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS, status.name)
+        }
+        sendBroadcast(intent)
+    }
+
+    private fun sendRecordTimerStateChanged() {
         sendBroadcast(
-            Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED).setPackage(packageName)
+            Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED)
+                .setPackage(packageName)
+                .putExtra(ProtectionTimerContract.EXTRA_TIMER_STATE_CHANGED, true)
         )
     }
 
