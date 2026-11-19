@@ -72,35 +72,39 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
         val repository = TimeTrackingRepository(
             context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         )
-        var state = repository.load()
         val now = System.currentTimeMillis()
         val bootTime = now - SystemClock.elapsedRealtime()
         val notesRepository = NotesRepository(
             context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
         val records = HomeTimelineOperations.records(notesRepository.loadSnapshot())
-        // Apply deadline-derived task states before splitting sessions at boot.
-        // This closes an expired task at its real deadline boundary instead of
-        // counting powered-off time up to the next device boot.
-        state = reconcileBootTimeTrackingState(records, state, now)
-        // Remaining sessions resume from bootTime; their active intervals are
-        // split so the reboot itself does not merge the before/after segments.
-        state.activeSessions.values.toList().forEach { active ->
-            if (active.startedAtMillis < bootTime) {
-                state = TimeTrackingEngine.finish(
-                    state, active.taskId, bootTime, WorkSessionEndReason.STOP
-                )
-                state = TimeTrackingEngine.start(
-                    state = state,
-                    taskId = active.taskId,
-                    parentTaskId = active.parentTaskId,
-                    taskTitle = active.taskTitle,
-                    subtaskTitle = active.subtaskTitle,
-                    nowMillis = bootTime
-                )
+        // Reconcile against the latest persisted state while holding the repository
+        // transaction lock. A timer/service update must not be overwritten by a
+        // stale snapshot captured before boot reconciliation began.
+        val state = repository.update { persisted ->
+            // Apply deadline-derived task states before splitting sessions at boot.
+            // This closes an expired task at its real deadline boundary instead of
+            // counting powered-off time up to the next device boot.
+            var reconciled = reconcileBootTimeTrackingState(records, persisted, now)
+            // Remaining sessions resume from bootTime; their active intervals are
+            // split so the reboot itself does not merge the before/after segments.
+            reconciled.activeSessions.values.toList().forEach { active ->
+                if (active.startedAtMillis < bootTime) {
+                    reconciled = TimeTrackingEngine.finish(
+                        reconciled, active.taskId, bootTime, WorkSessionEndReason.STOP
+                    )
+                    reconciled = TimeTrackingEngine.start(
+                        state = reconciled,
+                        taskId = active.taskId,
+                        parentTaskId = active.parentTaskId,
+                        taskTitle = active.taskTitle,
+                        subtaskTitle = active.subtaskTitle,
+                        nowMillis = bootTime
+                    )
+                }
             }
+            reconciled
         }
-        if (state != repository.load()) repository.save(state)
         state.protectionTimer?.let { timer ->
             // Scheduling even an already-expired alarm lets AlarmManager deliver it
             // through the same receiver path as a normal expiry after reboot.
