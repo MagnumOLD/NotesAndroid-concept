@@ -22,6 +22,7 @@ internal class ProtectionTimerAlertService : Service() {
     // Both alarm types share this service. A record timer must never replace
     // or tear down an already-running protection alert.
     private var protectionAlertActive = false
+    private var activeProtectionAlert: ProtectionTimer? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
@@ -68,6 +69,7 @@ internal class ProtectionTimerAlertService : Service() {
         }
 
         protectionAlertActive = true
+        activeProtectionAlert = timer
         if (timer.soundEnabled) {
             acquireWakeLock()
             playAlarmSound(timer.soundUri)
@@ -194,27 +196,59 @@ internal class ProtectionTimerAlertService : Service() {
 
     private fun handleStopTracking(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
-        if (taskId > 0L) {
-            timeRepository().update { state ->
+        if (taskId <= 0L || !isCurrentProtectionAction(intent, taskId)) {
+            if (!protectionAlertActive) finishService(startId)
+            return
+        }
+        var actionApplied = false
+        timeRepository().update { state ->
+            if (!isProtectionTimerActionCurrent(
+                    activeProtectionAlert,
+                    state.protectionTimer,
+                    taskId,
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+                )
+            ) state
+            else {
+                actionApplied = true
                 stopWorkAfterProtectionTimer(state, taskId, System.currentTimeMillis())
             }
-            sendTaskStatusChanged()
         }
+        if (!actionApplied) {
+            if (!protectionAlertActive) finishService(startId)
+            return
+        }
+        sendTaskStatusChanged()
         stopAlertAndService(startId)
     }
 
     private fun handleContinueWork(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
-        if (taskId > 0L) {
-            val notes = notesRepository()
-            val taskUpdated = notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)
-            // Notification actions may outlive the task or its current location.
-            // Never leave an expired protection alarm persisted if the task was
-            // deleted, archived, or otherwise cannot be resolved anymore.
-            val context = if (taskUpdated) {
-                findTaskTrackingContext(HomeTimelineOperations.records(notes.loadSnapshot()), taskId)
-            } else null
-            timeRepository().update { state ->
+        if (taskId <= 0L || !isCurrentProtectionAction(intent, taskId)) {
+            if (!protectionAlertActive) finishService(startId)
+            return
+        }
+        val notes = notesRepository()
+        val taskUpdated = notes.updateTaskStatus(taskId, RecordStatus.IN_PROGRESS)
+        // Notification actions may outlive the task or its current location.
+        // Never leave an expired protection alarm persisted if the task was
+        // deleted, archived, or otherwise cannot be resolved anymore.
+        val context = if (taskUpdated) {
+            findTaskTrackingContext(HomeTimelineOperations.records(notes.loadSnapshot()), taskId)
+        } else null
+        var actionApplied = false
+        timeRepository().update { state ->
+            if (!isProtectionTimerActionCurrent(
+                    activeProtectionAlert,
+                    state.protectionTimer,
+                    taskId,
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
+                    intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+                )
+            ) state
+            else {
+                actionApplied = true
                 if (context == null) {
                     clearProtectionTimerForTask(state, taskId)
                 } else {
@@ -231,11 +265,27 @@ internal class ProtectionTimerAlertService : Service() {
                     )
                 }
             }
-            if (taskUpdated) sendTaskStatusChanged(taskId, RecordStatus.IN_PROGRESS)
-            else sendTaskStatusChanged()
         }
+        if (!actionApplied) {
+            if (!protectionAlertActive) finishService(startId)
+            return
+        }
+        if (taskUpdated) sendTaskStatusChanged(taskId, RecordStatus.IN_PROGRESS)
+        else sendTaskStatusChanged()
         stopAlertAndService(startId)
     }
+
+    private fun isCurrentProtectionAction(intent: Intent, taskId: Long): Boolean =
+        isProtectionTimerActionCurrent(
+            activeProtectionAlert,
+            timeRepository().load().protectionTimer,
+            taskId,
+            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT),
+            intent.getLongExtraOrNull(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT)
+        )
+
+    private fun Intent.getLongExtraOrNull(name: String): Long? =
+        if (hasExtra(name)) getLongExtra(name, 0L) else null
 
     private fun buildNotification(
         timer: ProtectionTimer?,
@@ -282,6 +332,8 @@ internal class ProtectionTimerAlertService : Service() {
             .putExtra(ProtectionTimerContract.EXTRA_TASK_TITLE, timer.taskTitle)
             .putExtra(ProtectionTimerContract.EXTRA_SUBTASK_TITLE, timer.subtaskTitle)
             .putExtra(ProtectionTimerContract.EXTRA_END_MODE, timer.endMode.name)
+            .putExtra(ProtectionTimerContract.EXTRA_TIMER_STARTED_AT, timer.startedAtMillis)
+            .putExtra(ProtectionTimerContract.EXTRA_TIMER_ENDS_AT, timer.endsAtMillis)
         timer.parentTaskId?.let {
             intent.putExtra(ProtectionTimerContract.EXTRA_PARENT_TASK_ID, it)
         }
@@ -370,6 +422,7 @@ internal class ProtectionTimerAlertService : Service() {
 
     private fun stopAlertAndService(startId: Int) {
         protectionAlertActive = false
+        activeProtectionAlert = null
         stopRingtone()
         releaseWakeLock()
         getSystemService(NotificationManager::class.java).cancel(NOTIFICATION_ID)
