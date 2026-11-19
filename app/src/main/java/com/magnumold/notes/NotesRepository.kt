@@ -64,7 +64,11 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         }
         if (found) {
             flushSnapshot(current.copy(notes = updatedNotes, collections = updatedCollections))
-            preferences.edit().putLong(KEY_EXTERNAL_STATUS_UPDATE, System.currentTimeMillis()).apply()
+            preferences.edit()
+                .putLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, System.currentTimeMillis())
+                .putLong(ExternalRecordUpdateKeys.TASK_STATUS_ID, taskId)
+                .putString(ExternalRecordUpdateKeys.TASK_STATUS_VALUE, status.name)
+                .apply()
         }
         return found
     }
@@ -92,9 +96,18 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
     private fun loadVault(key: String): List<VaultNote> =
         loadJsonArray(key, emptyList(), ::parseVaultArray)
 
-    private companion object {
-        const val KEY_EXTERNAL_STATUS_UPDATE = "external_task_status_update"
+    fun markExternalTimerStateUpdate() {
+        preferences.edit()
+            .putLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, System.currentTimeMillis())
+            .apply()
     }
+}
+
+internal object ExternalRecordUpdateKeys {
+    const val TASK_STATUS_AT = "external_task_status_update"
+    const val TASK_STATUS_ID = "external_task_status_update_id"
+    const val TASK_STATUS_VALUE = "external_task_status_update_value"
+    const val TIMER_STATE_AT = "external_timer_state_update"
 }
 
 /**
