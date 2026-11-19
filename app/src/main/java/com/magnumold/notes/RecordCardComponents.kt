@@ -312,7 +312,7 @@ internal fun recordCardPrimaryText(note: Note): String {
 
 
 internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis(), enabledFields: Set<String> = CardPreviewField.defaults): String? {
-    fun amount(value: Double) = if (value % 1.0 == 0.0) value.toLong().toString() else "%.1f".format(java.util.Locale.getDefault(), value)
+    fun amount(value: Double) = PurchaseOperations.formatAmount(value)
     fun on(field: CardPreviewField) = field.key in enabledFields
     val parts = when (note.type) {
         RecordType.TASK -> buildList {
