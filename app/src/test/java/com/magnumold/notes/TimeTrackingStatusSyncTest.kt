@@ -174,6 +174,10 @@ class TimeTrackingStatusSyncTest {
             set(2026, java.util.Calendar.MARCH, 29, 0, 0, 0)
         }.timeInMillis
 
+        val localStart = java.util.Calendar.getInstance(zone).apply {
+            clear()
+            set(2026, java.util.Calendar.MARCH, 29, 0, 0, 0)
+        }.timeInMillis
         val boundary = deadlineEndExclusiveMillis(deadline, zone)
         val expected = java.util.Calendar.getInstance(zone).apply {
             clear()
@@ -181,7 +185,7 @@ class TimeTrackingStatusSyncTest {
         }.timeInMillis
 
         assertEquals(expected, boundary)
-        assertEquals(23L * 60L * 60L * 1_000L, boundary - deadline)
+        assertEquals(23L * 60L * 60L * 1_000L, boundary - localStart)
     }
 
     @Test fun pausingSubtaskSavesSessionWithPauseReason() {
