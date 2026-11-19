@@ -205,6 +205,24 @@ internal fun isProtectionTimerActionCurrent(
     return persistedTimer?.let(::matches) ?: true
 }
 
+/** Completes an expired protection timer only if it is still the exact timer that fired. */
+internal fun completeProtectionTimerIfCurrent(
+    state: TimeTrackingState,
+    expectedTimer: ProtectionTimer,
+    nowMillis: Long
+): TimeTrackingState {
+    if (state.protectionTimer != expectedTimer) return state
+    return when (expectedTimer.endMode) {
+        ProtectionEndMode.STOP_AND_PAUSE -> TimeTrackingEngine.finish(
+            state,
+            expectedTimer.taskId,
+            nowMillis,
+            WorkSessionEndReason.AUTOMATIC_PAUSE
+        ).copy(protectionTimer = null)
+        ProtectionEndMode.SIGNAL_ONLY -> state.copy(protectionTimer = null)
+    }
+}
+
 /** Stops the requested task and clears a protection timer only when it belongs to that task. */
 internal fun stopWorkAfterProtectionTimer(
     state: TimeTrackingState,
