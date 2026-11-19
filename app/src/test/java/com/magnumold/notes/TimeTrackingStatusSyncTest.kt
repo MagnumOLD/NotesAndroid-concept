@@ -486,4 +486,50 @@ class TimeTrackingStatusSyncTest {
         assertEquals(null, merged.protectionTimer)
         assertEquals(fired, merged.firedProtectionAlert)
     }
+    @Test fun inexactAlarmFallbackIsUsedOnlyWhenExactAlarmAccessIsUnavailable() {
+        assertTrue(shouldUseProtectionAlarmNotificationFallback(31, false))
+        assertFalse(shouldUseProtectionAlarmNotificationFallback(31, true))
+        assertFalse(shouldUseProtectionAlarmNotificationFallback(30, false))
+    }
+
+    @Test fun inexactAlarmResolutionReschedulesTimerThatHasNotExpired() {
+        val timer = ProtectionTimer(
+            11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val state = TimeTrackingState(protectionTimer = timer)
+
+        val resolution = resolveProtectionAlarm(state, 150L)
+
+        assertEquals(state, resolution.state)
+        assertEquals(timer, resolution.rescheduleTimer)
+        assertEquals(null, resolution.expiredTimer)
+    }
+
+    @Test fun inexactAlarmResolutionConsumesExpiredTimerOnlyOnce() {
+        val timer = ProtectionTimer(
+            11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val state = TimeTrackingState(protectionTimer = timer)
+
+        val resolution = resolveProtectionAlarm(state, 250L)
+
+        assertEquals(null, resolution.state.protectionTimer)
+        assertEquals(timer, resolution.state.firedProtectionAlert)
+        assertEquals(timer, resolution.expiredTimer)
+        assertEquals(null, resolution.rescheduleTimer)
+    }
+
+    @Test fun inexactAlarmResolutionKeepsAlreadyFiredAlertWithoutReconsumingTimer() {
+        val fired = ProtectionTimer(
+            11L, "Parent", "Child", 100L, 200L, ProtectionEndMode.SIGNAL_ONLY
+        )
+        val state = TimeTrackingState(firedProtectionAlert = fired)
+
+        val resolution = resolveProtectionAlarm(state, 500L)
+
+        assertEquals(state, resolution.state)
+        assertEquals(null, resolution.expiredTimer)
+        assertEquals(null, resolution.rescheduleTimer)
+    }
+
 }
