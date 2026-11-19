@@ -97,7 +97,7 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
             ProtectionTimerScheduler(context).schedule(timer)
         }
         val notesRepository = NotesRepository(
-            context.getSharedPreferences("MainActivity_preferences", Context.MODE_PRIVATE)
+            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
         RecordTimerScheduler(context).scheduleAll(
             HomeTimelineOperations.records(notesRepository.loadSnapshot())
