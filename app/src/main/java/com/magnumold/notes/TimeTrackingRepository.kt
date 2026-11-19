@@ -66,7 +66,7 @@ internal fun mergeTimeTrackingBackup(
         sessions = sessionsById.values.sortedBy { it.startedAtMillis },
         activeSessions = active,
         protectionTimer = current.protectionTimer ?: imported.protectionTimer,
-        firedProtectionAlert = current.firedProtectionAlert ?: imported.firedProtectionAlert,
+        firedProtectionAlert = current.firedProtectionAlert,
         soundUri = imported.soundUri ?: current.soundUri,
         soundEnabled = imported.soundEnabled
     )
