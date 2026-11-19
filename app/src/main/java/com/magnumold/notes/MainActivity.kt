@@ -93,8 +93,21 @@ class MainActivity : ComponentActivity() {
                     nowMillis = System.currentTimeMillis()
                 )
             }
-            timeTrackingRepository.load().protectionTimer?.let {
+            val restoredTracking = timeTrackingRepository.load()
+            restoredTracking.protectionTimer?.let {
                 ProtectionTimerScheduler(this).schedule(it)
+            }
+            // The alert identity is persisted before the foreground service
+            // starts ringing. If Android kills that service/process, restore
+            // the ongoing notification and sound when the app returns.
+            if (restoredTracking.firedProtectionAlert != null) {
+                val alertIntent = Intent(this, ProtectionTimerAlertService::class.java)
+                    .setAction(ProtectionTimerContract.ACTION_ALARM)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    startForegroundService(alertIntent)
+                } else {
+                    startService(alertIntent)
+                }
             }
         }
     }
