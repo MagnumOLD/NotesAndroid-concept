@@ -55,16 +55,21 @@ internal class ProtectionTimerAlertService : Service() {
             return
         }
 
+        val updatedState = repository.update { state ->
+            completeProtectionTimerIfCurrent(state, timer, now)
+        }
+        if (updatedState.protectionTimer == timer) {
+            // The timer was replaced after this alarm was delivered. Do not
+            // pause its task or show an alert for an obsolete timer.
+            updatedState.protectionTimer?.let { ProtectionTimerScheduler(this).schedule(it) }
+            finishService(startId)
+            return
+        }
+
         if (timer.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
-            repository.update { state ->
-                TimeTrackingEngine.finish(
-                    state, timer.taskId, now, WorkSessionEndReason.AUTOMATIC_PAUSE
-                ).copy(protectionTimer = null)
-            }
             notesRepository().updateTaskStatus(timer.taskId, RecordStatus.PAUSED)
             sendTaskStatusChanged(timer.taskId, RecordStatus.PAUSED)
         } else {
-            repository.update { it.copy(protectionTimer = null) }
             sendTaskStatusChanged()
         }
 
