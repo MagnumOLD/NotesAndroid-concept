@@ -526,7 +526,9 @@ internal fun PurchaseEditor(
                         selectionColor = selectionColor,
                         showDivider = index != displayedChildRows.lastIndex,
                         modifier = Modifier.fillMaxWidth()
-                            .animateItemPlacement(animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS))
+                            .animateItem(
+                                placementSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
+                            )
                     ) {
                         if (group) {
                             Box(

@@ -13,6 +13,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Redo
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Apps
@@ -29,13 +32,10 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.PauseCircleOutline
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Redo
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -667,7 +667,7 @@ internal fun AppIcon(
     val imageVector = when (icon) {
         NoteIcon.Back -> Icons.AutoMirrored.Outlined.ArrowBack
         NoteIcon.Add -> Icons.Outlined.Add
-        NoteIcon.AddBlock -> Icons.Outlined.PlaylistAdd
+        NoteIcon.AddBlock -> Icons.AutoMirrored.Outlined.PlaylistAdd
         NoteIcon.Search -> Icons.Outlined.Search
         NoteIcon.Close -> Icons.Outlined.Close
         NoteIcon.More -> Icons.Outlined.MoreVert
@@ -678,8 +678,8 @@ internal fun AppIcon(
         NoteIcon.Download -> Icons.Outlined.FileDownload
         NoteIcon.Pin -> Icons.Outlined.PushPin
         NoteIcon.Folder -> Icons.Outlined.Folder
-        NoteIcon.Undo -> Icons.Outlined.Undo
-        NoteIcon.Redo -> Icons.Outlined.Redo
+        NoteIcon.Undo -> Icons.AutoMirrored.Outlined.Undo
+        NoteIcon.Redo -> Icons.AutoMirrored.Outlined.Redo
         NoteIcon.Share -> Icons.Outlined.Share
         NoteIcon.Modules -> Icons.Outlined.Apps
     }

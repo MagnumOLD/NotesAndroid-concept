@@ -168,8 +168,8 @@ internal fun syncWorkSessionsForTaskChanges(
                 state = state,
                 taskId = id,
                 parentTaskId = parentId,
-                taskTitle = if (parentId == null) ownTitle else entry.parentTitle ?: "Задача",
-                subtaskTitle = if (parentId == null) null else ownTitle,
+                taskTitle = entry.parentTitle ?: "Задача",
+                subtaskTitle = ownTitle,
                 nowMillis = nowMillis
             )
         }
