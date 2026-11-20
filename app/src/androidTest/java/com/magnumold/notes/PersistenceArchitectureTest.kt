@@ -50,7 +50,7 @@ class PersistenceArchitectureTest {
 
         assertEquals("notes_backup", root.getString("format"))
         // Keep this assertion aligned with the current exported backup schema.
-        assertEquals(12, root.getInt("version"))
+        assertEquals(13, root.getInt("version"))
         assertEquals(snapshot.notes, decoded.notes)
         assertEquals(snapshot.collections, decoded.collections)
         assertEquals(snapshot.archived, decoded.archived)

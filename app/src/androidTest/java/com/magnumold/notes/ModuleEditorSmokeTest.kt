@@ -72,10 +72,11 @@ class ModuleEditorSmokeTest {
             }
         }
 
-        composeRule.onNodeWithText("Добавить продукт").assertExists()
+        composeRule.onNodeWithText("Добавить продукты").assertExists()
         composeRule.onNodeWithText("Продукт").assertExists()
         composeRule.onNodeWithText("Граммы").assertExists()
         composeRule.onNodeWithText("Открыть базу продуктов").assertExists()
+        composeRule.onNodeWithText("Добавить в запись").assertExists()
     }
 
     @Test
