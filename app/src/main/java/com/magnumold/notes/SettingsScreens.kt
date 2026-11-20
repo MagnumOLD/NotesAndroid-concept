@@ -411,7 +411,6 @@ internal fun SettingsScreen(
 }
 
 
-
 @Composable
 private fun SettingsNavigationItem(
     title: String,
@@ -420,35 +419,35 @@ private fun SettingsNavigationItem(
     showChevron: Boolean = false,
     onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
-            .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AppIcon(icon, contentDescription = null)
-        Spacer(Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
+    var supportingLineCount by remember(description) { mutableStateOf(0) }
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = {
             Text(
                 description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                onTextLayout = { layout ->
+                    if (supportingLineCount != layout.lineCount) {
+                        supportingLineCount = layout.lineCount
+                    }
+                }
             )
-        }
-        if (showChevron) {
-            Spacer(Modifier.width(16.dp))
-            SettingsChevron()
-        }
-    }
+        },
+        leadingContent = {
+            Box(Modifier.offset(y = if (supportingLineCount > 2) 16.dp else 0.dp)) {
+                AppIcon(icon, contentDescription = null)
+            }
+        },
+        trailingContent = if (showChevron) {
+            { SettingsChevron() }
+        } else {
+            null
+        },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+    )
 }
+
 
 @Composable
 private fun SettingsChevron() {
