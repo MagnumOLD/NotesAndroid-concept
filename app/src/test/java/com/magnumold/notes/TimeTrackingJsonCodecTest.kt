@@ -76,7 +76,8 @@ class TimeTrackingJsonCodecTest {
             protectionTimer = timer,
             firedProtectionAlert = timer.copy(startedAtMillis = 800L, endsAtMillis = 900L),
             soundUri = "content://alarm/tone",
-            soundEnabled = false
+            soundEnabled = false,
+            pendingProtectionTaskPauseId = 2L
         )
         val restored = parseTimeTrackingJson(timeTrackingToJson(original))
         assertEquals(original, restored)
