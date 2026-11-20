@@ -360,56 +360,99 @@ internal fun SettingsScreen(
                     )
                 }
             } else {
-                ListItem(
-                    headlineContent = { Text("Персонализация") },
-                    supportingContent = { Text("Темы и цвета интерфейса и заметок") },
-                    leadingContent = { AppIcon(NoteIcon.Palette, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { personalizationVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Персонализация",
+                    description = "Темы и цвета интерфейса и заметок",
+                    icon = NoteIcon.Palette,
+                    showChevron = true,
+                    onClick = { personalizationVisible = true }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(
-                    headlineContent = { Text("Поведение карточек") },
-                    supportingContent = { Text("Интерактивность и состав данных на карточках") },
-                    leadingContent = { AppIcon(NoteIcon.Modules, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { cardBehaviorVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Поведение карточек",
+                    description = "Интерактивность и состав данных на карточках",
+                    icon = NoteIcon.Modules,
+                    showChevron = true,
+                    onClick = { cardBehaviorVisible = true }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(
-                    headlineContent = { Text("Подборки по модулям") },
-                    supportingContent = { Text("Настройка отображения подборок в каждом модуле") },
-                    leadingContent = { AppIcon(NoteIcon.Folder, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { moduleCollectionsVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Подборки по модулям",
+                    description = "Настройка отображения подборок в каждом модуле",
+                    icon = NoteIcon.Folder,
+                    showChevron = true,
+                    onClick = { moduleCollectionsVisible = true }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(
-                    headlineContent = { Text("Хранение") },
-                    supportingContent = { Text("Архив, корзина и срок хранения удалённых записей") },
-                    leadingContent = { AppIcon(NoteIcon.Archive, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { storageVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Хранение",
+                    description = "Архив, корзина и срок хранения удалённых записей",
+                    icon = NoteIcon.Archive,
+                    showChevron = true,
+                    onClick = { storageVisible = true }
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
-                ListItem(
-                    headlineContent = { Text("Экспорт заметок") },
-                    supportingContent = { Text("Записи, архив, корзина и данные восстановления в JSON-файл") },
-                    leadingContent = { AppIcon(NoteIcon.Upload, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onExport).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Экспорт заметок",
+                    description = "Записи, архив, корзина и данные восстановления в JSON-файл",
+                    icon = NoteIcon.Upload,
+                    onClick = onExport
                 )
-                ListItem(
-                    headlineContent = { Text("Импорт заметок") },
-                    supportingContent = { Text("Добавить заметки из резервной копии") },
-                    leadingContent = { AppIcon(NoteIcon.Download, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onImport).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                SettingsNavigationItem(
+                    title = "Импорт заметок",
+                    description = "Добавить заметки из резервной копии",
+                    icon = NoteIcon.Download,
+                    onClick = onImport
                 )
             }
         }
     }
 }
 
+
+
+@Composable
+private fun SettingsNavigationItem(
+    title: String,
+    description: String,
+    icon: NoteIcon,
+    showChevron: Boolean = false,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+            .heightIn(min = 72.dp)
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AppIcon(icon, contentDescription = null)
+        Spacer(Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                description,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        if (showChevron) {
+            Spacer(Modifier.width(16.dp))
+            Icon(
+                Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
 
 @Composable
 private fun CompactOpacitySlider(value: Float, onValueChange: (Float) -> Unit) {
