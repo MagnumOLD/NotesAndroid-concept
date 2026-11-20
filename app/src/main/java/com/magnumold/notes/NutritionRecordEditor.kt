@@ -27,7 +27,7 @@ internal fun NutritionRecordEditor(
             onValueChange = { raw ->
                 if (raw.length <= 10 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
                     input = raw
-                    update(raw.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0)
+                    update(NutritionOperations.normalizeAmount(raw.replace(',', '.').toDoubleOrNull() ?: 0.0))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
