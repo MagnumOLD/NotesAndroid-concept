@@ -182,7 +182,12 @@ internal class TimeTrackingRepository(
     private val _state = MutableStateFlow(loadStoredState())
     val state: StateFlow<TimeTrackingState> = _state.asStateFlow()
 
-    fun load(): TimeTrackingState = synchronized(LOCK) { _state.value }
+    fun load(): TimeTrackingState = synchronized(LOCK) {
+        // Repository instances are intentionally short-lived in services and
+        // receivers. Refresh from the shared preference file so an instance
+        // created before another component's import cannot return stale state.
+        loadStoredState().also { _state.value = it }
+    }
 
     fun reload() {
         synchronized(LOCK) {
