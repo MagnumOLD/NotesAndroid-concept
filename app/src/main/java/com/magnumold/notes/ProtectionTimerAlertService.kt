@@ -395,13 +395,25 @@ internal class ProtectionTimerAlertService : Service() {
         wakeLock = null
     }
 
-    private fun timeRepository() = TimeTrackingRepository(
-        getSharedPreferences("time_tracking", MODE_PRIVATE)
-    )
+    private fun recoverInterruptedBackupImport() {
+        val records = getSharedPreferences(NotesRepository.PREFERENCES_NAME, MODE_PRIVATE)
+        val tracking = getSharedPreferences("time_tracking", MODE_PRIVATE)
+        BackupImportTransactionJournal(
+            records,
+            tracking,
+            getSharedPreferences("backup_import_journal", MODE_PRIVATE)
+        ).recoverIfNeeded()
+    }
 
-    private fun notesRepository() = NotesRepository(
-        getSharedPreferences(NotesRepository.PREFERENCES_NAME, MODE_PRIVATE)
-    )
+    private fun timeRepository(): TimeTrackingRepository {
+        recoverInterruptedBackupImport()
+        return TimeTrackingRepository(getSharedPreferences("time_tracking", MODE_PRIVATE))
+    }
+
+    private fun notesRepository(): NotesRepository {
+        recoverInterruptedBackupImport()
+        return NotesRepository(getSharedPreferences(NotesRepository.PREFERENCES_NAME, MODE_PRIVATE))
+    }
 
     private fun sendTaskStatusChanged(taskId: Long? = null, status: RecordStatus? = null) {
         val intent = Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED).setPackage(packageName)
