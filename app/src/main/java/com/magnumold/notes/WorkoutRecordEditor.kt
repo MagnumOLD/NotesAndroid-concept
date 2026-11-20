@@ -1,5 +1,6 @@
 package com.magnumold.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ internal fun WorkoutRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    BackHandler { onBack() }
     @Composable
     fun IntegerField(label: String, value: Int, minimum: Int, maximum: Int, update: (Int) -> Unit) {
         var input by remember(note.id, label) { mutableStateOf(value.toString()) }
