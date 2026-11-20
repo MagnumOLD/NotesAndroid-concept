@@ -50,6 +50,7 @@ internal fun NutritionRecordEditor(
     topBarColor: Color,
     addButtonColor: Color,
     onBack: () -> Unit,
+    onSaved: () -> Unit,
     onChange: (Note) -> Unit,
     onProductsChange: (List<NutritionProduct>) -> Unit
 ) {
@@ -352,7 +353,7 @@ internal fun NutritionRecordEditor(
                                 addingProducts = false
                                 draftLines = listOf(NutritionDraftLine())
                                 focusDraftId = null
-                                onBack()
+                                onSaved()
                             }
                         },
                         enabled = draftLines.any { line ->
