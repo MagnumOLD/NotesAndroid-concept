@@ -325,7 +325,7 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
         RecordType.NUTRITION -> if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
             note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0 && note.nutritionGrams == 0.0
         ) emptyList() else buildList {
-            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${amount(note.nutritionCalories)} ккал")
+            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${NutritionOperations.formatCalories(note.nutritionCalories)} ккал")
             if (on(CardPreviewField.NUTRITION_PROTEIN)) add("Б ${amount(note.nutritionProtein)}")
             if (on(CardPreviewField.NUTRITION_FAT)) add("Ж ${amount(note.nutritionFat)}")
             if (on(CardPreviewField.NUTRITION_CARBS)) add("У ${amount(note.nutritionCarbs)}")
@@ -333,7 +333,7 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
         }
         RecordType.PURCHASE -> buildList {
             if (on(CardPreviewField.PURCHASE_PRICE) && (note.purchaseUnitPrice > 0 || note.purchaseQuantity != 1.0)) {
-                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${PurchaseOperations.formatAmount(PurchaseOperations.totalCost(note.purchaseQuantity, note.purchaseUnitPrice))}")
             } else if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
             if (on(CardPreviewField.PURCHASE_STATUS)) add(if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке")
         }

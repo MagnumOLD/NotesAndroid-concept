@@ -69,4 +69,45 @@ class RecordCardComponentsTest {
             java.util.TimeZone.setDefault(previousZone)
         }
     }
+
+    @Test
+    fun purchaseCardPreviewUsesExactDecimalMultiplication() {
+        val previousLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val purchase = Note(
+                id = 22L,
+                title = "",
+                blocks = emptyList(),
+                updated = 1L,
+                type = RecordType.PURCHASE,
+                purchaseQuantity = 3.0,
+                purchaseUnitPrice = 0.1
+            )
+            assertEquals("3 × 0.1 = 0.3 · В списке", recordCardSecondaryText(purchase))
+        } finally {
+            java.util.Locale.setDefault(previousLocale)
+        }
+    }
+
+    @Test
+    fun nutritionCardPreviewUsesWholeKcalLikeTheEditorAndDailySummary() {
+        val previousLocale = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val nutrition = Note(
+                id = 23L,
+                title = "",
+                blocks = emptyList(),
+                updated = 1L,
+                type = RecordType.NUTRITION,
+                nutritionCalories = 125.9,
+                nutritionProtein = 12.5
+            )
+            assertEquals("126 ккал · Б 12.5", recordCardSecondaryText(nutrition))
+        } finally {
+            java.util.Locale.setDefault(previousLocale)
+        }
+    }
+
 }
