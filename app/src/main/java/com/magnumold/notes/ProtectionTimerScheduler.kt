@@ -138,18 +138,17 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
             return
         }
         val alert = state.firedProtectionAlert ?: return
-        if (resolution.expiredTimer?.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
-            val updated = NotesRepository(
-                context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
-            ).updateTaskStatus(alert.taskId, RecordStatus.PAUSED)
-            if (updated) {
-                context.sendBroadcast(
-                    Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED)
-                        .setPackage(context.packageName)
-                        .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, alert.taskId)
-                        .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS, RecordStatus.PAUSED.name)
-                )
-            }
+        val pausedTaskId = applyPendingProtectionTaskPause(
+            trackingRepository,
+            NotesRepository(context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE))
+        )
+        if (pausedTaskId != null) {
+            context.sendBroadcast(
+                Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED)
+                    .setPackage(context.packageName)
+                    .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_ID, pausedTaskId)
+                    .putExtra(ProtectionTimerContract.EXTRA_CHANGED_TASK_STATUS, RecordStatus.PAUSED.name)
+            )
         }
         postFallbackNotification(context, alert)
     }
