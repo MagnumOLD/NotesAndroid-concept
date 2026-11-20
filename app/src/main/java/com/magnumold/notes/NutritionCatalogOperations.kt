@@ -27,7 +27,9 @@ internal object NutritionCatalogOperations {
     )
     fun withMealItems(note: Note, items: List<NutritionMealItem>): Note {
         fun total(f: (NutritionMealItem) -> Double) = NutritionOperations.sumAmounts(items.map(f)).toDouble()
-        return note.copy(nutritionItems = items, nutritionGrams = total { it.grams },
+        return note.copy(
+            titleText = if (items.isEmpty()) "" else note.titleText.ifBlank { "Приём пищи" },
+            nutritionItems = items, nutritionGrams = total { it.grams },
             nutritionCalories = total { it.calories }, nutritionProtein = total { it.protein },
             nutritionFat = total { it.fat }, nutritionCarbs = total { it.carbs })
     }
@@ -60,10 +62,12 @@ internal object NutritionCatalogOperations {
             val o = a.optJSONObject(n) ?: return@mapNotNull null
             val name = o.optString("productName").trim()
             if (name.isBlank()) return@mapNotNull null
-            NutritionMealItem(o.optString("id").ifBlank { java.util.UUID.randomUUID().toString() },
-                o.optLong("productId"), name, safe(o.optDouble("grams")), safe(o.optDouble("caloriesPer100g")),
-                safe(o.optDouble("proteinPer100g")), safe(o.optDouble("fatPer100g")), safe(o.optDouble("carbsPer100g")),
-                safe(o.optDouble("calories")), safe(o.optDouble("protein")), safe(o.optDouble("fat")), safe(o.optDouble("carbs")))
+            createMealItem(
+                NutritionProduct(o.optLong("productId"), name, safe(o.optDouble("caloriesPer100g")),
+                    safe(o.optDouble("proteinPer100g")), safe(o.optDouble("fatPer100g")), safe(o.optDouble("carbsPer100g"))),
+                safe(o.optDouble("grams")),
+                o.optString("id").ifBlank { java.util.UUID.randomUUID().toString() }
+            )
         }
     }
     fun mergeProducts(old: List<NutritionProduct>, incoming: List<NutritionProduct>): List<NutritionProduct> {

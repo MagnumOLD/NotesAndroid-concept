@@ -31,6 +31,8 @@ internal fun NutritionRecordEditor(
     var catalogVisible by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<NutritionProduct?>(null) }
     var productFormVisible by remember { mutableStateOf(false) }
+    var pendingLineId by remember { mutableStateOf<String?>(null) }
+    var returnToCatalog by remember { mutableStateOf(false) }
     val legacy = note.nutritionItems.isEmpty() && (
         note.nutritionGrams > 0 || note.nutritionCalories > 0 ||
         note.nutritionProtein > 0 || note.nutritionFat > 0 || note.nutritionCarbs > 0
@@ -97,7 +99,7 @@ internal fun NutritionRecordEditor(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            var grams by remember(item.id) {
+                            var grams by remember(item.id, item.grams) {
                                 mutableStateOf(DecimalInputOperations.format(item.grams))
                             }
                             OutlinedTextField(
@@ -197,7 +199,9 @@ internal fun NutritionRecordEditor(
                         }
                     }
                     TextButton(onClick = {
+                        pendingLineId = lineId
                         pickerLineId = null
+                        returnToCatalog = false
                         editingProduct = null
                         productFormVisible = true
                     }) { Text("Создать продукт в базе") }
@@ -228,7 +232,7 @@ internal fun NutritionRecordEditor(
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                IconButton(onClick = { editingProduct = product; productFormVisible = true }) {
+                                IconButton(onClick = { catalogVisible = false; returnToCatalog = true; editingProduct = product; productFormVisible = true }) {
                                     Icon(Icons.Outlined.Edit, contentDescription = "Изменить")
                                 }
                                 IconButton(onClick = {
@@ -241,7 +245,7 @@ internal fun NutritionRecordEditor(
                         }
                     }
                     OutlinedButton(
-                        onClick = { editingProduct = null; productFormVisible = true },
+                        onClick = { catalogVisible = false; returnToCatalog = true; editingProduct = null; productFormVisible = true },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.Outlined.Add, contentDescription = null)
@@ -256,14 +260,24 @@ internal fun NutritionRecordEditor(
     if (productFormVisible) {
         NutritionProductFormDialog(
             product = editingProduct,
-            onDismiss = { productFormVisible = false; editingProduct = null },
+            onDismiss = { productFormVisible = false; editingProduct = null; if (returnToCatalog) catalogVisible = true; returnToCatalog = false },
             onSave = { saved ->
                 val updated = if (products.any { it.id == saved.id }) {
                     products.map { if (it.id == saved.id) saved else it }
                 } else products + saved
                 onProductsChange(updated.sortedBy { it.name.lowercase() })
+                pendingLineId?.let { lineId ->
+                    val item = NutritionCatalogOperations.createMealItem(saved, 100.0, lineId)
+                    val currentIndex = note.nutritionItems.indexOfFirst { it.id == lineId }
+                    val mealItems = if (currentIndex < 0) note.nutritionItems + item
+                        else note.nutritionItems.toMutableList().also { it[currentIndex] = item }
+                    onChange(NutritionCatalogOperations.withMealItems(note, mealItems))
+                }
+                pendingLineId = null
                 productFormVisible = false
                 editingProduct = null
+                if (returnToCatalog) catalogVisible = true
+                returnToCatalog = false
             }
         )
     }

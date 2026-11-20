@@ -121,7 +121,9 @@ internal fun PersistenceSnapshot.hasUniqueRecordIds(): Boolean {
 }
 
 internal fun PersistenceSnapshot.hasValidIdentifiers(): Boolean =
-    hasUniqueRecordIds() && collections.map { it.id }.toSet().size == collections.size
+    hasUniqueRecordIds() &&
+        collections.map { it.id }.toSet().size == collections.size &&
+        nutritionProducts.map { it.id }.toSet().size == nutritionProducts.size
 
 internal fun List<NoteBlock>.toPlainText(): String = joinToString("\n\n") { block ->
     (if (block.isChecklist) (if (block.checked) "☑ " else "☐ ") else "") + block.text

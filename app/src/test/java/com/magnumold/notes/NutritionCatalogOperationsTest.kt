@@ -27,6 +27,20 @@ class NutritionCatalogOperationsTest {
         val merged = NutritionCatalogOperations.mergeProducts(listOf(buckwheat), listOf(buckwheat.copy(id = 12L), changed))
         assertEquals(2, merged.size); assertEquals(350.0, merged.last().caloriesPer100g, 0.0); assertEquals(2, merged.map { it.id }.toSet().size)
     }
+    @Test fun backupRoundTripsMealContentsAndTheReusableProductCatalog() {
+        val item = NutritionCatalogOperations.createMealItem(buckwheat, 175.0)
+        val meal = NutritionCatalogOperations.withMealItems(
+            Note(50L, "", emptyList(), 1L, type = RecordType.NUTRITION), listOf(item)
+        )
+        val raw = createBackupJson(
+            items = listOf(meal), collections = emptyList(), archived = emptyList(), trash = emptyList(),
+            nutritionProducts = listOf(buckwheat)
+        )
+        val parsed = parseBackupJson(raw)
+        assertEquals(listOf(buckwheat), parsed.nutritionProducts)
+        assertEquals(listOf(item), parsed.notes.single().nutritionItems)
+    }
+
     @Test fun productAndMealItemsRoundTripThroughJson() {
         val item = NutritionCatalogOperations.createMealItem(buckwheat, 80.0)
         assertEquals(listOf(buckwheat), NutritionCatalogOperations.parseProducts(NutritionCatalogOperations.productsToJson(listOf(buckwheat))))
