@@ -137,6 +137,9 @@ internal fun NotesApp(
             )
 
             BackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
+            BackHandler(enabled = navigation.modulesVisible && navigation.moduleManagementVisible) {
+                navigation.closeModuleManagement()
+            }
             BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
             BackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
 
@@ -153,7 +156,20 @@ internal fun NotesApp(
 
             NotesTheme(dark, activeThemeColors, themeMode == "custom") {
                 val selected = activeNotes.firstOrNull { it.id == selectedId }
-                if (navigation.modulesVisible && selected == null) {
+                if (navigation.modulesVisible && navigation.moduleManagementVisible && selected == null) {
+                    ModuleManagementScreen(
+                        configuration = moduleConfiguration,
+                        onConfigurationChange = { updated ->
+                            moduleConfiguration = updated.normalized()
+                            moduleSettingsStore.save(moduleConfiguration)
+                            if (navigation.activeModule != AppModule.ALL && navigation.activeModule !in moduleConfiguration.enabled) {
+                                navigation.selectModule(AppModule.ALL)
+                            }
+                        },
+                        onBack = { navigation.closeModuleManagement() },
+                        themeColors = activeThemeColors
+                    )
+                } else if (navigation.modulesVisible && selected == null) {
                     ModulesScreen(
                         configuration = moduleConfiguration,
                         onConfigurationChange = { updated ->
@@ -164,6 +180,7 @@ internal fun NotesApp(
                             }
                         },
                         onOpenModule = { module -> navigation.selectModule(module) },
+                        onOpenManagement = { navigation.openModuleManagement() },
                         onBack = { navigation.closeModules() },
                         themeColors = activeThemeColors
                     )
