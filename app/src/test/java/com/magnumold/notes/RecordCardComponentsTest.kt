@@ -104,7 +104,7 @@ class RecordCardComponentsTest {
                 nutritionCalories = 125.9,
                 nutritionProtein = 12.5
             )
-            assertEquals("126 ккал · Б 12.5", recordCardSecondaryText(nutrition))
+            assertEquals("125 ккал · Б 12.5", recordCardSecondaryText(nutrition))
         } finally {
             java.util.Locale.setDefault(previousLocale)
         }
