@@ -4,11 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
@@ -16,7 +13,6 @@ import androidx.compose.ui.unit.dp
 internal fun ModuleManagementScreen(
     configuration: ModuleConfiguration,
     onConfigurationChange: (ModuleConfiguration) -> Unit,
-    onBack: () -> Unit,
     themeColors: CustomThemeColors
 ) {
     val orderedModules = configuration.normalized().order
@@ -24,23 +20,10 @@ internal fun ModuleManagementScreen(
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Surface(color = themeColors.topBar, contentColor = noteTextColor(themeColors.topBar)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .height(AppPageLayout.toolbarHeight)
-                        .padding(start = AppSpacing.xs, end = AppSpacing.screenHorizontal),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
-                    Text(
-                        "Управление модулями",
-                        style = AppTypography.screenTitleStyle()
-                    )
-                }
-            }
+            AppPageTopBar(
+                backgroundColor = themeColors.topBar,
+                title = { Text("Управление модулями", style = AppTypography.screenTitleStyle()) }
+            )
         }
     ) { padding ->
         LazyColumn(
