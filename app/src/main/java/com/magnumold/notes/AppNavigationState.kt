@@ -42,6 +42,15 @@ internal class AppNavigationState {
 
     fun closeModuleManagement() { moduleManagementVisible = false }
 
+    fun returnToHomeKeepingModuleScreens() {
+        activeModule = AppModule.ALL
+        activeCollectionId = null
+        selectedId = null
+        autoFocusNewNote = false
+        search = ""
+        searchVisible = false
+    }
+
     fun selectModule(module: AppModule) {
         activeModule = module
         activeCollectionId = null
