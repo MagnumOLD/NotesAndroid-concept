@@ -38,7 +38,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Close
@@ -199,11 +198,6 @@ internal fun SettingsScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = themeColors.topBar,
-                navigationIcon = {
-                    IconButton(onClick = { if (personalizationVisible) personalizationVisible = false else onBack() }) {
-                        AppIcon(NoteIcon.Back, contentDescription = "Назад")
-                    }
-                },
                 title = {
                     Text(
                         if (personalizationVisible) "Персонализация" else "Настройки",
@@ -468,7 +462,6 @@ private fun ThemeColorEditorScreen(
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         AppPageTopBar(
             backgroundColor = topBarColor,
-            navigationIcon = { IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
             title = { Text(title, style = AppTypography.screenTitleStyle()) }
         )
     }) { padding ->
