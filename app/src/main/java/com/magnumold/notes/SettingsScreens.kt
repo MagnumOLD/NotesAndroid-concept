@@ -138,6 +138,8 @@ internal fun SettingsScreen(
     onCardPreviewFieldsChange: (Set<String>) -> Unit = {},
     collectionVisibleModules: Set<AppModule> = ModuleConfiguration().enabled,
     onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
+    homeCollectionVisible: Boolean = true,
+    onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -349,6 +351,18 @@ internal fun SettingsScreen(
                     supportingContent = { Text("Выберите, в каких модулях показывать подборки. Скрытие не удаляет подборки и записи внутри них.") },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                ListItem(
+                    headlineContent = { Text("Главная") },
+                    supportingContent = { Text("Показывать подборки на главной странице") },
+                    trailingContent = {
+                        Switch(
+                            checked = homeCollectionVisible,
+                            onCheckedChange = onHomeCollectionVisibilityChange
+                        )
+                    },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
                     ListItem(
                         headlineContent = { Text(module.title) },
