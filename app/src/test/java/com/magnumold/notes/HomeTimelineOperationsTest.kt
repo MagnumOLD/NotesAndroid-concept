@@ -181,7 +181,8 @@ class HomeTimelineOperationsTest {
         assertEquals(listOf(2L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TODAY, today).map { it.id })
         assertEquals(listOf(3L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TOMORROW, today).map { it.id })
         assertEquals(listOf(2L, 3L, 4L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.WEEK, today).map { it.id })
-        assertEquals(listOf(2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
+        // Month view is the whole calendar month, including days before today.
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
         assertEquals(listOf(1L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.HISTORY, today).map { it.id })
     }
 
