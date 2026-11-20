@@ -93,9 +93,11 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
         // An inexact alarm is not exempt from Android 12+ background FGS-start
         // restrictions. When exact-alarm access is denied, complete the timer
         // and post an audible notification instead of trying to start a service.
+        val canScheduleExactAlarms = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
+            context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
         if (shouldUseProtectionAlarmNotificationFallback(
                 Build.VERSION.SDK_INT,
-                context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
+                canScheduleExactAlarms
             )
         ) {
             deliverInexactAlarm(context)
