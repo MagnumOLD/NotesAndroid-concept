@@ -81,7 +81,7 @@ internal object NoteReorderModel {
             return notes
         }
         if (afterId != null && anchorIndex < 0 && ordered.any { it.id == afterId }) return notes
-        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else remaining.size
+        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (afterId == null) 0 else remaining.size
         val insertAt = if (moving.first().pinned) {
             targetIndex.coerceIn(0, pinnedCount)
         } else {

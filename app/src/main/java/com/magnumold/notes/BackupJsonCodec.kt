@@ -393,8 +393,16 @@ internal fun mergeImportedCollectionsWithIdMap(
             )
             idMap[incoming.id] = target.id
         } else {
-            var id = incoming.id
-            while (result.any { it.id == id }) id++
+            val usedCollectionIds = result.asSequence().map { it.id }.toHashSet()
+            val id = if (incoming.id !in usedCollectionIds) {
+                incoming.id
+            } else {
+                // Avoid overflowing Long.MAX_VALUE while resolving a rare ID collision.
+                generateSequence(0L) { previous ->
+                    if (previous == Long.MAX_VALUE) null else previous + 1L
+                }.firstOrNull { it !in usedCollectionIds }
+                    ?: throw IllegalStateException("No available collection ID")
+            }
             result.add(incoming.copy(
                 id = id,
                 notes = mergeImportedNotes(emptyList(), incoming.notes, usedIds, importedNoteIdMap)

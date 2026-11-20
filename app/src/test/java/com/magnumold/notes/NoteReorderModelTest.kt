@@ -45,11 +45,11 @@ class NoteReorderModelTest {
 
     @Test
     fun movesAnUnpinnedNoteAfterTargetWithoutCrossingPinnedPartition() {
-        val notes = listOf(note(1, true), note(2, true), note(3), note(4))
+        val notes = listOf(note(1, true), note(2, true), note(4), note(3))
 
-        val moved = NoteReorderModel.moveSelected(notes, setOf(4), afterId = 1)
+        val moved = NoteReorderModel.moveSelected(notes, setOf(4), afterId = 3)
 
-        assertEquals(listOf(1L, 2L, 4L, 3L), moved.map { it.id })
+        assertEquals(listOf(1L, 2L, 3L, 4L), moved.map { it.id })
         assertEquals(listOf(true, true, false, false), moved.map { it.pinned })
     }
 

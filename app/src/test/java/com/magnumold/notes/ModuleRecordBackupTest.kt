@@ -121,6 +121,17 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun collectionIdCollisionAtLongMaxDoesNotOverflowDuringImport() {
+        val existing = listOf(NoteCollection(Long.MAX_VALUE, "Local", emptyList()))
+        val imported = listOf(NoteCollection(Long.MAX_VALUE, "Imported", emptyList()))
+
+        val merged = mergeImportedCollectionsWithIdMap(existing, imported)
+
+        assertEquals(listOf(Long.MAX_VALUE, 0L), merged.collections.map { it.id })
+        assertEquals(0L, merged.importedIdMap.getValue(Long.MAX_VALUE))
+    }
+
+    @Test
     fun backupWithDuplicateCollectionIdsIsRejected() {
         val malformed = """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"A","notes":[]},{"id":7,"name":"B","notes":[]}],"archive":[],"trash":[]}"""
         try {
