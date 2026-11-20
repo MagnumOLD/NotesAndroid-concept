@@ -24,4 +24,11 @@ class PurchaseOperationsTest {
         assertEquals("—", PurchaseOperations.formatAmount(Double.NaN, Locale.US))
         assertEquals("—", PurchaseOperations.formatAmount(Double.POSITIVE_INFINITY, Locale.US))
     }
+    @Test
+    fun invalidAndNegativePurchaseAmountsAreNormalizedToZero() {
+        assertEquals(0.0, PurchaseOperations.normalizeAmount(Double.NaN), 0.0)
+        assertEquals(0.0, PurchaseOperations.normalizeAmount(Double.NEGATIVE_INFINITY), 0.0)
+        assertEquals(0.0, PurchaseOperations.normalizeAmount(-4.5), 0.0)
+        assertEquals(2.75, PurchaseOperations.normalizeAmount(2.75), 0.0)
+    }
 }
