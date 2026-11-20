@@ -141,4 +141,21 @@ class ModuleSummaryOperationsTest {
         )
     }
 
+    @Test
+    fun purchaseSummaryIgnoresNegativeAndNonFiniteImportedAmounts() {
+        val day = 801L
+        val entry = Note(
+            1, "", listOf(NoteBlock()), 1L,
+            type = RecordType.PURCHASE,
+            status = RecordStatus.WAITING,
+            scheduledAt = day * 86_400_000L,
+            purchaseQuantity = Double.NaN,
+            purchaseUnitPrice = -50.0
+        )
+        assertEquals(
+            "В списке: 1 · Куплено: 0 · Остаток: 0",
+            ModuleSummaryOperations.summary("Покупки", listOf(entry), day)
+        )
+    }
+
 }
