@@ -25,7 +25,7 @@ internal object ModuleSummaryOperations {
             "КБЖУ" -> {
                 val entries = today.filter { it.type == RecordType.NUTRITION }
                 if (entries.isEmpty()) "Сегодня пока нет записей о питании"
-                else "Сегодня: ${number(entries.sumOf { it.nutritionCalories })} ккал · Б ${number(entries.sumOf { it.nutritionProtein })} г · Ж ${number(entries.sumOf { it.nutritionFat })} г · У ${number(entries.sumOf { it.nutritionCarbs })} г"
+                else "Сегодня: ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionCalories) })} ккал · Б ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionProtein) })} г · Ж ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionFat) })} г · У ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionCarbs) })} г"
             }
             "Покупки" -> {
                 val entries = today.filter { it.type == RecordType.PURCHASE }
