@@ -431,6 +431,26 @@ class TimeTrackingStatusSyncTest {
         assertFalse(merged.soundEnabled)
     }
 
+    @Test fun staleUiSoundChangePreservesPendingProtectionTaskPause() {
+        val previousUi = TimeTrackingState(soundEnabled = true)
+        val latest = previousUi.copy(pendingProtectionTaskPauseId = 11L)
+        val requested = previousUi.copy(soundEnabled = false)
+
+        val merged = mergeTimeTrackingUiChange(latest, previousUi, requested)
+
+        assertEquals(11L, merged.pendingProtectionTaskPauseId)
+        assertFalse(merged.soundEnabled)
+    }
+
+    @Test fun backupMergePreservesPendingProtectionTaskPauseFromCurrentState() {
+        val current = TimeTrackingState(pendingProtectionTaskPauseId = 11L)
+        val imported = TimeTrackingState(pendingProtectionTaskPauseId = 22L)
+
+        val merged = mergeTimeTrackingBackup(current, imported)
+
+        assertEquals(11L, merged.pendingProtectionTaskPauseId)
+    }
+
     @Test fun addingManualSessionFromUiPreservesConcurrentActiveSession() {
         val previousUi = TimeTrackingState()
         val manual = WorkSession(
