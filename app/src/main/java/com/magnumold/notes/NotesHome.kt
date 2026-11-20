@@ -367,7 +367,14 @@ internal fun NotesHome(
 
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(if (search.isNotBlank()) "Ничего не найдено" else "Пока нет заметок")
+                    Text(
+                        if (timelineMode) {
+                            HomeTimelineOperations.emptyStateMessage(
+                                timelineRange,
+                                searching = search.isNotBlank()
+                            )
+                        } else if (search.isNotBlank()) "Ничего не найдено" else "Пока нет записей"
+                    )
                 }
             } else {
                 Box(
