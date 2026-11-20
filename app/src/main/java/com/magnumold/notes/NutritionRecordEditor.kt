@@ -106,7 +106,7 @@ internal fun NutritionRecordEditor(
         onFinishDrag = { finishDrag() }
     )
     BackHandler(enabled = addingProducts || catalogVisible) {
-        if (catalogVisible) catalogVisible = false else addingProducts = false
+        if (catalogVisible) catalogVisible = false else onBack()
     }
 
     AppPageScaffold(
@@ -122,7 +122,7 @@ internal fun NutritionRecordEditor(
                     IconButton(onClick = {
                         when {
                             catalogVisible -> catalogVisible = false
-                            addingProducts -> addingProducts = false
+                            addingProducts -> onBack()
                             else -> onBack()
                         }
                     }) {
@@ -352,6 +352,7 @@ internal fun NutritionRecordEditor(
                                 addingProducts = false
                                 draftLines = listOf(NutritionDraftLine())
                                 focusDraftId = null
+                                onBack()
                             }
                         },
                         enabled = draftLines.any { line ->
