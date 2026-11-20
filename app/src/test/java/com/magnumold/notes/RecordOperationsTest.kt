@@ -79,6 +79,78 @@ class RecordOperationsTest {
         assertEquals(30L, result.updated)
     }
 
+    @Test
+    fun externalTaskStatusUpdateAlsoReachesArchivedAndTrashedRecords() {
+        val archivedTask = Note(
+            id = 51L, title = "", blocks = listOf(NoteBlock("archived")),
+            updated = 10L, type = RecordType.TASK, status = RecordStatus.IN_PROGRESS
+        )
+        val trashedParent = Note(
+            id = 52L, title = "", blocks = emptyList(), updated = 10L,
+            type = RecordType.TASK,
+            children = listOf(Note(
+                id = 53L, title = "", blocks = listOf(NoteBlock("trashed child")),
+                updated = 10L, type = RecordType.TASK, status = RecordStatus.IN_PROGRESS
+            ))
+        )
+        val snapshot = PersistenceSnapshot(
+            emptyList(), emptyList(),
+            archived = listOf(vault(archivedTask)),
+            trash = listOf(vault(trashedParent))
+        )
+
+        val result = RecordOperations.updateTaskStatus(snapshot, 51L, RecordStatus.COMPLETED)
+        val afterChild = RecordOperations.updateTaskStatus(result, 53L, RecordStatus.PAUSED)
+
+        assertEquals(RecordStatus.COMPLETED, afterChild.archived.single().note.status)
+        assertEquals(RecordStatus.PAUSED, afterChild.trash.single().note.children.single().status)
+        assertEquals(false, afterChild.trash.single().note.children.single().deadlineResumeOverride)
+    }
+
+    @Test
+    fun externalTimerRefreshAlsoReachesArchivedAndTrashedRecords() {
+        val currentArchived = Note(
+            id = 61L, title = "", blocks = listOf(NoteBlock("keep archived edits")),
+            updated = 10L, type = RecordType.TIMER, status = RecordStatus.IN_PROGRESS,
+            timerDurationSeconds = 900L, timerEndsAtMillis = 50_000L
+        )
+        val currentTrashed = Note(
+            id = 62L, title = "", blocks = listOf(NoteBlock("keep trashed edits")),
+            updated = 10L, type = RecordType.TIMER, status = RecordStatus.IN_PROGRESS,
+            timerDurationSeconds = 600L, timerEndsAtMillis = 40_000L
+        )
+        val persistedArchived = currentArchived.copy(
+            status = RecordStatus.COMPLETED, timerEndsAtMillis = null,
+            timerRemainingSeconds = 0L, updated = 30L,
+            blocks = listOf(NoteBlock("stale archived text"))
+        )
+        val persistedTrashed = currentTrashed.copy(
+            status = RecordStatus.PAUSED, timerEndsAtMillis = null,
+            timerRemainingSeconds = 120L, updated = 40L,
+            blocks = listOf(NoteBlock("stale trashed text"))
+        )
+        val current = PersistenceSnapshot(
+            emptyList(), emptyList(),
+            archived = listOf(vault(currentArchived)),
+            trash = listOf(vault(currentTrashed))
+        )
+        val persisted = current.copy(
+            archived = listOf(vault(persistedArchived)),
+            trash = listOf(vault(persistedTrashed))
+        )
+
+        val result = RecordOperations.refreshTimerStates(current, persisted)
+
+        assertEquals("keep archived edits", result.archived.single().note.blocks.single().text)
+        assertEquals(900L, result.archived.single().note.timerDurationSeconds)
+        assertEquals(RecordStatus.COMPLETED, result.archived.single().note.status)
+        assertEquals(0L, result.archived.single().note.timerRemainingSeconds)
+        assertEquals("keep trashed edits", result.trash.single().note.blocks.single().text)
+        assertEquals(600L, result.trash.single().note.timerDurationSeconds)
+        assertEquals(RecordStatus.PAUSED, result.trash.single().note.status)
+        assertEquals(120L, result.trash.single().note.timerRemainingSeconds)
+    }
+
     private fun note(id: Long, text: String) = Note(
         id = id,
         title = text,
