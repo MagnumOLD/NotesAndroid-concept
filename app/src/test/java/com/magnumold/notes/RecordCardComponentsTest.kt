@@ -127,7 +127,7 @@ class RecordCardComponentsTest {
         )
 
         assertEquals("Гречка", recordCardPrimaryText(base.copy(nutritionItems = listOf(buckwheat))))
-        assertEquals("Гречка\\nКурица", recordCardPrimaryText(base.copy(nutritionItems = listOf(buckwheat, chicken))))
+        assertEquals("Гречка\nКурица", recordCardPrimaryText(base.copy(nutritionItems = listOf(buckwheat, chicken))))
     }
 
 }
