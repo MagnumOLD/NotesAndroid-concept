@@ -46,9 +46,7 @@ internal fun VaultScreen(
         } else {
             LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = AppPageLayout.standardListContentPadding) {
                 items(entries, key = { it.note.id }) { entry ->
-                    val preview = entry.note.blocks.asSequence().mapNotNull { block ->
-                        block.text.lineSequence().firstOrNull { it.isNotBlank() }
-                    }.firstOrNull() ?: "Пустая заметка"
+                    val preview = recordCardPrimaryText(entry.note)
                     RecordCardSurface(background = MaterialTheme.colorScheme.background) {
                         Column(
                             Modifier.fillMaxWidth()
