@@ -24,6 +24,16 @@ class TimeTrackingStatusSyncTest {
         assertTrue(state.activeSessions.isEmpty())
     }
 
+    @Test fun deletingTaskClearsOrphanedPendingProtectionPause() {
+        val deletedTask = task(11, "Child", RecordStatus.PAUSED)
+        val before = listOf(task(10, "Parent", RecordStatus.IN_PROGRESS, listOf(deletedTask)))
+        val state = TimeTrackingState(pendingProtectionTaskPauseId = 11L)
+
+        val updated = syncWorkSessionsForTaskChanges(before, emptyList(), state, 500L)
+
+        assertEquals(null, updated.pendingProtectionTaskPauseId)
+    }
+
     @Test fun startingSubtaskStartsOnlyItsOwnSessionAndSnapshotsBothNames() {
         val before = task(10, "Parent", RecordStatus.IN_PROGRESS, listOf(task(11, "Child", RecordStatus.WAITING)))
         val after = before.copy(children = listOf(task(11, "Child", RecordStatus.IN_PROGRESS)))
