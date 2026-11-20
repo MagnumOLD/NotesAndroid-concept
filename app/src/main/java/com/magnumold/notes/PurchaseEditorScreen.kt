@@ -6,7 +6,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -69,7 +69,7 @@ internal fun PurchaseEditor(
     var selectedChildIds by remember(note.id) { mutableStateOf<Set<Long>>(emptySet()) }
     var editingBlockId by remember(note.id) { mutableStateOf<String?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val listState = rememberLazyListState()
+    val listState = remember(note.id) { LazyListState() }
     val latestPurchaseNote = rememberUpdatedState(note)
     val latestPurchaseChildren = rememberUpdatedState(note.children)
     val latestPurchaseOnChange = rememberUpdatedState(onChange)
