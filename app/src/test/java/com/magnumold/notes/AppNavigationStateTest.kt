@@ -62,4 +62,32 @@ class AppNavigationStateTest {
         assertFalse(state.settingsVisible)
         assertEquals(5L, state.selectedId)
     }
+
+    @Test
+    fun moduleManagementOpensAboveModuleListAndBackReturnsToList() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.openModuleManagement()
+
+        assertTrue(state.modulesVisible)
+        assertTrue(state.moduleManagementVisible)
+
+        state.closeModuleManagement()
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+    }
+
+    @Test
+    fun disablingCurrentModuleFallsBackHomeWithoutClosingModuleManagement() {
+        val state = AppNavigationState()
+        state.selectModule(AppModule.TASKS)
+        state.openModules()
+        state.openModuleManagement()
+
+        state.returnToHomeKeepingModuleScreens()
+
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+        assertTrue(state.moduleManagementVisible)
+    }
 }
