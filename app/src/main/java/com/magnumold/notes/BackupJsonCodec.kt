@@ -255,8 +255,10 @@ private fun Note.sameRecordContent(other: Note): Boolean =
         type == other.type &&
         blocks.map { Triple(it.text, it.checked, it.isChecklist) } ==
             other.blocks.map { Triple(it.text, it.checked, it.isChecklist) } &&
-        titleText == other.titleText && descriptionText == other.descriptionText &&
-        status == other.status && dateMode == other.dateMode && dateAt == other.dateAt &&
+        titleEnabled == other.titleEnabled && titleText == other.titleText &&
+        descriptionEnabled == other.descriptionEnabled && descriptionText == other.descriptionText &&
+        status == other.status && statusBeforeAutoCompletion == other.statusBeforeAutoCompletion &&
+        dateMode == other.dateMode && dateAt == other.dateAt &&
         scheduledAt == other.scheduledAt && deadlineResumeOverride == other.deadlineResumeOverride &&
         timeTrackingEnabled == other.timeTrackingEnabled &&
         timerDurationSeconds == other.timerDurationSeconds &&

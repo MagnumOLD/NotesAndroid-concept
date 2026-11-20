@@ -188,6 +188,37 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importingRecordsWithDifferentEditorVisibilityOrParentRestoreStateDoesNotMergeThem() {
+        val base = Note(
+            id = 501L,
+            title = "",
+            blocks = listOf(NoteBlock("Same text")),
+            updated = 1_800_000_000_000L,
+            created = 1_800_000_000_000L,
+            type = RecordType.TASK,
+            titleEnabled = false,
+            titleText = "Heading",
+            descriptionEnabled = false,
+            descriptionText = "Details",
+            status = RecordStatus.COMPLETED,
+            statusBeforeAutoCompletion = RecordStatus.IN_PROGRESS
+        )
+        val differentTitleVisibility = base.copy(id = 502L, titleEnabled = true)
+        val differentDescriptionVisibility = base.copy(id = 503L, descriptionEnabled = true)
+        val differentRestoreState = base.copy(id = 504L, statusBeforeAutoCompletion = RecordStatus.WAITING)
+
+        val merged = mergeImportedNotes(
+            listOf(base),
+            listOf(differentTitleVisibility, differentDescriptionVisibility, differentRestoreState)
+        )
+
+        assertEquals(
+            listOf(501L, 502L, 503L, 504L),
+            merged.map { it.id }
+        )
+    }
+
+    @Test
     fun importingDifferentShoppingQuantitiesDoesNotMergeThem() {
         val base = Note(10, "", listOf(NoteBlock()), 100L, type = RecordType.PURCHASE,
             titleText = "Кофе", purchaseQuantity = 1.0, purchaseUnitPrice = 5.0)
