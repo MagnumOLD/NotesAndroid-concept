@@ -335,9 +335,10 @@ internal fun NotesHome(
             if (timelineMode) {
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.xs),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+                        .height(AppCollectionRowDimensions.height)
+                        .padding(horizontal = AppSpacing.screenHorizontal)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.lg),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val ranges = listOf(
@@ -350,13 +351,20 @@ internal fun NotesHome(
                         HomeTimelineRange.FAVORITES to "Избранное"
                     )
                     ranges.forEach { (range, label) ->
-                        FilterChip(
-                            selected = timelineRange == range,
-                            onClick = {
-                                timelineRange = range
-                                selectedNoteIds = emptySet()
+                        Text(
+                            text = label,
+                            color = if (timelineRange == range) {
+                                themeColors.collectionText
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            label = { Text(label) }
+                            style = AppTypography.collectionLabelStyle(selected = timelineRange == range),
+                            modifier = Modifier.pointerInput(range, timelineRange) {
+                                detectTapGestures(onTap = {
+                                    timelineRange = range
+                                    selectedNoteIds = emptySet()
+                                })
+                            }
                         )
                     }
                 }
