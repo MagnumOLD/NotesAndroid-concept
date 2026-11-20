@@ -82,7 +82,8 @@ internal fun syncWorkSessionsForTaskChanges(
         state = TimeTrackingEngine.finish(state, removedId, nowMillis, WorkSessionEndReason.STOP)
     }
     if (state.protectionTimer?.taskId?.let { it in removedIds } == true ||
-        state.firedProtectionAlert?.taskId?.let { it in removedIds } == true
+        state.firedProtectionAlert?.taskId?.let { it in removedIds } == true ||
+        state.pendingProtectionTaskPauseId?.let { it in removedIds } == true
     ) {
         state = state.copy(
             protectionTimer = state.protectionTimer?.takeUnless { it.taskId in removedIds },
@@ -97,7 +98,9 @@ internal fun syncWorkSessionsForTaskChanges(
             if (id in state.activeSessions) {
                 state = TimeTrackingEngine.finish(state, id, nowMillis, WorkSessionEndReason.STOP)
             }
-            if (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id) {
+            if (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id ||
+                state.pendingProtectionTaskPauseId == id
+            ) {
                 state = state.copy(
                     protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
                     firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id },
@@ -112,7 +115,8 @@ internal fun syncWorkSessionsForTaskChanges(
         val oldStatus = old?.recordStatus(nowMillis)
         val newStatus = note.recordStatus(nowMillis)
         if (newStatus == RecordStatus.COMPLETED &&
-            (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id)
+            (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id ||
+                state.pendingProtectionTaskPauseId == id)
         ) {
             state = state.copy(
                 protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
