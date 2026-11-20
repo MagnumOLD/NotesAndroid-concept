@@ -24,7 +24,6 @@ class HomeTimelineOperationsTest {
         assertEquals("На завтра записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TOMORROW, false))
         assertEquals("На эту неделю записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.WEEK, false))
         assertEquals("В этом месяце записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.MONTH, false))
-        assertEquals("История пока пуста", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.HISTORY, false))
         assertEquals("В избранном пока пусто", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.FAVORITES, false))
         assertEquals("Ничего не найдено", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TODAY, true))
     }
@@ -180,7 +179,7 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
-    fun dateRangeFiltersCoverTodayTomorrowWeekMonthAndHistory() {
+    fun dateRangeFiltersCoverTodayTomorrowWeekAndMonth() {
         val utc = java.util.TimeZone.getTimeZone("UTC")
         val today = java.util.Calendar.getInstance(utc).apply {
             clear()
@@ -206,12 +205,12 @@ class HomeTimelineOperationsTest {
             scheduled(7, december1 / 86_400_000L)
         )
 
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L, 7L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.ALL, today).map { it.id })
         assertEquals(listOf(2L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TODAY, today).map { it.id })
         assertEquals(listOf(3L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TOMORROW, today).map { it.id })
         assertEquals(listOf(2L, 3L, 4L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.WEEK, today).map { it.id })
         // Month view is the whole calendar month, including days before today.
         assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
-        assertEquals(listOf(1L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.HISTORY, today).map { it.id })
     }
 
     @Test
