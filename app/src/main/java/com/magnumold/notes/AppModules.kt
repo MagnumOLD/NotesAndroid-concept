@@ -306,7 +306,7 @@ internal fun ModulesScreen(
                                 }
                             )
 
-switch removal                        }
+                        }
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f),
                             thickness = 0.7.dp
