@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -56,7 +57,8 @@ internal fun NotesHome(
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
      showCollections: Boolean = true,
     collectionsAvailable: Boolean = true,
-    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
+    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -233,8 +235,10 @@ internal fun NotesHome(
                     } else {
                         Text(screenTitle, style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = onOpenModules) {
-                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        if (homeButtonLayout == HomeButtonLayout.SEPARATE) {
+                            IconButton(onClick = onOpenModules) {
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
                         }
                         IconButton(onClick = onToggleSearch) {
                             AppIcon(if (searchVisible) NoteIcon.Close else NoteIcon.Search, contentDescription = "Поиск")
@@ -248,32 +252,88 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .offset(y = PrimaryAddButtonDimensions.verticalOffset)
-                            .size(PrimaryAddButtonDimensions.diameter)
-                            .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(themeColors.addButton)
-                            .combinedClickable(
-                                role = Role.Button,
-                                onClick = {
-                                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
-                                },
-                                onLongClick = {
-                                    if (enabledModules.isEmpty()) onOpenModules()
-                                    else createMenuExpanded = true
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
+                Column(horizontalAlignment = Alignment.End) {
+                    Row(
+                        modifier = Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                     ) {
-                        Text(
-                            "+",
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Light,
-                            color = noteTextColor(themeColors.addButton)
-                        )
+                        if (homeButtonLayout == HomeButtonLayout.SIDE_BY_SIDE) {
+                            Surface(
+                                modifier = Modifier.size(PrimaryAddButtonDimensions.diameter),
+                                shape = RoundedCornerShape(16.dp),
+                                color = MaterialTheme.colorScheme.surfaceVariant,
+                                onClick = onOpenModules
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                                }
+                            }
+                        } else if (homeButtonLayout == HomeButtonLayout.SHARED_PANEL) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                                        .combinedClickable(role = Role.Button, onClick = onOpenModules, onLongClick = {}),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                                }
+                                Spacer(Modifier.width(4.dp))
+                                Box(
+                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                                        .background(themeColors.addButton)
+                                        .combinedClickable(
+                                            role = Role.Button,
+                                            onClick = {
+                                                enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                                            },
+                                            onLongClick = {
+                                                if (enabledModules.isEmpty()) onOpenModules()
+                                                else createMenuExpanded = true
+                                            }
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("+", fontSize = 32.sp, fontWeight = FontWeight.Light,
+                                        color = noteTextColor(themeColors.addButton))
+                                }
+                            }
+                        }
+
+                        if (homeButtonLayout != HomeButtonLayout.SHARED_PANEL) {
+                            Box(
+                                modifier = Modifier
+                                    .size(PrimaryAddButtonDimensions.diameter)
+                                    .then(
+                                        if (homeButtonLayout == HomeButtonLayout.SEPARATE)
+                                            Modifier.shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
+                                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                        else Modifier.shadow(3.dp, RoundedCornerShape(16.dp))
+                                            .clip(RoundedCornerShape(16.dp))
+                                    )
+                                    .background(themeColors.addButton)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = {
+                                            enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                                        },
+                                        onLongClick = {
+                                            if (enabledModules.isEmpty()) onOpenModules()
+                                            else createMenuExpanded = true
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("+", fontSize = 34.sp, fontWeight = FontWeight.Light,
+                                    color = noteTextColor(themeColors.addButton))
+                            }
+                        }
                     }
                     DropdownMenu(
                         expanded = createMenuExpanded,
