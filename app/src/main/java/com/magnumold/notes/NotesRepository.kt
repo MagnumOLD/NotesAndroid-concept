@@ -56,19 +56,36 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         var found = false
         fun updateTree(items: List<Note>): List<Note> = items.map { note ->
             val updatedChildren = updateTree(note.children)
+            val withUpdatedChildren = if (updatedChildren != note.children) {
+                withUpdatedRecordChildren(note, updatedChildren)
+            } else note
             if (note.id == taskId && note.type == RecordType.TASK) {
                 found = true
-                note.copy(status = status, deadlineResumeOverride = status == RecordStatus.IN_PROGRESS, children = updatedChildren)
-            } else if (updatedChildren != note.children) {
-                note.copy(children = updatedChildren)
-            } else note
+                withUpdatedChildren.copy(
+                    status = status,
+                    deadlineResumeOverride = status == RecordStatus.IN_PROGRESS,
+                    children = updatedChildren
+                )
+            } else withUpdatedChildren
         }
         val updatedNotes = updateTree(current.notes)
         val updatedCollections = current.collections.map { collection ->
             collection.copy(notes = updateTree(collection.notes))
         }
+        fun updateVault(entries: List<VaultNote>): List<VaultNote> =
+            entries.map { entry ->
+                val updated = updateTree(listOf(entry.note)).single()
+                if (updated == entry.note) entry else entry.copy(note = updated)
+            }
+        val updatedArchive = updateVault(current.archived)
+        val updatedTrash = updateVault(current.trash)
         if (found) {
-            flushSnapshot(current.copy(notes = updatedNotes, collections = updatedCollections))
+            flushSnapshot(current.copy(
+                notes = updatedNotes,
+                collections = updatedCollections,
+                archived = updatedArchive,
+                trash = updatedTrash
+            ))
             preferences.edit()
                 .putLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, System.currentTimeMillis())
                 .putLong(ExternalRecordUpdateKeys.TASK_STATUS_ID, taskId)
