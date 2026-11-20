@@ -333,6 +333,7 @@ internal fun NotesApp(
                     WorkoutRecordEditor(
                         note = selected,
                         topBarColor = activeThemeColors.topBar,
+                        addButtonColor = activeThemeColors.addButton,
                         onBack = {
                             if (!selected.hasContent()) {
                                 if (homeTimelineMode) recordsViewModel.removeHomeRecord(selected.id)

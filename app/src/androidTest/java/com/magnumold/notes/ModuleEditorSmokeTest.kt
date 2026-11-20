@@ -36,20 +36,23 @@ class ModuleEditorSmokeTest {
                         nutritionFat = 3.0,
                         nutritionCarbs = 27.0
                     ),
+                    products = emptyList(),
                     topBarColor = Color(0xFF202020),
+                    addButtonColor = Color(0xFF4A90E2),
                     onBack = {},
-                    onChange = {}
+                    onChange = {},
+                    onProductsChange = {}
                 )
             }
         }
 
-        composeRule.onNodeWithText("Продукт или приём пищи").assertExists()
+        composeRule.onNodeWithText("Название").assertExists()
         composeRule.onNodeWithText("Масса, г").assertExists()
         composeRule.onNodeWithText("Калории, ккал").assertExists()
         composeRule.onNodeWithText("Белки, г").assertExists()
         composeRule.onNodeWithText("Жиры, г").assertExists()
         composeRule.onNodeWithText("Углеводы, г").assertExists()
-        composeRule.onNodeWithText("150 ккал  •  Б 5 г  •  Ж 3 г  •  У 27 г").assertExists()
+        composeRule.onNodeWithText("Старая запись питания. Её данные сохранены; новые приёмы пищи создаются через базу продуктов.").assertExists()
     }
 
     @Test
@@ -59,18 +62,18 @@ class ModuleEditorSmokeTest {
             MaterialTheme {
                 NutritionRecordEditor(
                     note = state.value,
+                    products = emptyList(),
                     topBarColor = Color(0xFF202020),
+                    addButtonColor = Color(0xFF4A90E2),
                     onBack = {},
-                    onChange = { state.value = it }
+                    onChange = { state.value = it },
+                    onProductsChange = {}
                 )
             }
         }
 
-        composeRule.onNodeWithText("Белки, г").performTextReplacement("12,5")
-        composeRule.runOnIdle { assertEquals(12.5, state.value.nutritionProtein, 0.0) }
-
-        composeRule.onNodeWithText("Белки, г").performTextReplacement("1,2,3")
-        composeRule.runOnIdle { assertEquals(12.5, state.value.nutritionProtein, 0.0) }
+        composeRule.onNodeWithText("Продукты в приёме пищи").assertExists()
+        composeRule.onNodeWithText("Нажми +, выбери продукт и укажи массу. Этой же кнопкой добавляй следующие продукты.").assertExists()
     }
 
     @Test

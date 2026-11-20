@@ -1,42 +1,99 @@
 package com.magnumold.notes
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NutritionRecordEditor(
     note: Note,
     products: List<NutritionProduct>,
     topBarColor: Color,
+    addButtonColor: Color,
     onBack: () -> Unit,
     onChange: (Note) -> Unit,
     onProductsChange: (List<NutritionProduct>) -> Unit
 ) {
+    var catalogVisible by remember { mutableStateOf(false) }
+    var catalogSearch by remember { mutableStateOf("") }
     var pickerLineId by remember { mutableStateOf<String?>(null) }
     var pickerSearch by remember { mutableStateOf("") }
-    var catalogVisible by remember { mutableStateOf(false) }
     var editingProduct by remember { mutableStateOf<NutritionProduct?>(null) }
     var productFormVisible by remember { mutableStateOf(false) }
     var pendingLineId by remember { mutableStateOf<String?>(null) }
     var returnToCatalog by remember { mutableStateOf(false) }
-    val legacy = note.nutritionItems.isEmpty() && (
+    var activeDragId by remember { mutableStateOf<String?>(null) }
+    var dragPointerY by remember { mutableFloatStateOf(0f) }
+    var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragReleaseRequested by remember { mutableStateOf(false) }
+    var reorderSession by remember { mutableStateOf<ReorderSession?>(null) }
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val legacyRecord = note.nutritionItems.isEmpty() && (
         note.nutritionGrams > 0 || note.nutritionCalories > 0 ||
         note.nutritionProtein > 0 || note.nutritionFat > 0 || note.nutritionCarbs > 0
     )
+    val orderedItems = remember(note.nutritionItems, reorderSession?.keys) {
+        val byId = note.nutritionItems.associateBy { it.id }
+        reorderSession?.keys?.mapNotNull(byId::get) ?: note.nutritionItems
+    }
+    fun finishDrag() {
+        val session = reorderSession
+        if (session != null) {
+            val byId = note.nutritionItems.associateBy { it.id }
+            val reordered = session.keys.mapNotNull(byId::get)
+            if (reordered.size == note.nutritionItems.size) {
+                onChange(NutritionCatalogOperations.withMealItems(note, reordered))
+            }
+        }
+        activeDragId = null
+        reorderSession = null
+        dragPointerY = 0f
+        dragGrabOffsetPx = 0f
+        dragReleaseRequested = false
+    }
+    AdjacentReorderEffect(
+        isDragging = activeDragId != null,
+        orderedKeys = orderedItems.map { it.id },
+        reorderSession = reorderSession,
+        pointerY = dragPointerY,
+        grabOffsetPx = dragGrabOffsetPx,
+        releaseRequested = dragReleaseRequested,
+        listState = listState,
+        density = density,
+        onSessionChange = { reorderSession = it },
+        onFinishDrag = { finishDrag() }
+    )
+    BackHandler(enabled = catalogVisible) { catalogVisible = false }
 
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -44,116 +101,212 @@ internal fun NutritionRecordEditor(
             Surface(color = topBarColor, contentColor = noteTextColor(topBarColor)) {
                 Row(
                     Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
+                        .height(AppPageLayout.toolbarHeight)
+                        .padding(start = AppSpacing.screenHorizontal, end = AppSpacing.toolbarControlInset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = { if (catalogVisible) catalogVisible = false else onBack() }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
                     }
                     Text(
-                        "Приём пищи",
+                        if (catalogVisible) "База продуктов" else "Приём пищи",
                         style = AppTypography.screenTitleStyle(),
                         color = noteTextColor(topBarColor),
                         modifier = Modifier.weight(1f)
                     )
-                    TextButton(onClick = { catalogVisible = true }) {
-                        Text("База продуктов", color = noteTextColor(topBarColor))
+                    if (!catalogVisible) {
+                        TextButton(onClick = { catalogSearch = ""; catalogVisible = true }) {
+                            Text("База продуктов", color = noteTextColor(topBarColor))
+                        }
                     }
+                }
+            }
+        },
+        floatingActionButton = {
+            if (!legacyRecord || catalogVisible) {
+                Box(
+                    Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset)
+                        .size(PrimaryAddButtonDimensions.diameter)
+                        .shadow(6.dp, CircleShape).clip(CircleShape)
+                        .background(addButtonColor)
+                        .clickable {
+                            if (catalogVisible) {
+                                editingProduct = null
+                                returnToCatalog = true
+                                productFormVisible = true
+                            } else {
+                                pickerSearch = ""
+                                pickerLineId = java.util.UUID.randomUUID().toString()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("+", fontSize = 34.sp, fontWeight = FontWeight.Light, color = noteTextColor(addButtonColor))
                 }
             }
         }
     ) { padding ->
-        if (legacy) {
-            LegacyNutritionRecordEditor(note, padding, onChange)
-        } else {
-            Column(
-                Modifier.fillMaxSize().padding(padding)
-                    .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.lg)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
-            ) {
-                Text("Продукты в приёме пищи", style = MaterialTheme.typography.titleMedium)
-                if (note.nutritionItems.isEmpty()) {
-                    Text(
-                        "Добавь продукты из своей базы. Для каждого укажи массу в граммах — итог КБЖУ посчитается автоматически.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+        when {
+            catalogVisible -> {
+                Column(Modifier.fillMaxSize().padding(padding)) {
+                    OutlinedTextField(
+                        value = catalogSearch,
+                        onValueChange = { catalogSearch = it },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.sm),
+                        singleLine = true,
+                        label = { Text("Поиск продуктов") }
                     )
-                }
-                note.nutritionItems.forEach { item ->
-                    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(
-                                onClick = { pickerSearch = ""; pickerLineId = item.id },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(item.productName, style = MaterialTheme.typography.titleMedium)
-                            }
-                            IconButton(onClick = {
-                                onChange(NutritionCatalogOperations.withMealItems(
-                                    note, note.nutritionItems.filterNot { it.id == item.id }
-                                ))
-                            }) {
-                                Icon(Icons.Outlined.Delete, contentDescription = "Удалить продукт из приёма пищи")
-                            }
+                    val filtered = products.filter { it.name.contains(catalogSearch.trim(), ignoreCase = true) }
+                        .sortedBy { it.name.lowercase() }
+                    if (filtered.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(if (products.isEmpty()) "База пока пуста. Нажми +, чтобы добавить продукт." else "Ничего не найдено",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            var grams by remember(item.id, item.grams) {
-                                mutableStateOf(DecimalInputOperations.format(item.grams))
-                            }
-                            OutlinedTextField(
-                                value = grams,
-                                onValueChange = { raw ->
-                                    if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
-                                        grams = raw
-                                        val amount = DecimalInputOperations.parse(raw).coerceAtLeast(0.0)
-                                        onChange(NutritionCatalogOperations.withMealItems(
-                                            note, note.nutritionItems.map {
-                                                if (it.id == item.id) NutritionCatalogOperations.updateGrams(it, amount) else it
-                                            }
-                                        ))
+                    } else {
+                        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 96.dp)) {
+                            itemsIndexed(filtered, key = { _, p -> p.id }) { _, product ->
+                                RecordCardSurface(background = MaterialTheme.colorScheme.background) {
+                                    Row(
+                                        Modifier.fillMaxWidth().heightIn(min = CardDimensions.contentHeight)
+                                            .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                                            Text(product.name, style = MaterialTheme.typography.titleMedium)
+                                            Text(
+                                                NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал / 100 г · Б " +
+                                                    NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
+                                                    NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
+                                                    NutritionOperations.formatAmount(product.carbsPer100g),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(onClick = { editingProduct = product; returnToCatalog = true; productFormVisible = true }) {
+                                            Icon(Icons.Outlined.Edit, contentDescription = "Изменить продукт")
+                                        }
+                                        IconButton(onClick = { onProductsChange(products.filterNot { it.id == product.id }) }) {
+                                            Icon(Icons.Outlined.Delete, contentDescription = "Удалить продукт")
+                                        }
                                     }
-                                },
-                                modifier = Modifier.widthIn(min = 110.dp, max = 145.dp),
-                                singleLine = true,
-                                label = { Text("Граммы") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                            )
-                            Text(
-                                NutritionOperations.formatCalories(item.calories) + " ккал · Б " +
-                                    NutritionOperations.formatAmount(item.protein) + " · Ж " +
-                                    NutritionOperations.formatAmount(item.fat) + " · У " +
-                                    NutritionOperations.formatAmount(item.carbs),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                                }
+                            }
                         }
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
                 }
-                OutlinedButton(
-                    onClick = { pickerSearch = ""; pickerLineId = java.util.UUID.randomUUID().toString() },
-                    modifier = Modifier.fillMaxWidth()
+            }
+            legacyRecord -> LegacyNutritionRecordEditor(note, padding, onChange)
+            else -> {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize().padding(padding),
+                    contentPadding = PaddingValues(
+                        start = AppSpacing.screenHorizontal, end = AppSpacing.screenHorizontal,
+                        top = AppSpacing.md, bottom = 104.dp
+                    )
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("Добавить продукт")
+                    item(key = "meal_reorder_anchor") { Spacer(Modifier.height(1.dp)) }
+                    item(key = "meal_title") {
+                        Text("Продукты в приёме пищи", style = MaterialTheme.typography.titleMedium,
+                            modifier = Modifier.padding(bottom = AppSpacing.sm))
+                    }
+                    if (orderedItems.isEmpty()) {
+                        item(key = "meal_empty") {
+                            Text("Нажми +, выбери продукт и укажи массу. Этой же кнопкой добавляй следующие продукты.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(bottom = AppSpacing.md))
+                        }
+                    }
+                    itemsIndexed(orderedItems, key = { _, item -> item.id }) { _, item ->
+                        val itemIndex = note.nutritionItems.indexOfFirst { it.id == item.id }
+                        RecordCardSurface(background = MaterialTheme.colorScheme.background,
+                            modifier = Modifier.animateItemPlacement(tween(NOTE_REORDER_ANIMATION_DURATION_MILLIS))) {
+                            Row(
+                                Modifier.fillMaxWidth().heightIn(min = CardDimensions.contentHeight)
+                                    .padding(start = AppSpacing.screenHorizontal, end = AppSpacing.xs,
+                                        top = AppSpacing.sm, bottom = AppSpacing.sm),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                                    Text(item.productName, style = MaterialTheme.typography.titleMedium,
+                                        modifier = Modifier.clickable { pickerSearch = ""; pickerLineId = item.id })
+                                    var grams by remember(item.id, item.grams) { mutableStateOf(DecimalInputOperations.format(item.grams)) }
+                                    OutlinedTextField(
+                                        value = grams,
+                                        onValueChange = { raw ->
+                                            if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
+                                                grams = raw
+                                                val amount = DecimalInputOperations.parse(raw).coerceAtLeast(0.0)
+                                                onChange(NutritionCatalogOperations.withMealItems(note, note.nutritionItems.map {
+                                                    if (it.id == item.id) NutritionCatalogOperations.updateGrams(it, amount) else it
+                                                }))
+                                            }
+                                        },
+                                        modifier = Modifier.widthIn(min = 100.dp, max = 130.dp),
+                                        singleLine = true, label = { Text("Граммы") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                    )
+                                    Text(
+                                        NutritionOperations.formatCalories(item.calories) + " ккал · Б " +
+                                            NutritionOperations.formatAmount(item.protein) + " г · Ж " +
+                                            NutritionOperations.formatAmount(item.fat) + " г · У " +
+                                            NutritionOperations.formatAmount(item.carbs) + " г",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    IconButton(onClick = {
+                                        onChange(NutritionCatalogOperations.withMealItems(note, note.nutritionItems.filterNot { it.id == item.id }))
+                                    }) { Icon(Icons.Outlined.Delete, contentDescription = "Удалить продукт") }
+                                    Box(
+                                        Modifier.size(CardDimensions.handleTouchTargetSize)
+                                            .pointerInput(item.id, itemIndex) {
+                                                detectDragGestures(
+                                                    onDragStart = { start ->
+                                                        val info = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == item.id }
+                                                            ?: return@detectDragGestures
+                                                        val handleTop = with(density) { CardDimensions.handleHitTargetTopOffset.toPx() }
+                                                        val pointer = info.offset + handleTop + start.y
+                                                        activeDragId = item.id
+                                                        reorderSession = AdjacentReorderEngine.begin(orderedItems.map { it.id }, item.id)
+                                                        dragPointerY = pointer
+                                                        dragGrabOffsetPx = pointer - info.offset
+                                                        dragReleaseRequested = false
+                                                    },
+                                                    onDrag = { change, amount ->
+                                                        if (activeDragId == item.id) { dragPointerY += amount.y; change.consume() }
+                                                    },
+                                                    onDragEnd = { if (activeDragId == item.id) dragReleaseRequested = true },
+                                                    onDragCancel = {
+                                                        if (activeDragId == item.id) {
+                                                            activeDragId = null; reorderSession = null
+                                                            dragPointerY = 0f; dragGrabOffsetPx = 0f; dragReleaseRequested = false
+                                                        }
+                                                    }
+                                                )
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) { DragHandleIcon(color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                                }
+                            }
+                        }
+                    }
+                    item(key = "meal_total") {
+                        Column(Modifier.fillMaxWidth().padding(top = AppSpacing.lg),
+                            verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                            HorizontalDivider()
+                            Text("Итого за приём пищи", style = MaterialTheme.typography.titleMedium)
+                            Text(NutritionOperations.formatCalories(note.nutritionCalories) + " ккал",
+                                style = MaterialTheme.typography.headlineSmall)
+                            Text("Б " + NutritionOperations.formatAmount(note.nutritionProtein) + " г · Ж " +
+                                NutritionOperations.formatAmount(note.nutritionFat) + " г · У " +
+                                NutritionOperations.formatAmount(note.nutritionCarbs) + " г",
+                                style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
                 }
-                HorizontalDivider()
-                Text("Итого за приём пищи", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    NutritionOperations.formatCalories(note.nutritionCalories) + " ккал",
-                    style = MaterialTheme.typography.headlineSmall
-                )
-                Text(
-                    "Б " + NutritionOperations.formatAmount(note.nutritionProtein) + " г · Ж " +
-                        NutritionOperations.formatAmount(note.nutritionFat) + " г · У " +
-                        NutritionOperations.formatAmount(note.nutritionCarbs) + " г",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
         }
     }
@@ -163,48 +316,36 @@ internal fun NutritionRecordEditor(
             onDismissRequest = { pickerLineId = null },
             title = { Text("Выбрать продукт") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        pickerSearch, { pickerSearch = it },
-                        modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Поиск") }
-                    )
-                    val matches = NutritionCatalogOperations.search(products, pickerSearch)
+                Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
+                    OutlinedTextField(pickerSearch, { pickerSearch = it }, modifier = Modifier.fillMaxWidth(),
+                        singleLine = true, label = { Text("Поиск") })
+                    val matches = products.filter { it.name.contains(pickerSearch.trim(), ignoreCase = true) }
                     if (matches.isEmpty()) Text("Подходящих продуктов нет")
                     Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
                         matches.forEach { product ->
-                            TextButton(
-                                onClick = {
-                                    val item = NutritionCatalogOperations.createMealItem(product, 100.0, lineId)
-                                    val index = note.nutritionItems.indexOfFirst { it.id == lineId }
-                                    val items = if (index < 0) note.nutritionItems + item
-                                        else note.nutritionItems.toMutableList().also { it[index] = item }
-                                    onChange(NutritionCatalogOperations.withMealItems(
-                                        note.copy(titleText = note.titleText.ifBlank { "Приём пищи" }), items
-                                    ))
-                                    pickerLineId = null
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                            TextButton(onClick = {
+                                val item = NutritionCatalogOperations.createMealItem(product, 100.0, lineId)
+                                val index = note.nutritionItems.indexOfFirst { it.id == lineId }
+                                val items = if (index < 0) note.nutritionItems + item
+                                    else note.nutritionItems.toMutableList().also { it[index] = item }
+                                onChange(NutritionCatalogOperations.withMealItems(
+                                    note.copy(titleText = note.titleText.ifBlank { "Приём пищи" }), items))
+                                pickerLineId = null
+                            }, modifier = Modifier.fillMaxWidth()) {
                                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
                                     Text(product.name)
-                                    Text(
-                                        NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал / 100 г · Б " +
-                                            NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
-                                            NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
-                                            NutritionOperations.formatAmount(product.carbsPer100g),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                                    Text(NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал / 100 г · Б " +
+                                        NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
+                                        NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
+                                        NutritionOperations.formatAmount(product.carbsPer100g),
+                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
                     }
                     TextButton(onClick = {
-                        pendingLineId = lineId
-                        pickerLineId = null
-                        returnToCatalog = false
-                        editingProduct = null
-                        productFormVisible = true
+                        pendingLineId = lineId; pickerLineId = null; returnToCatalog = false
+                        editingProduct = null; productFormVisible = true
                     }) { Text("Создать продукт в базе") }
                 }
             },
@@ -212,71 +353,26 @@ internal fun NutritionRecordEditor(
         )
     }
 
-    if (catalogVisible) {
-        AlertDialog(
-            onDismissRequest = { catalogVisible = false },
-            title = { Text("База продуктов") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (products.isEmpty()) Text("База пока пуста")
-                    Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
-                        products.sortedBy { it.name.lowercase() }.forEach { product ->
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(product.name)
-                                    Text(
-                                        NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал · Б " +
-                                            NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
-                                            NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
-                                            NutritionOperations.formatAmount(product.carbsPer100g) + " / 100 г",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                IconButton(onClick = { catalogVisible = false; returnToCatalog = true; editingProduct = product; productFormVisible = true }) {
-                                    Icon(Icons.Outlined.Edit, contentDescription = "Изменить")
-                                }
-                                IconButton(onClick = {
-                                    onProductsChange(products.filterNot { it.id == product.id })
-                                }) {
-                                    Icon(Icons.Outlined.Delete, contentDescription = "Удалить")
-                                }
-                            }
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = { catalogVisible = false; returnToCatalog = true; editingProduct = null; productFormVisible = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Outlined.Add, contentDescription = null)
-                        Text("Новый продукт")
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { catalogVisible = false }) { Text("Готово") } }
-        )
-    }
-
     if (productFormVisible) {
         NutritionProductFormDialog(
             product = editingProduct,
-            onDismiss = { productFormVisible = false; editingProduct = null; if (returnToCatalog) catalogVisible = true; returnToCatalog = false },
+            onDismiss = {
+                productFormVisible = false; editingProduct = null
+                if (returnToCatalog) catalogVisible = true
+                returnToCatalog = false
+            },
             onSave = { saved ->
-                val updated = if (products.any { it.id == saved.id }) {
-                    products.map { if (it.id == saved.id) saved else it }
-                } else products + saved
+                val updated = if (products.any { it.id == saved.id }) products.map { if (it.id == saved.id) saved else it }
+                    else products + saved
                 onProductsChange(updated.sortedBy { it.name.lowercase() })
                 pendingLineId?.let { lineId ->
                     val item = NutritionCatalogOperations.createMealItem(saved, 100.0, lineId)
-                    val currentIndex = note.nutritionItems.indexOfFirst { it.id == lineId }
-                    val mealItems = if (currentIndex < 0) note.nutritionItems + item
-                        else note.nutritionItems.toMutableList().also { it[currentIndex] = item }
+                    val index = note.nutritionItems.indexOfFirst { it.id == lineId }
+                    val mealItems = if (index < 0) note.nutritionItems + item
+                        else note.nutritionItems.toMutableList().also { it[index] = item }
                     onChange(NutritionCatalogOperations.withMealItems(note, mealItems))
                 }
-                pendingLineId = null
-                productFormVisible = false
-                editingProduct = null
+                pendingLineId = null; productFormVisible = false; editingProduct = null
                 if (returnToCatalog) catalogVisible = true
                 returnToCatalog = false
             }
@@ -284,91 +380,3 @@ internal fun NutritionRecordEditor(
     }
 }
 
-@Composable
-private fun NutritionProductFormDialog(
-    product: NutritionProduct?,
-    onDismiss: () -> Unit,
-    onSave: (NutritionProduct) -> Unit
-) {
-    var name by remember(product?.id) { mutableStateOf(product?.name.orEmpty()) }
-    var kcal by remember(product?.id) { mutableStateOf(product?.caloriesPer100g?.let(DecimalInputOperations::format).orEmpty()) }
-    var protein by remember(product?.id) { mutableStateOf(product?.proteinPer100g?.let(DecimalInputOperations::format).orEmpty()) }
-    var fat by remember(product?.id) { mutableStateOf(product?.fatPer100g?.let(DecimalInputOperations::format).orEmpty()) }
-    var carbs by remember(product?.id) { mutableStateOf(product?.carbsPer100g?.let(DecimalInputOperations::format).orEmpty()) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (product == null) "Новый продукт" else "Изменить продукт") },
-        text = {
-            Column(
-                Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название") })
-                OutlinedTextField(kcal, { if (DecimalInputOperations.isValid(it, maxLength = 12)) kcal = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Калории / 100 г") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedTextField(protein, { if (DecimalInputOperations.isValid(it, maxLength = 12)) protein = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Белки / 100 г") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedTextField(fat, { if (DecimalInputOperations.isValid(it, maxLength = 12)) fat = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Жиры / 100 г") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                OutlinedTextField(carbs, { if (DecimalInputOperations.isValid(it, maxLength = 12)) carbs = it },
-                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Углеводы / 100 г") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                Text("Пищевая ценность указывается на 100 граммов.", style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        },
-        confirmButton = {
-            TextButton(
-                enabled = name.isNotBlank() && listOf(kcal, protein, fat, carbs).all { it.isNotBlank() },
-                onClick = {
-                    onSave(NutritionProduct(
-                        product?.id ?: newRecordId(), name.trim(),
-                        DecimalInputOperations.parse(kcal).coerceAtLeast(0.0),
-                        DecimalInputOperations.parse(protein).coerceAtLeast(0.0),
-                        DecimalInputOperations.parse(fat).coerceAtLeast(0.0),
-                        DecimalInputOperations.parse(carbs).coerceAtLeast(0.0)
-                    ))
-                }
-            ) { Text("Сохранить") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
-    )
-}
-
-@Composable
-private fun LegacyNutritionRecordEditor(note: Note, padding: PaddingValues, onChange: (Note) -> Unit) {
-    @Composable
-    fun NumericField(label: String, value: Double, update: (Double) -> Unit) {
-        var input by remember(note.id, label) { mutableStateOf(DecimalInputOperations.format(value)) }
-        OutlinedTextField(
-            input,
-            { raw ->
-                if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
-                    input = raw
-                    update(NutritionOperations.normalizeAmount(DecimalInputOperations.parse(raw)))
-                }
-            },
-            modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(label) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-        )
-    }
-    Column(
-        Modifier.fillMaxSize().padding(padding)
-            .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.lg)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
-    ) {
-        Text("Старая запись питания. Её данные сохранены; новые приёмы пищи создаются через базу продуктов.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant)
-        OutlinedTextField(note.titleText, { onChange(note.copy(titleText = it)) },
-            modifier = Modifier.fillMaxWidth(), label = { Text("Название") })
-        NumericField("Масса, г", note.nutritionGrams) { onChange(note.copy(nutritionGrams = it)) }
-        NumericField("Калории, ккал", note.nutritionCalories) { onChange(note.copy(nutritionCalories = it)) }
-        NumericField("Белки, г", note.nutritionProtein) { onChange(note.copy(nutritionProtein = it)) }
-        NumericField("Жиры, г", note.nutritionFat) { onChange(note.copy(nutritionFat = it)) }
-        NumericField("Углеводы, г", note.nutritionCarbs) { onChange(note.copy(nutritionCarbs = it)) }
-    }
-}
