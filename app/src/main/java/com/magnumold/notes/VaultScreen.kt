@@ -29,7 +29,6 @@ internal fun VaultScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = themeColors.topBar,
-                navigationIcon = { IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
                 title = { Text(title, style = AppTypography.screenTitleStyle()) },
                 actions = {
                     if (isTrash && entries.isNotEmpty()) {
