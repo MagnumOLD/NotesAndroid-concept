@@ -350,6 +350,7 @@ internal fun NotesApp(
                             navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         homeButtonLayout = homeButtonLayout,
+                        isMainHome = navigation.activeModule == AppModule.ALL,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
