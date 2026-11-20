@@ -58,7 +58,8 @@ internal fun NotesHome(
      showCollections: Boolean = true,
     collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
-    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -97,7 +98,7 @@ internal fun NotesHome(
     } else rangeNotes
     val filtered = displayNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
-    val activeButtonLayout = if (timelineMode) homeButtonLayout else HomeButtonLayout.SEPARATE
+    val activeButtonLayout = if (isMainHome) homeButtonLayout else HomeButtonLayout.SEPARATE
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
     val selectedNoteBackground = themeColors.selection
