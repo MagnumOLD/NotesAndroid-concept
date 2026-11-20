@@ -1,5 +1,6 @@
 package com.magnumold.notes
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -18,6 +19,7 @@ internal fun PurchaseRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    BackHandler { onBack() }
     @Composable
     fun AmountField(label: String, value: Double, update: (Double) -> Unit) {
         var input by remember(note.id, label) {
