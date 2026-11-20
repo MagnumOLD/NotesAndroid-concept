@@ -163,13 +163,21 @@ class MainActivity : ComponentActivity() {
         val recordPreferences = getPreferences(Context.MODE_PRIVATE)
         val timeTrackingPreferences = getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         val repository = NotesRepository(recordPreferences)
+        val backupImportJournal = BackupImportTransactionJournal(
+            recordPreferences,
+            timeTrackingPreferences,
+            getSharedPreferences("backup_import_journal", Context.MODE_PRIVATE)
+        )
+        // Recover an interrupted multi-store import before any repository reads
+        // persisted state or the timer service can start using it.
+        backupImportJournal.recoverIfNeeded()
         timeTrackingRepository = TimeTrackingRepository(timeTrackingPreferences)
         recoveryDataRepository = RecoveryDataRepository(recordPreferences, timeTrackingPreferences)
         lastExternalTaskStatusUpdate = recordPreferences.getLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, 0L)
         lastExternalTimerStateUpdate = recordPreferences.getLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, 0L)
         recordsViewModel = ViewModelProvider(
             this,
-            NotesViewModelFactory(repository, timeTrackingRepository, recoveryDataRepository)
+            NotesViewModelFactory(repository, timeTrackingRepository, recoveryDataRepository, backupImportJournal)
         )[NotesViewModel::class.java]
         setContent {
             NotesApp(

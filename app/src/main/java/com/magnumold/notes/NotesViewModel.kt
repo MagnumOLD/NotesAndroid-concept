@@ -22,7 +22,8 @@ import kotlinx.coroutines.runBlocking
 internal class NotesViewModel(
     private val repository: NotesRepository,
     private val timeTrackingRepository: TimeTrackingRepository,
-    private val recoveryDataRepository: RecoveryDataRepository
+    private val recoveryDataRepository: RecoveryDataRepository,
+    private val backupImportJournal: BackupImportTransactionJournal
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(repository.loadSnapshot())
     val snapshot: StateFlow<PersistenceSnapshot> = _snapshot.asStateFlow()
@@ -165,34 +166,33 @@ internal class NotesViewModel(
 
         // Keep timer/service writes behind the same repository lock until all
         // three parts of the backup have committed or have been rolled back.
-        return timeTrackingRepository.withBackupImportTransaction(
-            prepare = { currentTimeTracking ->
-                merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
-                imported.timeTracking?.let { backup ->
-                    val remapped = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
-                    mergeTimeTrackingBackup(currentTimeTracking, remapped)
+        return backupImportJournal.execute {
+            timeTrackingRepository.withBackupImportTransaction(
+                prepare = { currentTimeTracking ->
+                    merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
+                    imported.timeTracking?.let { backup ->
+                        val remapped = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
+                        mergeTimeTrackingBackup(currentTimeTracking, remapped)
+                    }
+                },
+                commit = { _, _ ->
+                    val importedCount =
+                        RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
+                    updateSnapshot { merge.snapshot }
+                    try {
+                        flush()
+                        val importedRecoveryCount =
+                            recoveryDataRepository.importEntries(imported.recoveryEntries)
+                        BackupImportResult(importedCount, importedRecoveryCount)
+                    } catch (failure: Throwable) {
+                        _snapshot.value = before
+                        runCatching { flush() }
+                            .exceptionOrNull()?.let(failure::addSuppressed)
+                        throw failure
+                    }
                 }
-            },
-            commit = { _, _ ->
-                val importedCount =
-                    RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
-                updateSnapshot { merge.snapshot }
-                try {
-                    flush()
-                    val importedRecoveryCount =
-                        recoveryDataRepository.importEntries(imported.recoveryEntries)
-                    BackupImportResult(importedCount, importedRecoveryCount)
-                } catch (failure: Throwable) {
-                    // RecoveryDataRepository rolls back its own preference writes;
-                    // restore the main snapshot here. The tracking repository then
-                    // restores its previous state before releasing its transaction lock.
-                    _snapshot.value = before
-                    runCatching { flush() }
-                        .exceptionOrNull()?.let(failure::addSuppressed)
-                    throw failure
-                }
-            }
-        )
+            )
+        }
     }
 
     fun restoreVaultEntry(entry: VaultNote, fromArchive: Boolean) {
@@ -227,13 +227,14 @@ internal class NotesViewModel(
 internal class NotesViewModelFactory(
     private val repository: NotesRepository,
     private val timeTrackingRepository: TimeTrackingRepository,
-    private val recoveryDataRepository: RecoveryDataRepository
+    private val recoveryDataRepository: RecoveryDataRepository,
+    private val backupImportJournal: BackupImportTransactionJournal
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(NotesViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return NotesViewModel(repository, timeTrackingRepository, recoveryDataRepository) as T
+        return NotesViewModel(repository, timeTrackingRepository, recoveryDataRepository, backupImportJournal) as T
     }
 }
