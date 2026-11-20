@@ -10,7 +10,8 @@ internal object RecordListOperations {
         note: Note
     ): PersistenceSnapshot {
         val current = activeNotes(snapshot, collectionId)
-        return replace(snapshot, collectionId, listOf(note) + current)
+        val updated = replace(snapshot, collectionId, listOf(note) + current)
+        return updated.takeIf { it.hasUniqueRecordIds() } ?: snapshot
     }
 
     fun update(
@@ -21,9 +22,10 @@ internal object RecordListOperations {
         val current = activeNotes(snapshot, collectionId)
         val index = current.indexOfFirst { it.id == note.id }
         if (index < 0) return snapshot
-        return replace(snapshot, collectionId, current.toMutableList().apply {
+        val updated = replace(snapshot, collectionId, current.toMutableList().apply {
             this[index] = note
         })
+        return updated.takeIf { it.hasUniqueRecordIds() } ?: snapshot
     }
 
     fun remove(

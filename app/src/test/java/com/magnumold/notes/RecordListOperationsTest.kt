@@ -52,6 +52,46 @@ class RecordListOperationsTest {
     }
 
     @Test
+    fun createRejectsIdsAlreadyUsedByActiveOrNestedRecords() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1).copy(children = listOf(note(2)))),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(3)))),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        assertSame(snapshot, RecordListOperations.create(snapshot, null, note(2)))
+        assertSame(snapshot, RecordListOperations.create(snapshot, 10, note(4).copy(children = listOf(note(1)))))
+        assertEquals(listOf(4L, 3L), RecordListOperations.create(snapshot, 10, note(4)).collections.single().notes.map { it.id })
+    }
+
+    @Test
+    fun updateRejectsChildIdsThatCollideWithAnotherRecord() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1), note(2)),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+        val invalidUpdate = note(1).copy(children = listOf(note(2)))
+
+        assertSame(snapshot, RecordListOperations.update(snapshot, null, invalidUpdate))
+    }
+
+    @Test
+    fun snapshotIdentityValidationIncludesNestedAndVaultRecords() {
+        val valid = PersistenceSnapshot(
+            notes = listOf(note(1).copy(children = listOf(note(2)))),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(3)))),
+            archived = listOf(VaultNote(note(4).copy(children = listOf(note(5))), null, 0, 1L)),
+            trash = listOf(VaultNote(note(6), null, 0, 2L))
+        )
+        assertTrue(valid.hasValidIdentifiers())
+        assertEquals(false, valid.copy(trash = listOf(VaultNote(note(2), null, 0, 2L))).hasUniqueRecordIds())
+        assertEquals(false, valid.copy(collections = listOf(NoteCollection(10, "A"), NoteCollection(10, "B"))).hasValidIdentifiers())
+    }
+
+    @Test
     fun pinningWithNoMatchingSelectionDoesNotReorderRecords() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(note(1), note(2, pinned = true), note(3)),

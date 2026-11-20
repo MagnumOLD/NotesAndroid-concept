@@ -5,20 +5,36 @@ package com.magnumold.notes
  * These functions keep list mutation rules out of the Compose coordinator.
  */
 internal object CollectionOperations {
-    fun create(snapshot: PersistenceSnapshot, id: Long, name: String): PersistenceSnapshot =
-        snapshot.copy(collections = snapshot.collections + NoteCollection(id, name))
+    fun create(snapshot: PersistenceSnapshot, id: Long, name: String): PersistenceSnapshot {
+        val normalizedName = name.trim()
+        if (normalizedName.isEmpty() || snapshot.collections.any {
+                it.id == id || it.name.equals(normalizedName, ignoreCase = true)
+            }
+        ) return snapshot
+        val updated = snapshot.copy(collections = snapshot.collections + NoteCollection(id, normalizedName))
+        return updated.takeIf { it.hasValidIdentifiers() } ?: snapshot
+    }
 
-    fun rename(snapshot: PersistenceSnapshot, id: Long, name: String): PersistenceSnapshot =
-        snapshot.copy(collections = snapshot.collections.map { collection ->
-            if (collection.id == id) collection.copy(name = name) else collection
+    fun rename(snapshot: PersistenceSnapshot, id: Long, name: String): PersistenceSnapshot {
+        val normalizedName = name.trim()
+        val current = snapshot.collections.firstOrNull { it.id == id } ?: return snapshot
+        if (normalizedName.isEmpty() || snapshot.collections.any {
+                it.id != id && it.name.equals(normalizedName, ignoreCase = true)
+            }
+        ) return snapshot
+        if (current.name == normalizedName) return snapshot
+        return snapshot.copy(collections = snapshot.collections.map { collection ->
+            if (collection.id == id) collection.copy(name = normalizedName) else collection
         })
+    }
 
     fun delete(snapshot: PersistenceSnapshot, id: Long): PersistenceSnapshot {
         val collection = snapshot.collections.firstOrNull { it.id == id } ?: return snapshot
-        return snapshot.copy(
+        val updated = snapshot.copy(
             notes = collection.notes + snapshot.notes,
             collections = snapshot.collections.filterNot { it.id == id }
         )
+        return updated.takeIf { it.hasValidIdentifiers() } ?: snapshot
     }
 
     fun move(snapshot: PersistenceSnapshot, id: Long, delta: Int): PersistenceSnapshot {
@@ -46,12 +62,13 @@ internal object CollectionOperations {
         if (moving.isEmpty()) return snapshot
         val remaining = source.filterNot { it.id in ids }
         val withoutMoving = RecordListOperations.replace(snapshot, sourceId, remaining)
-        return if (targetId == null) {
+        val updated = if (targetId == null) {
             withoutMoving.copy(notes = moving + withoutMoving.notes)
         } else {
             withoutMoving.copy(collections = withoutMoving.collections.map { collection ->
                 if (collection.id == targetId) collection.copy(notes = moving + collection.notes) else collection
             })
         }
+        return updated.takeIf { it.hasValidIdentifiers() } ?: snapshot
     }
 }

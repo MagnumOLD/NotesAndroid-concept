@@ -38,6 +38,21 @@ class CollectionOperationsTest {
     }
 
     @Test
+    fun createAndRenameRejectBlankDuplicateNamesAndDuplicateIds() {
+        val initial = snapshot(collections = listOf(
+            NoteCollection(10, "Work"),
+            NoteCollection(20, "Personal")
+        ))
+
+        assertSame(initial, CollectionOperations.create(initial, 10, "Another"))
+        assertSame(initial, CollectionOperations.create(initial, 30, " work "))
+        assertSame(initial, CollectionOperations.create(initial, 30, "   "))
+        assertSame(initial, CollectionOperations.rename(initial, 20, "WORK"))
+        assertSame(initial, CollectionOperations.rename(initial, 20, "  "))
+        assertEquals("Personal", CollectionOperations.rename(initial, 20, "  Personal  ").collections[1].name)
+    }
+
+    @Test
     fun transferMovesSelectedRecordsInTheirExistingOrder() {
         val source = NoteCollection(10, "Source", listOf(note(1), note(2), note(3)))
         val target = NoteCollection(20, "Target", listOf(note(4)))

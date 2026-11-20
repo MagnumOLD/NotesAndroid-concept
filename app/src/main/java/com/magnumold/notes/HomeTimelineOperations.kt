@@ -72,14 +72,15 @@ internal object HomeTimelineOperations {
     }
 
     fun update(snapshot: PersistenceSnapshot, note: Note): PersistenceSnapshot {
-        if (snapshot.notes.any { it.id == note.id }) {
-            return snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
+        val updated = if (snapshot.notes.any { it.id == note.id }) {
+            snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
+        } else {
+            val collections = snapshot.collections.map { collection ->
+                collection.copy(notes = collection.notes.map { if (it.id == note.id) note else it })
+            }
+            if (collections == snapshot.collections) snapshot else snapshot.copy(collections = collections)
         }
-        val collections = snapshot.collections.map { collection ->
-            collection.copy(notes = collection.notes.map { if (it.id == note.id) note else it })
-        }
-        return if (collections == snapshot.collections) snapshot
-        else snapshot.copy(collections = collections)
+        return updated.takeIf { it.hasUniqueRecordIds() } ?: snapshot
     }
 
     fun remove(snapshot: PersistenceSnapshot, id: Long): PersistenceSnapshot {

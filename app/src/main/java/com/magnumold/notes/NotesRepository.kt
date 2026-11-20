@@ -48,7 +48,10 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             }
             return null
         }
-        return find(snapshot.notes) ?: find(snapshot.collections.flatMap { it.notes })
+        return find(snapshot.notes)
+            ?: find(snapshot.collections.flatMap { it.notes })
+            ?: find(snapshot.archived.map { it.note })
+            ?: find(snapshot.trash.map { it.note })
     }
 
     fun updateTaskStatus(taskId: Long, status: RecordStatus): Boolean {

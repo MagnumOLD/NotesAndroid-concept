@@ -91,6 +91,25 @@ internal data class VaultNote(
     val nextRecordId: Long? = null
 )
 
+/** Record IDs are global across active records, nested tasks and both vaults. */
+internal fun PersistenceSnapshot.hasUniqueRecordIds(): Boolean {
+    val ids = HashSet<Long>()
+    fun collect(note: Note): Boolean {
+        if (!ids.add(note.id)) return false
+        return note.children.all(::collect)
+    }
+    fun collectAll(notes: List<Note>): Boolean = notes.all(::collect)
+
+    if (!collectAll(notes)) return false
+    if (!collections.all { collectAll(it.notes) }) return false
+    if (!archived.all { collect(it.note) }) return false
+    if (!trash.all { collect(it.note) }) return false
+    return true
+}
+
+internal fun PersistenceSnapshot.hasValidIdentifiers(): Boolean =
+    hasUniqueRecordIds() && collections.map { it.id }.toSet().size == collections.size
+
 internal fun List<NoteBlock>.toPlainText(): String = joinToString("\n\n") { block ->
     (if (block.isChecklist) (if (block.checked) "☑ " else "☐ ") else "") + block.text
 }
