@@ -5,7 +5,7 @@ package com.magnumold.notes
  * notebook/collection; only their home presentation order is shared.
  */
 internal enum class HomeTimelineRange {
-    ALL, TODAY, TOMORROW, WEEK, MONTH, HISTORY, FAVORITES
+    ALL, TODAY, TOMORROW, WEEK, MONTH, FAVORITES
 }
 
 internal object HomeTimelineOperations {
@@ -31,7 +31,6 @@ internal object HomeTimelineOperations {
                 // "Месяц" covers the complete current calendar month,
                 // including earlier days, not just the remaining days.
                 HomeTimelineRange.MONTH -> day in monthBounds
-                HomeTimelineRange.HISTORY -> day < todayDay
                 HomeTimelineRange.FAVORITES -> note.favorite
             }
         }
@@ -66,7 +65,6 @@ internal object HomeTimelineOperations {
             HomeTimelineRange.TOMORROW -> "На завтра записей нет"
             HomeTimelineRange.WEEK -> "На эту неделю записей нет"
             HomeTimelineRange.MONTH -> "В этом месяце записей нет"
-            HomeTimelineRange.HISTORY -> "История пока пуста"
             HomeTimelineRange.FAVORITES -> "В избранном пока пусто"
         }
     }
