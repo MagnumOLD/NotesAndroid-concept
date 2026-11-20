@@ -15,6 +15,8 @@ internal class AppNavigationState {
         private set
     var modulesVisible by mutableStateOf(false)
         private set
+    var moduleManagementVisible by mutableStateOf(false)
+        private set
     var activeCollectionId by mutableStateOf<Long?>(null)
         private set
     var selectedId by mutableStateOf<Long?>(null)
@@ -31,13 +33,21 @@ internal class AppNavigationState {
         private set
     fun openModules() { modulesVisible = true }
 
-    fun closeModules() { modulesVisible = false }
+    fun closeModules() {
+        modulesVisible = false
+        moduleManagementVisible = false
+    }
+
+    fun openModuleManagement() { moduleManagementVisible = true }
+
+    fun closeModuleManagement() { moduleManagementVisible = false }
 
     fun selectModule(module: AppModule) {
         activeModule = module
         activeCollectionId = null
         selectedId = null
         modulesVisible = false
+        moduleManagementVisible = false
         search = ""
         searchVisible = false
     }
