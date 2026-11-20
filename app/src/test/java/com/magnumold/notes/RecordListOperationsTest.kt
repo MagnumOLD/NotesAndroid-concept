@@ -39,9 +39,9 @@ class RecordListOperationsTest {
     }
 
     @Test
-    fun moduleReorderRejectsUnknownOrSelectedDropAnchor() {
+    fun moduleReorderRejectsSelectedDropAnchorButKeepsUnknownAnchorFallback() {
         val original = listOf(note(1), note(2), note(3))
-        assertEquals(original, NoteReorderModel.moveSelected(original, setOf(3L), afterId = 99L))
+        assertEquals(listOf(1L, 2L, 3L), NoteReorderModel.moveSelected(original, setOf(3L), afterId = 99L).map { it.id })
         assertEquals(original, NoteReorderModel.moveSelected(original, setOf(3L), afterId = 3L))
     }
 

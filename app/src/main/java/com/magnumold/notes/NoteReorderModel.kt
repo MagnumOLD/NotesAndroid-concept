@@ -77,10 +77,11 @@ internal object NoteReorderModel {
         val remaining = ordered.filterNot { it.id in movingIds }
         val pinnedCount = remaining.count { it.pinned }
         val anchorIndex = afterId?.let { id -> remaining.indexOfFirst { it.id == id } } ?: -1
-        if (afterId != null && (anchorIndex < 0 || remaining[anchorIndex].pinned != moving.first().pinned)) {
+        if (afterId != null && anchorIndex >= 0 && remaining[anchorIndex].pinned != moving.first().pinned) {
             return notes
         }
-        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else 0
+        if (afterId != null && anchorIndex < 0 && ordered.any { it.id == afterId }) return notes
+        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else remaining.size
         val insertAt = if (moving.first().pinned) {
             targetIndex.coerceIn(0, pinnedCount)
         } else {

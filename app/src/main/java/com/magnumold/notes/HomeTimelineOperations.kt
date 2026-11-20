@@ -142,10 +142,11 @@ internal object HomeTimelineOperations {
         val movingPinned = moving.first().pinned
         val pinnedCount = remaining.count { it.pinned }
         val anchorIndex = afterId?.let { id -> remaining.indexOfFirst { it.id == id } } ?: -1
-        if (afterId != null && (anchorIndex < 0 || remaining[anchorIndex].pinned != movingPinned)) {
+        if (afterId != null && anchorIndex >= 0 && remaining[anchorIndex].pinned != movingPinned) {
             return snapshot
         }
-        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (movingPinned) 0 else pinnedCount
+        if (afterId != null && anchorIndex < 0 && ordered.any { it.id == afterId }) return snapshot
+        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (movingPinned) 0 else remaining.size
         val insertAt = if (movingPinned) targetIndex.coerceIn(0, pinnedCount)
             else targetIndex.coerceIn(pinnedCount, remaining.size)
         val reorderedDay = remaining.toMutableList().apply { addAll(insertAt, moving) }
