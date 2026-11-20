@@ -298,7 +298,7 @@ internal fun recordCardPrimaryText(note: Note): String {
     val text = note.titleText.trim()
     return when (note.type) {
         RecordType.TIMER -> text.ifBlank { "Таймер" }
-        RecordType.NUTRITION -> text.ifBlank { "Приём пищи" }
+        RecordType.NUTRITION -> text.ifBlank { "Запись КБЖУ" }
         RecordType.WORKOUT -> text.ifBlank { "Тренировка" }
         else -> if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && text.isNotBlank()) {
             text
@@ -326,9 +326,9 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
             note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0 && note.nutritionGrams == 0.0
         ) emptyList() else buildList {
             if (on(CardPreviewField.NUTRITION_CALORIES)) add("${NutritionOperations.formatCalories(note.nutritionCalories)} ккал")
-            if (on(CardPreviewField.NUTRITION_PROTEIN)) add("Б ${amount(note.nutritionProtein)}")
-            if (on(CardPreviewField.NUTRITION_FAT)) add("Ж ${amount(note.nutritionFat)}")
-            if (on(CardPreviewField.NUTRITION_CARBS)) add("У ${amount(note.nutritionCarbs)}")
+            if (on(CardPreviewField.NUTRITION_PROTEIN) && note.nutritionProtein > 0.0) add("Б ${amount(note.nutritionProtein)}")
+            if (on(CardPreviewField.NUTRITION_FAT) && note.nutritionFat > 0.0) add("Ж ${amount(note.nutritionFat)}")
+            if (on(CardPreviewField.NUTRITION_CARBS) && note.nutritionCarbs > 0.0) add("У ${amount(note.nutritionCarbs)}")
             if (on(CardPreviewField.NUTRITION_GRAMS) && note.nutritionGrams > 0) add("${amount(note.nutritionGrams)} г")
         }
         RecordType.PURCHASE -> buildList {

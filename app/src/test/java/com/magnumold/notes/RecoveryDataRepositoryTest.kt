@@ -99,7 +99,7 @@ class RecoveryDataRepositoryTest {
 
         val decoded = parseBackupJson(encoded)
 
-        assertEquals(12, org.json.JSONObject(encoded).getInt("version"))
+        assertEquals(13, org.json.JSONObject(encoded).getInt("version"))
         assertEquals(listOf(entry), decoded.recoveryEntries)
     }
     @Test

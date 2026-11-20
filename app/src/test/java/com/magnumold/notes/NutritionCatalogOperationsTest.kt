@@ -3,7 +3,10 @@ package com.magnumold.notes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class NutritionCatalogOperationsTest {
     private val buckwheat = NutritionProduct(10L, "Гречка", 343.0, 13.3, 3.4, 71.5)
     @Test fun mealItemCalculatesMacrosFromProductPerHundredGrams() {
