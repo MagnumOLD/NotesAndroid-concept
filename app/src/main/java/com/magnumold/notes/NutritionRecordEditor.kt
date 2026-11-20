@@ -380,3 +380,92 @@ internal fun NutritionRecordEditor(
     }
 }
 
+@Composable
+private fun NutritionProductFormDialog(
+    product: NutritionProduct?,
+    onDismiss: () -> Unit,
+    onSave: (NutritionProduct) -> Unit
+) {
+    var name by remember(product?.id) { mutableStateOf(product?.name.orEmpty()) }
+    var kcal by remember(product?.id) { mutableStateOf(product?.caloriesPer100g?.let(DecimalInputOperations::format).orEmpty()) }
+    var protein by remember(product?.id) { mutableStateOf(product?.proteinPer100g?.let(DecimalInputOperations::format).orEmpty()) }
+    var fat by remember(product?.id) { mutableStateOf(product?.fatPer100g?.let(DecimalInputOperations::format).orEmpty()) }
+    var carbs by remember(product?.id) { mutableStateOf(product?.carbsPer100g?.let(DecimalInputOperations::format).orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (product == null) "Новый продукт" else "Изменить продукт") },
+        text = {
+            Column(
+                Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(name, { name = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Название") })
+                OutlinedTextField(kcal, { if (DecimalInputOperations.isValid(it, maxLength = 12)) kcal = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Калории / 100 г") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                OutlinedTextField(protein, { if (DecimalInputOperations.isValid(it, maxLength = 12)) protein = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Белки / 100 г") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                OutlinedTextField(fat, { if (DecimalInputOperations.isValid(it, maxLength = 12)) fat = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Жиры / 100 г") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                OutlinedTextField(carbs, { if (DecimalInputOperations.isValid(it, maxLength = 12)) carbs = it },
+                    modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("Углеводы / 100 г") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                Text("Пищевая ценность указывается на 100 граммов.", style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = name.isNotBlank() && listOf(kcal, protein, fat, carbs).all { it.isNotBlank() },
+                onClick = {
+                    onSave(NutritionProduct(
+                        product?.id ?: newRecordId(), name.trim(),
+                        DecimalInputOperations.parse(kcal).coerceAtLeast(0.0),
+                        DecimalInputOperations.parse(protein).coerceAtLeast(0.0),
+                        DecimalInputOperations.parse(fat).coerceAtLeast(0.0),
+                        DecimalInputOperations.parse(carbs).coerceAtLeast(0.0)
+                    ))
+                }
+            ) { Text("Сохранить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}
+
+@Composable
+private fun LegacyNutritionRecordEditor(note: Note, padding: PaddingValues, onChange: (Note) -> Unit) {
+    @Composable
+    fun NumericField(label: String, value: Double, update: (Double) -> Unit) {
+        var input by remember(note.id, label) { mutableStateOf(DecimalInputOperations.format(value)) }
+        OutlinedTextField(
+            input,
+            { raw ->
+                if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
+                    input = raw
+                    update(NutritionOperations.normalizeAmount(DecimalInputOperations.parse(raw)))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text(label) },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+        )
+    }
+    Column(
+        Modifier.fillMaxSize().padding(padding)
+            .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.lg)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+    ) {
+        Text("Старая запись питания. Её данные сохранены; новые приёмы пищи создаются через базу продуктов.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        OutlinedTextField(note.titleText, { onChange(note.copy(titleText = it)) },
+            modifier = Modifier.fillMaxWidth(), label = { Text("Название") })
+        NumericField("Масса, г", note.nutritionGrams) { onChange(note.copy(nutritionGrams = it)) }
+        NumericField("Калории, ккал", note.nutritionCalories) { onChange(note.copy(nutritionCalories = it)) }
+        NumericField("Белки, г", note.nutritionProtein) { onChange(note.copy(nutritionProtein = it)) }
+        NumericField("Жиры, г", note.nutritionFat) { onChange(note.copy(nutritionFat = it)) }
+        NumericField("Углеводы, г", note.nutritionCarbs) { onChange(note.copy(nutritionCarbs = it)) }
+    }
+}
+
