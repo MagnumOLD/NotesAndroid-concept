@@ -14,7 +14,8 @@ internal data class BackupData(
     val archived: List<VaultNote>,
     val trash: List<VaultNote>,
     val timeTracking: TimeTrackingState? = null,
-    val recoveryEntries: List<RecoveryEntry> = emptyList()
+    val recoveryEntries: List<RecoveryEntry> = emptyList(),
+    val nutritionProducts: List<NutritionProduct> = emptyList()
 )
 private fun noteToJson(note: Note): JSONObject {
     val blocks = JSONArray()
@@ -34,6 +35,7 @@ private fun noteToJson(note: Note): JSONObject {
         .put("nutritionGrams", note.nutritionGrams).put("nutritionCalories", note.nutritionCalories)
         .put("nutritionProtein", note.nutritionProtein).put("nutritionFat", note.nutritionFat)
         .put("nutritionCarbs", note.nutritionCarbs)
+        .put("nutritionItems", NutritionCatalogOperations.mealItemsToJson(note.nutritionItems))
         .put("purchaseQuantity", note.purchaseQuantity).put("purchaseUnitPrice", note.purchaseUnitPrice)
         .put("workoutSets", note.workoutSets).put("workoutReps", note.workoutReps)
         .put("workoutWeightKg", note.workoutWeightKg)
@@ -110,6 +112,7 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         nutritionProtein = obj.nonNegativeFiniteDouble("nutritionProtein", 0.0, 9_999_999_999.0),
         nutritionFat = obj.nonNegativeFiniteDouble("nutritionFat", 0.0, 9_999_999_999.0),
         nutritionCarbs = obj.nonNegativeFiniteDouble("nutritionCarbs", 0.0, 9_999_999_999.0),
+        nutritionItems = NutritionCatalogOperations.parseMealItems(obj.optionalArray("nutritionItems")),
         purchaseQuantity = obj.nonNegativeFiniteDouble("purchaseQuantity", 1.0, 999_999_999_999.0),
         purchaseUnitPrice = obj.nonNegativeFiniteDouble("purchaseUnitPrice", 0.0, 999_999_999_999.0),
         workoutSets = obj.optInt("workoutSets", 3).coerceIn(1, 100),
@@ -171,7 +174,8 @@ internal fun createBackupJson(
     archived: List<VaultNote>,
     trash: List<VaultNote>,
     timeTracking: TimeTrackingState = TimeTrackingState(),
-    recoveryEntries: List<RecoveryEntry> = emptyList()
+    recoveryEntries: List<RecoveryEntry> = emptyList(),
+    nutritionProducts: List<NutritionProduct> = emptyList()
 ): String {
     val collectionArray = JSONArray()
     collections.forEach { collection ->
@@ -186,17 +190,18 @@ internal fun createBackupJson(
                 .put("raw", entry.raw)
         )
     }
-    return JSONObject().put("format", "notes_backup").put("version", 12).put("exportedAt", System.currentTimeMillis())
+    return JSONObject().put("format", "notes_backup").put("version", 13).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
         .put("timeTracking", timeTrackingToJson(timeTracking))
         .put("recoveryData", recoveryArray)
+        .put("nutritionProducts", NutritionCatalogOperations.productsToJson(nutritionProducts))
         .toString(2)
 }
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..12) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..13) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.getJSONArray("notes"))
     val collections = if (!root.has("collections") || root.isNull("collections")) emptyList()
         else parseCollectionsArray(root.getJSONArray("collections"))
@@ -244,7 +249,8 @@ internal fun parseBackupJson(raw: String): BackupData {
             "Duplicate collection ID in backup: ${collection.id}"
         }
     }
-    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries)
+    val nutritionProducts = NutritionCatalogOperations.parseProducts(root.optJSONArray("nutritionProducts"))
+    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries, nutritionProducts)
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =
@@ -264,6 +270,7 @@ private fun Note.sameRecordContent(other: Note): Boolean =
         timerDurationSeconds == other.timerDurationSeconds &&
         timerEndsAtMillis == other.timerEndsAtMillis &&
         timerRemainingSeconds == other.timerRemainingSeconds &&
+        nutritionItems == other.nutritionItems &&
         nutritionGrams == other.nutritionGrams && nutritionCalories == other.nutritionCalories &&
         nutritionProtein == other.nutritionProtein && nutritionFat == other.nutritionFat && nutritionCarbs == other.nutritionCarbs &&
         purchaseQuantity == other.purchaseQuantity && purchaseUnitPrice == other.purchaseUnitPrice &&

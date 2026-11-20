@@ -80,7 +80,8 @@ internal object RecordOperations {
                 imported.trash.map(::remapVaultCollection),
                 usedNoteIds,
                 importedNoteIdMap
-            )
+            ),
+            nutritionProducts = NutritionCatalogOperations.mergeProducts(current.nutritionProducts, imported.nutritionProducts)
         )
 
         // Vault neighbor links are record references too. Once every imported

@@ -103,6 +103,10 @@ internal class NotesViewModel(
         updateSnapshot { CollectionOperations.transfer(it, sourceId, targetId, ids) }
     }
 
+    fun updateNutritionProducts(products: List<NutritionProduct>) {
+        updateSnapshot { it.copy(nutritionProducts = products.distinctBy { product -> product.id }) }
+    }
+
     fun updateHomeRecord(note: Note) {
         updateSnapshot { HomeTimelineOperations.update(it, note) }
     }

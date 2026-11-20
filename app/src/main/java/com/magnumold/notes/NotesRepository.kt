@@ -17,7 +17,8 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         notes = loadNotes(),
         collections = loadCollections(),
         archived = loadVault("archive"),
-        trash = loadVault("trash")
+        trash = loadVault("trash"),
+        nutritionProducts = loadJsonArray("nutrition_products", emptyList()) { NutritionCatalogOperations.parseProducts(it) }
     )
 
     @Synchronized
@@ -38,6 +39,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             .putString("collections", collectionsToJson(snapshot.collections).toString())
             .putString("archive", vaultToJson(snapshot.archived).toString())
             .putString("trash", vaultToJson(snapshot.trash).toString())
+            .putString("nutrition_products", NutritionCatalogOperations.productsToJson(snapshot.nutritionProducts).toString())
 
     fun findTask(taskId: Long): Note? {
         val snapshot = loadSnapshot()
