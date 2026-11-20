@@ -258,7 +258,7 @@ internal fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text(label) },
                         leadingContent = { Box(Modifier.size(30.dp).background(color, RoundedCornerShape(7.dp))) },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { customColorEditorKey = key }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
@@ -271,7 +271,7 @@ internal fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text(listOf("Бирюзовый", "Оранжевый", "Жёлтый", "Зелёный", "Розовый", "Фиолетовый")[index]) },
                         leadingContent = { Box(Modifier.size(30.dp).background(color.copy(alpha = noteColorOpacity), RoundedCornerShape(7.dp))) },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { colorEditorIndex = index }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
@@ -327,7 +327,7 @@ internal fun SettingsScreen(
                         supportingContent = {
                             Text(if (trashRetentionDays <= 0) "Без автоматического удаления" else "$trashRetentionDays дней, затем удаление навсегда")
                         },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { retentionMenuExpanded = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                     DropdownMenu(expanded = retentionMenuExpanded, onDismissRequest = { retentionMenuExpanded = false }) {
@@ -445,12 +445,23 @@ private fun SettingsNavigationItem(
         }
         if (showChevron) {
             Spacer(Modifier.width(16.dp))
-            Icon(
-                Icons.Outlined.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            SettingsChevron()
         }
+    }
+}
+
+@Composable
+private fun SettingsChevron() {
+    Box(
+        modifier = Modifier.size(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
     }
 }
 
