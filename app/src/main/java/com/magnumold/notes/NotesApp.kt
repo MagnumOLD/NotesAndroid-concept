@@ -140,6 +140,11 @@ internal fun NotesApp(
             BackHandler(enabled = navigation.modulesVisible && navigation.moduleManagementVisible) {
                 navigation.closeModuleManagement()
             }
+            BackHandler(
+                enabled = navigation.canReturnToModules && selectedId == null && !settingsVisible
+            ) {
+                navigation.returnFromModuleToModules()
+            }
             BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
             BackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
 
