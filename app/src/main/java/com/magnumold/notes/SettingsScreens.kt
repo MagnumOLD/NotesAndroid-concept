@@ -311,7 +311,7 @@ internal fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Поведение карточек") },
                     supportingContent = { Text("Интерактивность и состав данных на карточках") },
-                    leadingContent = { AppIcon(NoteIcon.Description, contentDescription = null) },
+                    leadingContent = { Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.clickable { cardBehaviorVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
