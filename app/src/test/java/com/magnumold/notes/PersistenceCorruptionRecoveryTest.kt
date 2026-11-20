@@ -124,7 +124,12 @@ class PersistenceCorruptionRecoveryTest {
         val viewModel = NotesViewModel(
             NotesRepository(records),
             TimeTrackingRepository(tracking),
-            RecoveryDataRepository(records, tracking)
+            RecoveryDataRepository(records, tracking),
+            BackupImportTransactionJournal(
+                records,
+                tracking,
+                preferences("backup_import_flush_journal_test")
+            )
         )
         store.put("backup-import-test", viewModel)
         try {
@@ -205,7 +210,12 @@ class PersistenceCorruptionRecoveryTest {
         val viewModel = NotesViewModel(
             NotesRepository(wrapped),
             TimeTrackingRepository(tracking),
-            RecoveryDataRepository(wrapped, tracking)
+            RecoveryDataRepository(wrapped, tracking),
+            BackupImportTransactionJournal(
+                wrapped,
+                tracking,
+                preferences("failed_flush_autosave_journal_test")
+            )
         )
         store.put("failed-flush-autosave-test", viewModel)
         try {
