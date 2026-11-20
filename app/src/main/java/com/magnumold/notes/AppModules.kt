@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Check
@@ -104,9 +103,6 @@ internal fun ModulesScreen(
                         .padding(horizontal = AppSpacing.screenHorizontal),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text("Модули", style = AppTypography.screenTitleStyle())
                     Spacer(Modifier.weight(1f))
                     Icon(Icons.Outlined.Tune, contentDescription = null)
