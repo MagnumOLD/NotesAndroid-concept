@@ -39,7 +39,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DragHandle
@@ -56,13 +55,11 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.FileUpload
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.withFrameNanos
@@ -374,7 +371,7 @@ internal fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Поведение карточек") },
                     supportingContent = { Text("Интерактивность и состав данных на карточках") },
-                    leadingContent = { Icon(Icons.Outlined.Description, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { AppIcon(NoteIcon.Modules, contentDescription = null) },
                     trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.clickable { cardBehaviorVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
@@ -382,7 +379,7 @@ internal fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Подборки по модулям") },
                     supportingContent = { Text("Настройка отображения подборок в каждом модуле") },
-                    leadingContent = { Icon(Icons.Outlined.PlaylistAdd, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { AppIcon(NoteIcon.Folder, contentDescription = null) },
                     trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.clickable { moduleCollectionsVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
@@ -390,7 +387,7 @@ internal fun SettingsScreen(
                 ListItem(
                     headlineContent = { Text("Хранение") },
                     supportingContent = { Text("Архив, корзина и срок хранения удалённых записей") },
-                    leadingContent = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    leadingContent = { AppIcon(NoteIcon.Archive, contentDescription = null) },
                     trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     modifier = Modifier.clickable { storageVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
