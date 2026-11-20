@@ -148,16 +148,22 @@ internal fun SettingsScreen(
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
     var cardBehaviorVisible by remember { mutableStateOf(false) }
+    var storageVisible by remember { mutableStateOf(false) }
+    var moduleCollectionsVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible) {
+    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
         } else if (personalizationVisible) {
             personalizationVisible = false
-        } else {
+        } else if (cardBehaviorVisible) {
             cardBehaviorVisible = false
+        } else if (storageVisible) {
+            storageVisible = false
+        } else {
+            moduleCollectionsVisible = false
         }
     }
 
@@ -203,7 +209,13 @@ internal fun SettingsScreen(
                 backgroundColor = themeColors.topBar,
                 title = {
                     Text(
-                        if (personalizationVisible) "Персонализация" else if (cardBehaviorVisible) "Поведение карточек" else "Настройки",
+                        when {
+                            personalizationVisible -> "Персонализация"
+                            cardBehaviorVisible -> "Поведение карточек"
+                            storageVisible -> "Хранение"
+                            moduleCollectionsVisible -> "Подборки по модулям"
+                            else -> "Настройки"
+                        },
                         style = AppTypography.screenTitleStyle()
                     )
                 }
@@ -299,6 +311,57 @@ internal fun SettingsScreen(
                         )
                     }
                 }
+            } else if (storageVisible) {
+                ListItem(
+                    headlineContent = { Text("Архив") },
+                    supportingContent = { Text("Отложенные записи") },
+                    leadingContent = { AppIcon(NoteIcon.Archive, contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenArchive).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                ListItem(
+                    headlineContent = { Text("Корзина") },
+                    supportingContent = { Text("Удалённые записи") },
+                    leadingContent = { AppIcon(NoteIcon.Trash, contentDescription = null) },
+                    modifier = Modifier.clickable(onClick = onOpenTrash).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                Box {
+                    ListItem(
+                        headlineContent = { Text("Хранить в корзине") },
+                        supportingContent = {
+                            Text(if (trashRetentionDays <= 0) "Без автоматического удаления" else "$trashRetentionDays дней, затем удаление навсегда")
+                        },
+                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        modifier = Modifier.clickable { retentionMenuExpanded = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                    DropdownMenu(expanded = retentionMenuExpanded, onDismissRequest = { retentionMenuExpanded = false }) {
+                        listOf(7, 30, 90, 365, 0).forEach { days ->
+                            DropdownMenuItem(
+                                text = { Text(if (days == 0) "Не удалять автоматически" else "$days дней") },
+                                onClick = {
+                                    onTrashRetentionDaysChange(days)
+                                    retentionMenuExpanded = false
+                                },
+                                trailingIcon = { if (trashRetentionDays == days) Icon(Icons.Outlined.CheckCircle, contentDescription = null) }
+                            )
+                        }
+                    }
+                }
+            } else if (moduleCollectionsVisible) {
+                ListItem(
+                    headlineContent = { Text("Отображение подборок", style = AppTypography.emphasisBodyStyle()) },
+                    supportingContent = { Text("Выберите, в каких модулях показывать подборки. Скрытие не удаляет подборки и записи внутри них.") },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
+                    ListItem(
+                        headlineContent = { Text(module.title) },
+                        supportingContent = { Text("Показывать подборки в этом модуле") },
+                        trailingContent = {
+                            Switch(checked = module in collectionVisibleModules, onCheckedChange = { onCollectionVisibilityChange(module, it) })
+                        },
+                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
             } else {
                 ListItem(
                     headlineContent = { Text("Персонализация") },
@@ -317,65 +380,20 @@ internal fun SettingsScreen(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(
-                    headlineContent = { Text("Подборки по модулям", style = AppTypography.emphasisBodyStyle()) },
-                    supportingContent = { Text("Скрытие подборок не удаляет их и содержащиеся в них записи") },
-                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    headlineContent = { Text("Подборки по модулям") },
+                    supportingContent = { Text("Настройка отображения подборок в каждом модуле") },
+                    leadingContent = { Icon(Icons.Outlined.PlaylistAdd, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.clickable { moduleCollectionsVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
-                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
-                    ListItem(
-                        headlineContent = { Text(module.title) },
-                        supportingContent = { Text("Показывать подборки в этом модуле") },
-                        trailingContent = {
-                            Switch(
-                                checked = module in collectionVisibleModules,
-                                onCheckedChange = { onCollectionVisibilityChange(module, it) }
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                    )
-                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
-                    headlineContent = { Text("Архив") },
-                    supportingContent = { Text("Отложенные заметки") },
-                    leadingContent = { AppIcon(NoteIcon.Archive, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenArchive).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    headlineContent = { Text("Хранение") },
+                    supportingContent = { Text("Архив, корзина и срок хранения удалённых записей") },
+                    leadingContent = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.clickable { storageVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
-                ListItem(
-                    headlineContent = { Text("Корзина") },
-                    supportingContent = { Text("Удалённые заметки") },
-                    leadingContent = { AppIcon(NoteIcon.Trash, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onOpenTrash).padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
-                Box {
-                    ListItem(
-                        headlineContent = { Text("Хранить в корзине") },
-                        supportingContent = {
-                            Text(if (trashRetentionDays <= 0) "Без автоматического удаления" else "$trashRetentionDays дней, затем удаление навсегда")
-                        },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                        modifier = Modifier.clickable { retentionMenuExpanded = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                    )
-                    DropdownMenu(
-                        expanded = retentionMenuExpanded,
-                        onDismissRequest = { retentionMenuExpanded = false }
-                    ) {
-                        listOf(7, 30, 90, 365, 0).forEach { days ->
-                            DropdownMenuItem(
-                                text = { Text(if (days == 0) "Не удалять автоматически" else "$days дней") },
-                                onClick = {
-                                    onTrashRetentionDaysChange(days)
-                                    retentionMenuExpanded = false
-                                },
-                                trailingIcon = {
-                                    if (trashRetentionDays == days) Icon(Icons.Outlined.CheckCircle, contentDescription = null)
-                                }
-                            )
-                        }
-                    }
-                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
