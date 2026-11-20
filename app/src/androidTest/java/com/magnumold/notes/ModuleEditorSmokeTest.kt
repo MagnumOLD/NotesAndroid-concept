@@ -49,7 +49,28 @@ class ModuleEditorSmokeTest {
         composeRule.onNodeWithText("Белки, г").assertExists()
         composeRule.onNodeWithText("Жиры, г").assertExists()
         composeRule.onNodeWithText("Углеводы, г").assertExists()
-        composeRule.onNodeWithText("150 ккал  •  Б 5.0 г  •  Ж 3.0 г  •  У 27.0 г").assertExists()
+        composeRule.onNodeWithText("150 ккал  •  Б 5 г  •  Ж 3 г  •  У 27 г").assertExists()
+    }
+
+    @Test
+    fun nutritionEditorAcceptsCommaDecimalsAndRejectsMalformedNumbers() {
+        val state = androidx.compose.runtime.mutableStateOf(record(RecordType.NUTRITION))
+        composeRule.setContent {
+            MaterialTheme {
+                NutritionRecordEditor(
+                    note = state.value,
+                    topBarColor = Color(0xFF202020),
+                    onBack = {},
+                    onChange = { state.value = it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Белки, г").performTextReplacement("12,5")
+        composeRule.runOnIdle { assertEquals(12.5, state.value.nutritionProtein, 0.0) }
+
+        composeRule.onNodeWithText("Белки, г").performTextReplacement("1,2,3")
+        composeRule.runOnIdle { assertEquals(12.5, state.value.nutritionProtein, 0.0) }
     }
 
     @Test
@@ -77,6 +98,26 @@ class ModuleEditorSmokeTest {
         composeRule.onNodeWithText("Куплено").assertExists()
     }
 
+    @Test
+    fun purchaseEditorAcceptsCommaDecimalsAndRejectsMultipleSeparators() {
+        val state = androidx.compose.runtime.mutableStateOf(record(RecordType.PURCHASE))
+        composeRule.setContent {
+            MaterialTheme {
+                PurchaseRecordEditor(
+                    note = state.value,
+                    topBarColor = Color(0xFF202020),
+                    onBack = {},
+                    onChange = { state.value = it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Количество").performTextReplacement("2,5")
+        composeRule.runOnIdle { assertEquals(2.5, state.value.purchaseQuantity, 0.0) }
+
+        composeRule.onNodeWithText("Количество").performTextReplacement("2,5,7")
+        composeRule.runOnIdle { assertEquals(2.5, state.value.purchaseQuantity, 0.0) }
+    }
 
     @Test
     fun workoutInputsDisplayAndSaveClampedValues() {

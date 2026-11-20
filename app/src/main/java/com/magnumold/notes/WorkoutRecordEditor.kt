@@ -40,7 +40,7 @@ internal fun WorkoutRecordEditor(
         )
     }
     var weightInput by remember(note.id) {
-        mutableStateOf(if (note.workoutWeightKg == 0.0) "" else note.workoutWeightKg.toString())
+        mutableStateOf(DecimalInputOperations.format(note.workoutWeightKg))
     }
     val volume = WorkoutOperations.totalVolumeDecimal(note.workoutSets, note.workoutReps, note.workoutWeightKg)
     AppPageScaffold(
@@ -83,15 +83,11 @@ internal fun WorkoutRecordEditor(
             OutlinedTextField(
                 value = weightInput,
                 onValueChange = { raw ->
-                    if (raw.length <= 10 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
-                        val parsed = raw.replace(',', '.').toDoubleOrNull()
-                        val normalized = WorkoutOperations.normalizeWeight(parsed ?: 0.0)
-                        weightInput = when {
-                            raw.isBlank() -> ""
-                            parsed != null && normalized != parsed -> normalized.toString()
-                            else -> raw
-                        }
-                        onChange(note.copy(workoutWeightKg = normalized))
+                    if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
+                        weightInput = raw
+                        onChange(note.copy(workoutWeightKg = WorkoutOperations.normalizeWeight(
+                            DecimalInputOperations.parse(raw)
+                        )))
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

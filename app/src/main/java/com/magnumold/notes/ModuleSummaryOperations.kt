@@ -1,17 +1,8 @@
 package com.magnumold.notes
 
-import java.util.Locale
-
 internal object ModuleSummaryOperations {
     fun summary(title: String, records: List<Note>, todayDay: Long, nowMillis: Long = System.currentTimeMillis()): String? {
         val today = records.filter { timelineDayKey(it) == todayDay }
-        fun number(value: Double): String {
-            if (!value.isFinite()) return "—"
-            val decimal = java.math.BigDecimal.valueOf(value).stripTrailingZeros()
-            return if (decimal.scale() <= 0) decimal.toPlainString()
-            else "%.1f".format(Locale.getDefault(), value)
-        }
-
         return when (title) {
             "Задачи" -> {
                 val entries = today.filter { it.type == RecordType.TASK }
@@ -30,7 +21,7 @@ internal object ModuleSummaryOperations {
                     val protein = NutritionOperations.sumAmounts(entries.map { it.nutritionProtein })
                     val fat = NutritionOperations.sumAmounts(entries.map { it.nutritionFat })
                     val carbs = NutritionOperations.sumAmounts(entries.map { it.nutritionCarbs })
-                    "Сегодня: ${NutritionOperations.formatAmount(calories)} ккал · Б ${NutritionOperations.formatAmount(protein)} г · Ж ${NutritionOperations.formatAmount(fat)} г · У ${NutritionOperations.formatAmount(carbs)} г"
+                    "Сегодня: ${NutritionOperations.formatCalories(calories)} ккал · Б ${NutritionOperations.formatAmount(protein)} г · Ж ${NutritionOperations.formatAmount(fat)} г · У ${NutritionOperations.formatAmount(carbs)} г"
                 }
             }
             "Покупки" -> {

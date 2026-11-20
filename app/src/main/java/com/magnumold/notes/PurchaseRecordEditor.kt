@@ -21,13 +21,15 @@ internal fun PurchaseRecordEditor(
 ) {
     @Composable
     fun AmountField(label: String, value: Double, update: (Double) -> Unit) {
-        var input by remember(note.id, label) { mutableStateOf(if (value == 0.0) "" else value.toString()) }
+        var input by remember(note.id, label) {
+            mutableStateOf(DecimalInputOperations.format(value))
+        }
         OutlinedTextField(
             value = input,
             onValueChange = { raw ->
-                if (raw.length <= 12 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
+                if (DecimalInputOperations.isValid(raw, maxLength = 12)) {
                     input = raw
-                    update(PurchaseOperations.normalizeAmount(raw.replace(',', '.').toDoubleOrNull() ?: 0.0))
+                    update(PurchaseOperations.normalizeAmount(DecimalInputOperations.parse(raw)))
                 }
             },
             modifier = Modifier.fillMaxWidth(),

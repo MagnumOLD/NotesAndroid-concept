@@ -141,6 +141,23 @@ class ModuleSummaryOperationsTest {
     }
 
     @Test
+    fun nutritionSummaryDisplaysCaloriesAsWholeKcalAndMacrosAsFractions() {
+        val day = 803L
+        val records = listOf(
+            Note(1, "", emptyList(), 1L, type = RecordType.NUTRITION,
+                scheduledAt = day * 86_400_000L, nutritionCalories = 125.9,
+                nutritionProtein = 12.5, nutritionFat = 4.25, nutritionCarbs = 0.75),
+            Note(2, "", emptyList(), 1L, type = RecordType.NUTRITION,
+                scheduledAt = day * 86_400_000L, nutritionCalories = 0.9,
+                nutritionProtein = 0.25, nutritionFat = 0.25, nutritionCarbs = 0.25)
+        )
+        assertEquals(
+            "Сегодня: 126 ккал · Б 12.8 г · Ж 4.5 г · У 1 г",
+            ModuleSummaryOperations.summary("КБЖУ", records, day)
+        )
+    }
+
+    @Test
     fun purchaseSummaryIgnoresNegativeAndNonFiniteImportedAmounts() {
         val day = 801L
         val entry = Note(

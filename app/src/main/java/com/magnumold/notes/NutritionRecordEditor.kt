@@ -21,13 +21,15 @@ internal fun NutritionRecordEditor(
 ) {
     @Composable
     fun NumericField(label: String, value: Double, update: (Double) -> Unit) {
-        var input by remember(note.id, label) { mutableStateOf(if (value == 0.0) "" else value.toString()) }
+        var input by remember(note.id, label) {
+            mutableStateOf(DecimalInputOperations.format(value))
+        }
         OutlinedTextField(
             value = input,
             onValueChange = { raw ->
-                if (raw.length <= 10 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
+                if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
                     input = raw
-                    update(NutritionOperations.normalizeAmount(raw.replace(',', '.').toDoubleOrNull() ?: 0.0))
+                    update(NutritionOperations.normalizeAmount(DecimalInputOperations.parse(raw)))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -74,12 +76,9 @@ internal fun NutritionRecordEditor(
             NumericField("Жиры, г", note.nutritionFat) { onChange(note.copy(nutritionFat = it)) }
             NumericField("Углеводы, г", note.nutritionCarbs) { onChange(note.copy(nutritionCarbs = it)) }
             HorizontalDivider()
+            Text("КБЖУ этой записи", style = MaterialTheme.typography.titleMedium)
             Text(
-                "КБЖУ этой записи",
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                "${NutritionOperations.formatCalories(note.nutritionCalories)} ккал  •  Б ${note.nutritionProtein} г  •  Ж ${note.nutritionFat} г  •  У ${note.nutritionCarbs} г",
+                "${NutritionOperations.formatCalories(note.nutritionCalories)} ккал  •  Б ${NutritionOperations.formatAmount(note.nutritionProtein)} г  •  Ж ${NutritionOperations.formatAmount(note.nutritionFat)} г  •  У ${NutritionOperations.formatAmount(note.nutritionCarbs)} г",
                 style = MaterialTheme.typography.bodyLarge
             )
         }

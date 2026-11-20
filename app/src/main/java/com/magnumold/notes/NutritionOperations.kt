@@ -16,6 +16,9 @@ internal object NutritionOperations {
     fun sumAmounts(values: Iterable<Double>): BigDecimal =
         values.fold(BigDecimal.ZERO) { total, value -> total.add(decimalAmount(value)) }
 
+    fun formatAmount(value: Double, locale: Locale = Locale.getDefault()): String =
+        formatAmount(decimalAmount(value), locale)
+
     fun formatAmount(value: BigDecimal, locale: Locale = Locale.getDefault()): String {
         val rounded = value.max(BigDecimal.ZERO)
             .setScale(1, RoundingMode.HALF_UP)
@@ -27,7 +30,10 @@ internal object NutritionOperations {
         }.format(rounded)
     }
 
-    /** Calories are displayed as whole kcal; use Long to avoid wrapping above Int.MAX_VALUE. */
+    /** Calories are displayed as whole kcal without overflowing Long or Int. */
     fun formatCalories(value: Double): String =
-        if (value.isFinite()) value.toLong().toString() else "—"
+        if (value.isFinite()) formatCalories(BigDecimal.valueOf(normalizeAmount(value))) else "—"
+
+    fun formatCalories(value: BigDecimal): String =
+        value.max(BigDecimal.ZERO).toBigInteger().toString()
 }
