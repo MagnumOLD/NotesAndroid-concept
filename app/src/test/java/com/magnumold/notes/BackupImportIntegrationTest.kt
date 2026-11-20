@@ -41,8 +41,12 @@ class BackupImportIntegrationTest {
                     id = "original-session",
                     taskId = 10L,
                     parentTaskId = null,
+                    taskTitle = "Original task",
+                    subtaskTitle = null,
                     startedAtMillis = 100L,
-                    endedAtMillis = 200L
+                    endedAtMillis = 200L,
+                    durationMillis = 100L,
+                    endReason = WorkSessionEndReason.STOP
                 )
             )
         )
@@ -107,8 +111,12 @@ class BackupImportIntegrationTest {
                             id = "imported-session",
                             taskId = 20L,
                             parentTaskId = null,
+                            taskTitle = "Imported task",
+                            subtaskTitle = null,
                             startedAtMillis = 300L,
-                            endedAtMillis = 400L
+                            endedAtMillis = 400L,
+                            durationMillis = 100L,
+                            endReason = WorkSessionEndReason.STOP
                         )
                     )
                 ),
