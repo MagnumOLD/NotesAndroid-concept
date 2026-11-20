@@ -69,6 +69,7 @@ internal fun mergeTimeTrackingBackup(
             null
         } else current.protectionTimer ?: imported.protectionTimer,
         firedProtectionAlert = current.firedProtectionAlert,
+        pendingProtectionTaskPauseId = current.pendingProtectionTaskPauseId,
         soundUri = imported.soundUri ?: current.soundUri,
         soundEnabled = imported.soundEnabled
     )
@@ -100,7 +101,8 @@ internal fun remapTimeTrackingTaskIds(
         },
         firedProtectionAlert = state.firedProtectionAlert?.let { timer ->
             timer.copy(taskId = mapped(timer.taskId), parentTaskId = mappedParent(timer.parentTaskId))
-        }
+        },
+        pendingProtectionTaskPauseId = state.pendingProtectionTaskPauseId?.let(::mapped)
     )
 }
 
