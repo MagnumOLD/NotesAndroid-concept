@@ -7,6 +7,18 @@ class NutritionOperationsTest {
     @Test
     fun calorieSummaryDoesNotOverflowAtLargeValidValues() {
         assertEquals("9999999999", NutritionOperations.formatCalories(9_999_999_999.0))
+        assertEquals("2147483648", NutritionOperations.formatCalories(Int.MAX_VALUE.toDouble() + 1.0))
+    }
+
+    @Test
+    fun calorieSummaryKeepsWholeKcalDisplay() {
+        assertEquals("125", NutritionOperations.formatCalories(125.9))
+    }
+
+    @Test
+    fun calorieSummaryMarksNonFiniteValues() {
+        assertEquals("—", NutritionOperations.formatCalories(Double.NaN))
+        assertEquals("—", NutritionOperations.formatCalories(Double.POSITIVE_INFINITY))
     }
 
     @Test
