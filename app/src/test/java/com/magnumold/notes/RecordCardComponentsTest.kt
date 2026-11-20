@@ -5,6 +5,24 @@ import org.junit.Test
 
 class RecordCardComponentsTest {
     @Test
+    fun primaryCardTextUsesModuleSpecificTitles() {
+        fun record(type: RecordType, title: String = "") = Note(
+            id = type.ordinal.toLong() + 1L,
+            title = "",
+            blocks = listOf(NoteBlock("")),
+            updated = 1L,
+            type = type,
+            titleText = title
+        )
+
+        assertEquals("Таймер", recordCardPrimaryText(record(RecordType.TIMER)))
+        assertEquals("Запись КБЖУ", recordCardPrimaryText(record(RecordType.NUTRITION)))
+        assertEquals("Тренировка", recordCardPrimaryText(record(RecordType.WORKOUT)))
+        assertEquals("Молоко", recordCardPrimaryText(record(RecordType.PURCHASE, "Молоко")))
+        assertEquals("Позвонить", recordCardPrimaryText(record(RecordType.TASK, "Позвонить")))
+    }
+
+    @Test
     fun purchaseCardPreviewPreservesLargeCalculatedTotal() {
         val previousLocale = java.util.Locale.getDefault()
         try {
