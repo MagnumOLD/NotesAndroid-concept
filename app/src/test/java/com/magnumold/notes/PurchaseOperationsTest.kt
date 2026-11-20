@@ -56,7 +56,7 @@ class PurchaseOperationsTest {
             Note(1, "", emptyList(), 1L, type = RecordType.PURCHASE, purchaseQuantity = 3.0, purchaseUnitPrice = 0.1),
             Note(2, "", emptyList(), 1L, type = RecordType.PURCHASE, purchaseQuantity = 3.0, purchaseUnitPrice = 0.2)
         )
-        assertEquals(BigDecimal("0.9"), PurchaseOperations.sumTotalCost(records))
+        assertEquals(0, PurchaseOperations.sumTotalCost(records).compareTo(BigDecimal("0.9")))
         assertEquals("0.9", PurchaseOperations.formatAmount(PurchaseOperations.sumTotalCost(records), Locale.US))
     }
 
