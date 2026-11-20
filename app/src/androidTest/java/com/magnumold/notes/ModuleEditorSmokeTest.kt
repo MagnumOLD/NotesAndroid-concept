@@ -72,8 +72,10 @@ class ModuleEditorSmokeTest {
             }
         }
 
-        composeRule.onNodeWithText("Продукты в приёме пищи").assertExists()
-        composeRule.onNodeWithText("Нажми +, выбери продукт и укажи массу. Этой же кнопкой добавляй следующие продукты.").assertExists()
+        composeRule.onNodeWithText("Добавить продукт").assertExists()
+        composeRule.onNodeWithText("Продукт").assertExists()
+        composeRule.onNodeWithText("Граммы").assertExists()
+        composeRule.onNodeWithText("Открыть базу продуктов").assertExists()
     }
 
     @Test

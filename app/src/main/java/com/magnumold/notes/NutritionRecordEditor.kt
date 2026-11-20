@@ -26,6 +26,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,10 +46,19 @@ internal fun NutritionRecordEditor(
     onChange: (Note) -> Unit,
     onProductsChange: (List<NutritionProduct>) -> Unit
 ) {
+    val legacyRecord = note.nutritionItems.isEmpty() && (
+        note.nutritionGrams > 0 || note.nutritionCalories > 0 ||
+        note.nutritionProtein > 0 || note.nutritionFat > 0 || note.nutritionCarbs > 0
+    )
     var catalogVisible by remember { mutableStateOf(false) }
     var catalogSearch by remember { mutableStateOf("") }
-    var pickerLineId by remember { mutableStateOf<String?>(null) }
+    var pickerLineId by remember {
+        mutableStateOf(if (note.nutritionItems.isEmpty() && !legacyRecord) java.util.UUID.randomUUID().toString() else null)
+    }
     var pickerSearch by remember { mutableStateOf("") }
+    var pickerGrams by remember { mutableStateOf("100") }
+    val productFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     var editingProduct by remember { mutableStateOf<NutritionProduct?>(null) }
     var productFormVisible by remember { mutableStateOf(false) }
     var pendingLineId by remember { mutableStateOf<String?>(null) }
@@ -58,10 +70,6 @@ internal fun NutritionRecordEditor(
     var reorderSession by remember { mutableStateOf<ReorderSession?>(null) }
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val legacyRecord = note.nutritionItems.isEmpty() && (
-        note.nutritionGrams > 0 || note.nutritionCalories > 0 ||
-        note.nutritionProtein > 0 || note.nutritionFat > 0 || note.nutritionCarbs > 0
-    )
     val orderedItems = remember(note.nutritionItems, reorderSession?.keys) {
         val byId = note.nutritionItems.associateBy { it.id }
         reorderSession?.keys?.mapNotNull(byId::get) ?: note.nutritionItems
@@ -93,7 +101,16 @@ internal fun NutritionRecordEditor(
         onSessionChange = { reorderSession = it },
         onFinishDrag = { finishDrag() }
     )
-    BackHandler(enabled = catalogVisible) { catalogVisible = false }
+    BackHandler(enabled = pickerLineId != null || catalogVisible) {
+        if (pickerLineId != null) pickerLineId = null else catalogVisible = false
+    }
+    LaunchedEffect(pickerLineId) {
+        if (pickerLineId != null) {
+            kotlinx.coroutines.delay(120)
+            productFocusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
 
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -105,16 +122,22 @@ internal fun NutritionRecordEditor(
                         .padding(start = AppSpacing.screenHorizontal, end = AppSpacing.toolbarControlInset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { if (catalogVisible) catalogVisible = false else onBack() }) {
+                    IconButton(onClick = {
+                        when {
+                            pickerLineId != null -> pickerLineId = null
+                            catalogVisible -> catalogVisible = false
+                            else -> onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
                     }
                     Text(
-                        if (catalogVisible) "База продуктов" else "Приём пищи",
+                        when { catalogVisible -> "База продуктов"; pickerLineId != null -> "Добавить продукт"; else -> "Приём пищи" },
                         style = AppTypography.screenTitleStyle(),
                         color = noteTextColor(topBarColor),
                         modifier = Modifier.weight(1f)
                     )
-                    if (!catalogVisible) {
+                    if (!catalogVisible && pickerLineId == null) {
                         TextButton(onClick = { catalogSearch = ""; catalogVisible = true }) {
                             Text("База продуктов", color = noteTextColor(topBarColor))
                         }
@@ -123,7 +146,7 @@ internal fun NutritionRecordEditor(
             }
         },
         floatingActionButton = {
-            if (!legacyRecord || catalogVisible) {
+            if ((!legacyRecord || catalogVisible) && pickerLineId == null) {
                 Box(
                     Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset)
                         .size(PrimaryAddButtonDimensions.diameter)
@@ -136,6 +159,7 @@ internal fun NutritionRecordEditor(
                                 productFormVisible = true
                             } else {
                                 pickerSearch = ""
+                                pickerGrams = "100"
                                 pickerLineId = java.util.UUID.randomUUID().toString()
                             }
                         },
@@ -194,6 +218,75 @@ internal fun NutritionRecordEditor(
                             }
                         }
                     }
+                }
+            }
+            pickerLineId != null -> {
+                Column(
+                    Modifier.fillMaxSize().padding(padding)
+                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+                ) {
+                    OutlinedTextField(
+                        value = pickerSearch,
+                        onValueChange = { pickerSearch = it },
+                        modifier = Modifier.fillMaxWidth().focusRequester(productFocusRequester),
+                        singleLine = true,
+                        label = { Text("Продукт") },
+                        placeholder = { Text("Начни вводить название") }
+                    )
+                    OutlinedTextField(
+                        value = pickerGrams,
+                        onValueChange = { if (DecimalInputOperations.isValid(it, maxLength = 10)) pickerGrams = it },
+                        modifier = Modifier.widthIn(min = 120.dp, max = 160.dp),
+                        singleLine = true,
+                        label = { Text("Граммы") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    )
+                    val matches = products.filter { it.name.contains(pickerSearch.trim(), ignoreCase = true) }
+                        .sortedBy { it.name.lowercase() }
+                    Text(if (pickerSearch.isBlank()) "Выбери продукт из базы" else "Найденные продукты",
+                        style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (matches.isEmpty()) {
+                        Text(if (products.isEmpty()) "База пока пуста. Добавь продукт через отдельную страницу базы."
+                            else "Совпадений нет. Можно добавить продукт в базу.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(bottom = 16.dp)) {
+                            itemsIndexed(matches, key = { _, product -> product.id }) { _, product ->
+                                RecordCardSurface(background = MaterialTheme.colorScheme.background) {
+                                    TextButton(
+                                        onClick = {
+                                            val grams = DecimalInputOperations.parse(pickerGrams).coerceAtLeast(0.0)
+                                            val item = NutritionCatalogOperations.createMealItem(product, grams, pickerLineId!!)
+                                            onChange(NutritionCatalogOperations.withMealItems(
+                                                note.copy(titleText = note.titleText.ifBlank { "Приём пищи" }),
+                                                note.nutritionItems + item
+                                            ))
+                                            pickerLineId = null
+                                            pickerSearch = ""
+                                            pickerGrams = "100"
+                                        },
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.sm, vertical = AppSpacing.xs)
+                                    ) {
+                                        Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
+                                            Text(product.name, style = MaterialTheme.typography.titleMedium)
+                                            Text(NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал / 100 г · Б " +
+                                                NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
+                                                NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
+                                                NutritionOperations.formatAmount(product.carbsPer100g),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    TextButton(onClick = {
+                        catalogSearch = pickerSearch
+                        catalogVisible = true
+                        pickerLineId = null
+                    }) { Text("Открыть базу продуктов") }
                 }
             }
             legacyRecord -> LegacyNutritionRecordEditor(note, padding, onChange)
@@ -309,48 +402,6 @@ internal fun NutritionRecordEditor(
                 }
             }
         }
-    }
-
-    pickerLineId?.let { lineId ->
-        AlertDialog(
-            onDismissRequest = { pickerLineId = null },
-            title = { Text("Выбрать продукт") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
-                    OutlinedTextField(pickerSearch, { pickerSearch = it }, modifier = Modifier.fillMaxWidth(),
-                        singleLine = true, label = { Text("Поиск") })
-                    val matches = products.filter { it.name.contains(pickerSearch.trim(), ignoreCase = true) }
-                    if (matches.isEmpty()) Text("Подходящих продуктов нет")
-                    Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
-                        matches.forEach { product ->
-                            TextButton(onClick = {
-                                val item = NutritionCatalogOperations.createMealItem(product, 100.0, lineId)
-                                val index = note.nutritionItems.indexOfFirst { it.id == lineId }
-                                val items = if (index < 0) note.nutritionItems + item
-                                    else note.nutritionItems.toMutableList().also { it[index] = item }
-                                onChange(NutritionCatalogOperations.withMealItems(
-                                    note.copy(titleText = note.titleText.ifBlank { "Приём пищи" }), items))
-                                pickerLineId = null
-                            }, modifier = Modifier.fillMaxWidth()) {
-                                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-                                    Text(product.name)
-                                    Text(NutritionOperations.formatCalories(product.caloriesPer100g) + " ккал / 100 г · Б " +
-                                        NutritionOperations.formatAmount(product.proteinPer100g) + " · Ж " +
-                                        NutritionOperations.formatAmount(product.fatPer100g) + " · У " +
-                                        NutritionOperations.formatAmount(product.carbsPer100g),
-                                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                            }
-                        }
-                    }
-                    TextButton(onClick = {
-                        pendingLineId = lineId; pickerLineId = null; returnToCatalog = false
-                        editingProduct = null; productFormVisible = true
-                    }) { Text("Создать продукт в базе") }
-                }
-            },
-            confirmButton = { TextButton(onClick = { pickerLineId = null }) { Text("Закрыть") } }
-        )
     }
 
     if (productFormVisible) {
