@@ -24,11 +24,28 @@ class PurchaseOperationsTest {
         assertEquals("—", PurchaseOperations.formatAmount(Double.NaN, Locale.US))
         assertEquals("—", PurchaseOperations.formatAmount(Double.POSITIVE_INFINITY, Locale.US))
     }
+
     @Test
     fun invalidAndNegativePurchaseAmountsAreNormalizedToZero() {
         assertEquals(0.0, PurchaseOperations.normalizeAmount(Double.NaN), 0.0)
         assertEquals(0.0, PurchaseOperations.normalizeAmount(Double.NEGATIVE_INFINITY), 0.0)
         assertEquals(0.0, PurchaseOperations.normalizeAmount(-4.5), 0.0)
         assertEquals(2.75, PurchaseOperations.normalizeAmount(2.75), 0.0)
+    }
+
+    @Test
+    fun purchaseTotalUsesExactDecimalMultiplicationAndTwoFractionDigits() {
+        assertEquals("31.25", PurchaseOperations.formatTotalCost(2.5, 12.5, Locale.US))
+        assertEquals("31,25", PurchaseOperations.formatTotalCost(2.5, 12.5, Locale.GERMANY))
+    }
+
+    @Test
+    fun purchaseTotalDoesNotRenderInfinityWhenImportedValuesOverflowDoubleRange() {
+        assertEquals("—", PurchaseOperations.formatTotalCost(Double.MAX_VALUE, 2.0, Locale.US))
+    }
+
+    @Test
+    fun invalidPurchaseTotalInputsAreSafelyNormalized() {
+        assertEquals("0.00", PurchaseOperations.formatTotalCost(Double.NaN, -4.0, Locale.US))
     }
 }

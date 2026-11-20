@@ -37,8 +37,7 @@ internal fun PurchaseRecordEditor(
         )
     }
     val purchased = note.status == RecordStatus.COMPLETED
-    val total = PurchaseOperations.normalizeAmount(note.purchaseQuantity) *
-        PurchaseOperations.normalizeAmount(note.purchaseUnitPrice)
+    val total = PurchaseOperations.formatTotalCost(note.purchaseQuantity, note.purchaseUnitPrice)
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -79,7 +78,7 @@ internal fun PurchaseRecordEditor(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("Итого", style = MaterialTheme.typography.titleMedium)
-                    Text("%.2f".format(java.util.Locale.getDefault(), total), style = MaterialTheme.typography.headlineSmall)
+                    Text(total, style = MaterialTheme.typography.headlineSmall)
                 }
                 Text("Куплено", style = MaterialTheme.typography.bodyMedium)
                 Switch(
