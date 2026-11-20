@@ -20,8 +20,8 @@ android {
     testOptions {
         unitTests.all {
             // Use Maven Central's canonical endpoint for Robolectric runtime artifacts.
-            systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
-            systemProperty("robolectric.dependency.repo.id", "mavenCentral")
+            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+            it.systemProperty("robolectric.dependency.repo.id", "mavenCentral")
         }
     }
 
