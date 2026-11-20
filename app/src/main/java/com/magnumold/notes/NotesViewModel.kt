@@ -161,42 +161,38 @@ internal class NotesViewModel(
     fun importBackup(json: String): BackupImportResult {
         val imported = parseBackupJson(json)
         val before = _snapshot.value
-        val currentTimeTracking = timeTrackingRepository.load()
-        val merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
-        val remappedTrackingBackup = imported.timeTracking?.let { backup ->
-            remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
-        }
-        var previousTimeTracking = currentTimeTracking
-        val mergedTimeTracking = remappedTrackingBackup?.let { backup ->
-            timeTrackingRepository.update { current ->
-                previousTimeTracking = current
-                mergeTimeTrackingBackup(current, backup)
+        lateinit var merge: RecordOperations.BackupMergeResult
+
+        // Keep timer/service writes behind the same repository lock until all
+        // three parts of the backup have committed or have been rolled back.
+        return timeTrackingRepository.withBackupImportTransaction(
+            prepare = { currentTimeTracking ->
+                merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
+                imported.timeTracking?.let { backup ->
+                    val remapped = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
+                    mergeTimeTrackingBackup(currentTimeTracking, remapped)
+                }
+            },
+            commit = { _, _ ->
+                val importedCount =
+                    RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
+                updateSnapshot { merge.snapshot }
+                try {
+                    flush()
+                    val importedRecoveryCount =
+                        recoveryDataRepository.importEntries(imported.recoveryEntries)
+                    BackupImportResult(importedCount, importedRecoveryCount)
+                } catch (failure: Throwable) {
+                    // RecoveryDataRepository rolls back its own preference writes;
+                    // restore the main snapshot here. The tracking repository then
+                    // restores its previous state before releasing its transaction lock.
+                    _snapshot.value = before
+                    runCatching { flush() }
+                        .exceptionOrNull()?.let(failure::addSuppressed)
+                    throw failure
+                }
             }
-        }
-        val importedCount = RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
-
-        // Persist the merged records and tracking references as one logical
-        // operation. If the record snapshot cannot be committed, roll back the
-        // tracking state only if no newer service/UI update has replaced it.
-
-        updateSnapshot { merge.snapshot }
-        try {
-            flush()
-        } catch (failure: Exception) {
-            _snapshot.value = before
-            runCatching { repository.flushSnapshot(before) }
-                .exceptionOrNull()?.let(failure::addSuppressed)
-            if (mergedTimeTracking != null) {
-                runCatching {
-                    timeTrackingRepository.restoreBackupIfCurrent(mergedTimeTracking, previousTimeTracking)
-                }.exceptionOrNull()?.let(failure::addSuppressed)
-            }
-            throw failure
-        }
-
-        // Recovery payloads are imported only after the main data commit succeeds.
-        val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
-        return BackupImportResult(importedCount, importedRecoveryCount)
+        )
     }
 
     fun restoreVaultEntry(entry: VaultNote, fromArchive: Boolean) {

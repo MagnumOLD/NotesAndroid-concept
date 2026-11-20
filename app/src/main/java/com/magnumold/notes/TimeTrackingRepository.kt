@@ -213,6 +213,31 @@ internal class TimeTrackingRepository(
         save(backupState)
     }
 
+    /**
+     * Serializes a multi-store backup import against timer/service updates.
+     * The caller commits records and recovery fragments inside [commit]. If
+     * any part fails, the durable tracking state and its StateFlow are restored
+     * before the lock is released.
+     */
+    fun <T> withBackupImportTransaction(
+        prepare: (TimeTrackingState) -> TimeTrackingState?,
+        commit: (previous: TimeTrackingState, merged: TimeTrackingState?) -> T
+    ): T = synchronized(LOCK) {
+        val previous = loadStoredState()
+        _state.value = previous
+        val merged = prepare(previous)
+        if (merged != null) save(merged)
+        try {
+            commit(previous, merged)
+        } catch (failure: Throwable) {
+            if (merged != null) {
+                runCatching { save(previous) }
+                    .exceptionOrNull()?.let(failure::addSuppressed)
+            }
+            throw failure
+        }
+    }
+
     /** Rolls back an import only if no newer tracking update has replaced it. */
     fun restoreBackupIfCurrent(
         expectedCurrent: TimeTrackingState,
