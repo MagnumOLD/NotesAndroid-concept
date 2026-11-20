@@ -3,7 +3,10 @@ package com.magnumold.notes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.performTextReplacement
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -77,6 +80,10 @@ class ModuleEditorSmokeTest {
         composeRule.onNodeWithText("Граммы").assertExists()
         composeRule.onNodeWithText("Открыть базу продуктов").assertExists()
         composeRule.onNodeWithText("Добавить в запись").assertExists()
+
+        composeRule.onNodeWithText("+").performClick()
+        composeRule.onAllNodesWithText("Продукт").assertCountEquals(2)
+        composeRule.onAllNodesWithText("Граммы").assertCountEquals(2)
     }
 
     @Test

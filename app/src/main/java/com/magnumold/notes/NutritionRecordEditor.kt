@@ -480,6 +480,7 @@ internal fun NutritionRecordEditor(
             product = editingProduct,
             onDismiss = {
                 productFormVisible = false; editingProduct = null
+                pendingDraftId = null
                 if (returnToCatalog) catalogVisible = true
                 returnToCatalog = false
             },
