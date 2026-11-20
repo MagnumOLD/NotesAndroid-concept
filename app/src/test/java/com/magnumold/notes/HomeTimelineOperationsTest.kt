@@ -247,7 +247,7 @@ class HomeTimelineOperationsTest {
             note(4).copy(favorite = true, showOnHome = false)
         )
         assertEquals(
-            listOf(1L, 3L),
+            listOf(1L, 3L, 4L),
             HomeTimelineOperations.filterByRange(records, HomeTimelineRange.FAVORITES, 100L).map { it.id }
         )
     }
@@ -263,9 +263,11 @@ class HomeTimelineOperationsTest {
             note(5, created = 7 * 86_400_000L).copy(type = RecordType.PURCHASE, favorite = true)
         )
 
-        val ordered = HomeTimelineOperations.orderedFavoritesByModule(records)
+        val hiddenFavorite = note(6, created = 11 * 86_400_000L)
+            .copy(type = RecordType.NOTE, favorite = true, showOnHome = false)
+        val ordered = HomeTimelineOperations.orderedFavoritesByModule(records + hiddenFavorite)
 
-        assertEquals(listOf(2L, 3L, 1L, 5L), ordered.map { it.id })
+        assertEquals(listOf(6L, 2L, 3L, 1L, 5L), ordered.map { it.id })
         assertEquals("Заметки", HomeTimelineOperations.moduleSectionTitle(RecordType.NOTE))
         assertEquals("Задачи", HomeTimelineOperations.moduleSectionTitle(RecordType.TASK))
     }
