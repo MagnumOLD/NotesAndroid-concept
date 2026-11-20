@@ -52,12 +52,21 @@ internal data class ModuleConfiguration(
 
 internal class ModuleSettingsStore(private val preferences: SharedPreferences) {
     fun load(): ModuleConfiguration {
-        val enabledNames = preferences.getStringSet(KEY_ENABLED, null)
-        val orderNames = preferences.getString(KEY_ORDER, null)
-        val enabled = enabledNames?.mapNotNull { runCatching { AppModule.valueOf(it) }.getOrNull() }
-            ?.toSet() ?: ModuleConfiguration().enabled
-        val order = orderNames?.split(",")?.mapNotNull { runCatching { AppModule.valueOf(it) }.getOrNull() }
-            ?: ModuleConfiguration().order
+        // A damaged preference must not accidentally disable every module.
+        // An intentionally empty set remains valid and is preserved.
+        val enabledNames = runCatching { preferences.getStringSet(KEY_ENABLED, null) }.getOrNull()
+        val orderNames = runCatching { preferences.getString(KEY_ORDER, null) }.getOrNull()
+        val parsedEnabled = enabledNames?.mapNotNull {
+            runCatching { AppModule.valueOf(it) }.getOrNull()
+        }?.toSet()
+        val enabled = when {
+            enabledNames == null -> ModuleConfiguration().enabled
+            enabledNames.isNotEmpty() && parsedEnabled.isNullOrEmpty() -> ModuleConfiguration().enabled
+            else -> parsedEnabled.orEmpty()
+        }
+        val order = orderNames?.split(",")?.mapNotNull {
+            runCatching { AppModule.valueOf(it) }.getOrNull()
+        } ?: ModuleConfiguration().order
         return ModuleConfiguration(enabled, order).normalized()
     }
 
