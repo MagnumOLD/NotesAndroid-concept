@@ -15,6 +15,11 @@ internal class AppNavigationState {
         private set
     var modulesVisible by mutableStateOf(false)
         private set
+    var returnToModulesOnBack by mutableStateOf(false)
+        private set
+
+    val canReturnToModules: Boolean
+        get() = returnToModulesOnBack && activeModule != AppModule.ALL && !modulesVisible
     var moduleManagementVisible by mutableStateOf(false)
         private set
     var activeCollectionId by mutableStateOf<Long?>(null)
@@ -36,6 +41,7 @@ internal class AppNavigationState {
     fun closeModules() {
         modulesVisible = false
         moduleManagementVisible = false
+        returnToModulesOnBack = false
     }
 
     fun openModuleManagement() { moduleManagementVisible = true }
@@ -52,6 +58,7 @@ internal class AppNavigationState {
     }
 
     fun selectModule(module: AppModule) {
+        returnToModulesOnBack = module != AppModule.ALL && modulesVisible
         activeModule = module
         activeCollectionId = null
         selectedId = null
@@ -59,6 +66,19 @@ internal class AppNavigationState {
         moduleManagementVisible = false
         search = ""
         searchVisible = false
+    }
+
+    fun returnFromModuleToModules() {
+        if (!canReturnToModules) return
+        activeModule = AppModule.ALL
+        activeCollectionId = null
+        selectedId = null
+        autoFocusNewNote = false
+        search = ""
+        searchVisible = false
+        modulesVisible = true
+        moduleManagementVisible = false
+        returnToModulesOnBack = false
     }
 
     fun selectCollection(id: Long?) {
