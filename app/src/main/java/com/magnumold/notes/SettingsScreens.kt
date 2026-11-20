@@ -426,7 +426,7 @@ private fun SettingsNavigationItem(
             .clickable(onClick = onClick)
             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
             .heightIn(min = 72.dp)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AppIcon(icon, contentDescription = null)
