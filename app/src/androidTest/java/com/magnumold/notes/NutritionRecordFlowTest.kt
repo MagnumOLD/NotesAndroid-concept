@@ -4,6 +4,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
@@ -55,7 +56,7 @@ class NutritionRecordFlowTest {
         }
 
         composeRule.onNodeWithText("Продукт").performTextInput("Овсянка")
-        composeRule.onNodeWithText("Овсянка").performClick()
+        composeRule.onAllNodesWithText("Овсянка").get(1).performClick()
         composeRule.onNodeWithText("Граммы").performTextReplacement("50")
         composeRule.onNodeWithText("Добавить в запись").performClick()
 
