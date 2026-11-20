@@ -86,7 +86,8 @@ internal fun syncWorkSessionsForTaskChanges(
     ) {
         state = state.copy(
             protectionTimer = state.protectionTimer?.takeUnless { it.taskId in removedIds },
-            firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId in removedIds }
+            firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId in removedIds },
+            pendingProtectionTaskPauseId = state.pendingProtectionTaskPauseId?.takeUnless { it in removedIds }
         )
     }
 
@@ -99,7 +100,8 @@ internal fun syncWorkSessionsForTaskChanges(
             if (state.protectionTimer?.taskId == id || state.firedProtectionAlert?.taskId == id) {
                 state = state.copy(
                     protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
-                    firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id }
+                    firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id },
+                    pendingProtectionTaskPauseId = state.pendingProtectionTaskPauseId?.takeUnless { it == id }
                 )
             }
             return@forEach
@@ -114,7 +116,8 @@ internal fun syncWorkSessionsForTaskChanges(
         ) {
             state = state.copy(
                 protectionTimer = state.protectionTimer?.takeUnless { it.taskId == id },
-                firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id }
+                firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == id },
+                pendingProtectionTaskPauseId = state.pendingProtectionTaskPauseId?.takeUnless { it == id }
             )
         }
 
@@ -189,7 +192,8 @@ internal fun clearProtectionTimerForTask(
 ): TimeTrackingState =
     state.copy(
         protectionTimer = state.protectionTimer?.takeUnless { it.taskId == taskId },
-        firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == taskId }
+        firedProtectionAlert = state.firedProtectionAlert?.takeUnless { it.taskId == taskId },
+        pendingProtectionTaskPauseId = state.pendingProtectionTaskPauseId?.takeUnless { it == taskId }
     )
 
 /**
@@ -230,8 +234,16 @@ internal fun completeProtectionTimerIfCurrent(
             expectedTimer.taskId,
             nowMillis,
             WorkSessionEndReason.AUTOMATIC_PAUSE
-        ).copy(protectionTimer = null, firedProtectionAlert = expectedTimer)
-        ProtectionEndMode.SIGNAL_ONLY -> state.copy(protectionTimer = null, firedProtectionAlert = expectedTimer)
+        ).copy(
+            protectionTimer = null,
+            firedProtectionAlert = expectedTimer,
+            pendingProtectionTaskPauseId = expectedTimer.taskId
+        )
+        ProtectionEndMode.SIGNAL_ONLY -> state.copy(
+            protectionTimer = null,
+            firedProtectionAlert = expectedTimer,
+            pendingProtectionTaskPauseId = null
+        )
     }
 }
 
@@ -268,3 +280,22 @@ internal fun resumeWorkAfterProtectionTimer(
 /** Whether a persisted alert must be relaunched after Android restarts. */
 internal fun shouldRestoreProtectionAlertOnBoot(state: TimeTrackingState): Boolean =
     state.firedProtectionAlert != null
+
+/**
+ * Delivers the durable task-pause side effect recorded when a protection timer
+ * expires. The marker is cleared only after the record write succeeds (or the
+ * task no longer exists), so a process death cannot silently lose the action.
+ */
+internal fun applyPendingProtectionTaskPause(
+    trackingRepository: TimeTrackingRepository,
+    notesRepository: NotesRepository
+): Long? {
+    val taskId = trackingRepository.load().pendingProtectionTaskPauseId ?: return null
+    notesRepository.updateTaskStatus(taskId, RecordStatus.PAUSED)
+    trackingRepository.update { latest ->
+        if (latest.pendingProtectionTaskPauseId == taskId) {
+            latest.copy(pendingProtectionTaskPauseId = null)
+        } else latest
+    }
+    return taskId
+}
