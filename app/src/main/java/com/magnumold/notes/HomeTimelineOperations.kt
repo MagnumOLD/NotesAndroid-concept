@@ -58,6 +58,19 @@ internal object HomeTimelineOperations {
     fun moduleSectionTitle(type: RecordType): String =
         AppModule.entries.firstOrNull { it.recordType == type }?.title ?: "Другое"
 
+    fun emptyStateMessage(range: HomeTimelineRange, searching: Boolean): String {
+        if (searching) return "Ничего не найдено"
+        return when (range) {
+            HomeTimelineRange.ALL -> "Пока нет записей"
+            HomeTimelineRange.TODAY -> "На сегодня записей нет"
+            HomeTimelineRange.TOMORROW -> "На завтра записей нет"
+            HomeTimelineRange.WEEK -> "На эту неделю записей нет"
+            HomeTimelineRange.MONTH -> "В этом месяце записей нет"
+            HomeTimelineRange.HISTORY -> "История пока пуста"
+            HomeTimelineRange.FAVORITES -> "В избранном пока пусто"
+        }
+    }
+
     fun update(snapshot: PersistenceSnapshot, note: Note): PersistenceSnapshot {
         if (snapshot.notes.any { it.id == note.id }) {
             return snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
