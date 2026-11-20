@@ -22,6 +22,8 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.platform.testTag
 
 internal enum class AppModule(
     val title: String,
@@ -225,8 +227,6 @@ internal fun ModulesScreen(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(
-                    start = AppSpacing.screenHorizontal,
-                    end = AppSpacing.screenHorizontal,
                     top = AppSpacing.md,
                     bottom = 28.dp
                 )
@@ -239,24 +239,36 @@ internal fun ModulesScreen(
                         "Меняйте порядок модулей перетаскиванием. Доступность настраивается отдельно.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(bottom = AppSpacing.md)
+                        modifier = Modifier.padding(
+                            horizontal = AppSpacing.screenHorizontal,
+                            bottom = AppSpacing.md
+                        )
                     )
                 }
                 val rows = if (isDragging) dragRows else ordered.map { ModuleDragRow(it.name, listOf(it)) }
                 items(rows, key = { it.key }) { row ->
                     val module = row.anchor
                     val enabled = module in configuration.enabled
-                    val selected = !row.isGroup && module in selectedModules
-                    val rowBackground = when {
-                        row.isGroup -> MaterialTheme.colorScheme.secondaryContainer
-                        selected -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.62f)
-                        else -> MaterialTheme.colorScheme.background
-                    }
+                    val selected = row.isGroup || module in selectedModules
+                    val baseBackground = MaterialTheme.colorScheme.background
+                    val dark = baseBackground.luminance() < 0.5f
+                    val cardBackground = mainCardBackground(
+                        color = baseBackground,
+                        selected = selected,
+                        isBaseColor = true,
+                        dark = dark,
+                        selectionColor = themeColors.selection
+                    )
+                    val cardTextColor = mainCardTextColor(baseBackground, isBaseColor = true)
 
-                    Column(Modifier.fillMaxWidth().background(rowBackground)) {
+                    RecordCardSurface(
+                        background = cardBackground,
+                        modifier = Modifier.testTag("module-card-${row.key}")
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(min = CardDimensions.contentHeight),
+                            verticalAlignment = Alignment.Top
                         ) {
                             Column(
                                 modifier = Modifier.weight(1f)
@@ -273,44 +285,51 @@ internal fun ModulesScreen(
                                             if (!isDragging) selectedModules = selectedModules + module
                                         }
                                     )
-                                    .padding(vertical = 12.dp)
+                                    .padding(
+                                        start = AppSpacing.screenHorizontal,
+                                        top = AppSpacing.md,
+                                        bottom = AppSpacing.md
+                                    )
                             ) {
-                                Text(
-                                    if (row.isGroup) "Группа" else module.title,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Medium
+                                MainCardHeader(
+                                    text = if (row.isGroup) "Группа" else module.title,
+                                    textColor = cardTextColor,
+                                    showDragHandle = false
                                 )
                                 Text(
                                     if (row.isGroup) "${row.modules.size} модулей" else module.subtitle,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = cardTextColor.copy(alpha = 0.76f),
+                                    modifier = Modifier.padding(top = AppSpacing.xs)
                                 )
                             }
 
-                            ModuleDragHandle(
-                                itemKey = row.key,
-                                listState = listState,
-                                enabled = !isDragging,
-                                onStart = { pointerY, grabOffset ->
-                                    startDrag(module, pointerY, grabOffset)
-                                },
-                                onPointer = { pointerY -> dragPointerY = pointerY },
-                                onRelease = { dragReleaseRequested = true },
-                                onCancel = {
-                                    draggingModules = emptySet()
-                                    reorderSession = null
-                                    dragBaseRows = emptyMap()
-                                    dragPointerY = 0f
-                                    dragGrabOffsetPx = 0f
-                                    dragReleaseRequested = false
-                                }
-                            )
-
+                            Box(
+                                modifier = Modifier.padding(
+                                    top = CardDimensions.sideRailTopInset,
+                                    end = CardDimensions.handleHitTargetRightInset
+                                )
+                            ) {
+                                ModuleDragHandle(
+                                    itemKey = row.key,
+                                    listState = listState,
+                                    enabled = !isDragging,
+                                    onStart = { pointerY, grabOffset ->
+                                        startDrag(module, pointerY, grabOffset)
+                                    },
+                                    onPointer = { pointerY -> dragPointerY = pointerY },
+                                    onRelease = { dragReleaseRequested = true },
+                                    onCancel = {
+                                        draggingModules = emptySet()
+                                        reorderSession = null
+                                        dragBaseRows = emptyMap()
+                                        dragPointerY = 0f
+                                        dragGrabOffsetPx = 0f
+                                        dragReleaseRequested = false
+                                    }
+                                )
+                            }
                         }
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f),
-                            thickness = 0.7.dp
-                        )
                     }
                 }
             }
