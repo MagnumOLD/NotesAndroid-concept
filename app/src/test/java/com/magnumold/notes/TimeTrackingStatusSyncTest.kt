@@ -182,6 +182,7 @@ class TimeTrackingStatusSyncTest {
         assertTrue(result.activeSessions.isEmpty())
         assertEquals(WorkSessionEndReason.AUTOMATIC_PAUSE, result.sessions.single().endReason)
         assertEquals(150L, result.sessions.single().durationMillis)
+        assertEquals(timer.taskId, result.pendingProtectionTaskPauseId)
     }
 
     @Test fun expiredSignalOnlyProtectionTimerDoesNotStopWorkSession() {
@@ -201,6 +202,7 @@ class TimeTrackingStatusSyncTest {
         assertEquals(null, result.protectionTimer)
         assertTrue(result.activeSessions.containsKey(11L))
         assertTrue(result.sessions.isEmpty())
+        assertEquals(null, result.pendingProtectionTaskPauseId)
     }
 
     @Test fun staleProtectionTimerActionClearsOnlyItsOwnTimer() {
