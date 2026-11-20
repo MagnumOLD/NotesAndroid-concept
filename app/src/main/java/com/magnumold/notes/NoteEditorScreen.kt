@@ -12,7 +12,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -273,7 +273,7 @@ internal fun NoteEditor(
     val latestEditorBlocks = rememberUpdatedState(editorBlocks)
     val latestFieldValue = rememberUpdatedState(fieldValue)
     val keyboardController = LocalSoftwareKeyboardController.current
-    val listState = rememberLazyListState()
+    val listState = remember(note.id) { LazyListState() }
     val latestTaskNote = rememberUpdatedState(note)
     val latestTaskChildren = rememberUpdatedState(note.children)
     val latestTaskOnChange = rememberUpdatedState(onChange)
