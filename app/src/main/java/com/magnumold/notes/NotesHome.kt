@@ -55,6 +55,7 @@ internal fun NotesHome(
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
      showCollections: Boolean = true,
+    collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -211,7 +212,7 @@ internal fun NotesHome(
                             }
                         }
                         IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
-                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
+                        IconButton(onClick = { showMoveMenu = true }, enabled = collectionsAvailable) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
                         DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
                             if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
                                 onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
