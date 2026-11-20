@@ -43,6 +43,7 @@ class ModuleEditorSmokeTest {
                     topBarColor = Color(0xFF202020),
                     addButtonColor = Color(0xFF4A90E2),
                     onBack = {},
+                    onSaved = {},
                     onChange = {},
                     onProductsChange = {}
                 )
@@ -69,6 +70,7 @@ class ModuleEditorSmokeTest {
                     topBarColor = Color(0xFF202020),
                     addButtonColor = Color(0xFF4A90E2),
                     onBack = {},
+                    onSaved = {},
                     onChange = { state.value = it },
                     onProductsChange = {}
                 )
@@ -98,6 +100,7 @@ class ModuleEditorSmokeTest {
                     ),
                     topBarColor = Color(0xFF202020),
                     onBack = {},
+                    onSaved = {},
                     onChange = {}
                 )
             }
@@ -120,6 +123,7 @@ class ModuleEditorSmokeTest {
                     note = state.value,
                     topBarColor = Color(0xFF202020),
                     onBack = {},
+                    onSaved = {},
                     onChange = { state.value = it }
                 )
             }
@@ -141,6 +145,7 @@ class ModuleEditorSmokeTest {
                     note = state.value,
                     topBarColor = Color(0xFF202020),
                     onBack = {},
+                    onSaved = {},
                     onChange = { state.value = it }
                 )
             }
@@ -169,6 +174,7 @@ class ModuleEditorSmokeTest {
                     ),
                     topBarColor = Color(0xFF202020),
                     onBack = {},
+                    onSaved = {},
                     onChange = {}
                 )
             }
