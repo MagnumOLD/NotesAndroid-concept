@@ -41,7 +41,6 @@ internal class AppNavigationState {
     fun closeModules() {
         modulesVisible = false
         moduleManagementVisible = false
-        returnToModulesOnBack = false
     }
 
     fun openModuleManagement() { moduleManagementVisible = true }
@@ -49,6 +48,7 @@ internal class AppNavigationState {
     fun closeModuleManagement() { moduleManagementVisible = false }
 
     fun returnToHomeKeepingModuleScreens() {
+        returnToModulesOnBack = false
         activeModule = AppModule.ALL
         activeCollectionId = null
         selectedId = null
