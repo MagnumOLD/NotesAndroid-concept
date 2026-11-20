@@ -140,6 +140,8 @@ internal fun SettingsScreen(
     onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
     homeCollectionVisible: Boolean = true,
     onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    onHomeButtonLayoutChange: (HomeButtonLayout) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -223,6 +225,29 @@ internal fun SettingsScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (personalizationVisible) {
+                ListItem(headlineContent = { Text("Главная страница", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                ListItem(
+                    headlineContent = { Text("Расположение кнопок") },
+                    supportingContent = { Text("Выберите расположение кнопок модулей и добавления записи") }
+                )
+                listOf(
+                    HomeButtonLayout.SEPARATE to "Раздельно — как сейчас",
+                    HomeButtonLayout.SIDE_BY_SIDE to "Рядом — две отдельные кнопки",
+                    HomeButtonLayout.SHARED_PANEL to "Общая панель"
+                ).forEach { (layout, label) ->
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        trailingContent = {
+                            RadioButton(
+                                selected = homeButtonLayout == layout,
+                                onClick = { onHomeButtonLayoutChange(layout) }
+                            )
+                        },
+                        modifier = Modifier.clickable { onHomeButtonLayoutChange(layout) }
+                            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Внешний вид", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Системная тема") },
