@@ -38,6 +38,7 @@ class ModuleSummaryOperationsTest {
     fun emptyModuleSummaryIsUseful() {
         assertEquals("Сегодня пока нет записей о питании", ModuleSummaryOperations.summary("КБЖУ", emptyList(), 1L))
     }
+
     @Test
     fun taskSummaryShowsCompletionAndMissedCounts() {
         val today = 400L
@@ -52,7 +53,6 @@ class ModuleSummaryOperationsTest {
 
         assertEquals("Задач: 3 · Выполнено: 1 · Просрочено: 1", ModuleSummaryOperations.summary("Задачи", records, today))
     }
-
 
     @Test
     fun taskSummaryUsesTheSuppliedInstantForDeadlineStatus() {
@@ -103,7 +103,6 @@ class ModuleSummaryOperationsTest {
         assertEquals("Таймеров: 3 · Активно: 1",
             ModuleSummaryOperations.summary("Таймеры", records, today, now))
     }
-
 
     @Test
     fun purchaseSummaryFormatsTotalsBeyondLongRangeWithoutSaturation() {
@@ -158,4 +157,20 @@ class ModuleSummaryOperationsTest {
         )
     }
 
+    @Test
+    fun purchaseSummaryAvoidsBinaryFloatingPointArtifactsAcrossEntries() {
+        val day = 802L
+        val records = listOf(
+            Note(1, "", emptyList(), 1L, type = RecordType.PURCHASE,
+                status = RecordStatus.WAITING, scheduledAt = day * 86_400_000L,
+                purchaseQuantity = 3.0, purchaseUnitPrice = 0.1),
+            Note(2, "", emptyList(), 1L, type = RecordType.PURCHASE,
+                status = RecordStatus.WAITING, scheduledAt = day * 86_400_000L,
+                purchaseQuantity = 3.0, purchaseUnitPrice = 0.2)
+        )
+        assertEquals(
+            "В списке: 2 · Куплено: 0 · Остаток: 0.9",
+            ModuleSummaryOperations.summary("Покупки", records, day)
+        )
+    }
 }

@@ -32,9 +32,10 @@ internal object ModuleSummaryOperations {
                 if (entries.isEmpty()) "На сегодня покупок нет"
                 else {
                     val bought = entries.count { it.status == RecordStatus.COMPLETED }
-                    val planned = entries.filter { it.status != RecordStatus.COMPLETED }
-                        .sumOf { PurchaseOperations.normalizeAmount(it.purchaseQuantity) * PurchaseOperations.normalizeAmount(it.purchaseUnitPrice) }
-                    "В списке: ${entries.size - bought} · Куплено: $bought · Остаток: ${number(planned)}"
+                    val planned = PurchaseOperations.sumTotalCost(
+                        entries.filter { it.status != RecordStatus.COMPLETED }
+                    )
+                    "В списке: ${entries.size - bought} · Куплено: $bought · Остаток: ${PurchaseOperations.formatAmount(planned)}"
                 }
             }
             "Тренировки" -> {

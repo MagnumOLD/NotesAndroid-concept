@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.math.BigDecimal
 import java.util.Locale
 
 class PurchaseOperationsTest {
@@ -47,5 +48,24 @@ class PurchaseOperationsTest {
     @Test
     fun invalidPurchaseTotalInputsAreSafelyNormalized() {
         assertEquals("0.00", PurchaseOperations.formatTotalCost(Double.NaN, -4.0, Locale.US))
+    }
+
+    @Test
+    fun purchaseTotalsAreSummedAsExactDecimalsRatherThanBinaryFloatingPoint() {
+        val records = listOf(
+            Note(1, "", emptyList(), 1L, type = RecordType.PURCHASE, purchaseQuantity = 3.0, purchaseUnitPrice = 0.1),
+            Note(2, "", emptyList(), 1L, type = RecordType.PURCHASE, purchaseQuantity = 3.0, purchaseUnitPrice = 0.2)
+        )
+        assertEquals(BigDecimal("0.9"), PurchaseOperations.sumTotalCost(records))
+        assertEquals("0.9", PurchaseOperations.formatAmount(PurchaseOperations.sumTotalCost(records), Locale.US))
+    }
+
+    @Test
+    fun exactPurchaseSummaryFormattingSupportsHugeAggregates() {
+        val total = BigDecimal("123456789012345678901234567890.45")
+        assertEquals(
+            "123456789012345678901234567890.5",
+            PurchaseOperations.formatAmount(total, Locale.US)
+        )
     }
 }
