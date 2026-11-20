@@ -9,7 +9,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -57,22 +57,22 @@ internal fun NutritionRecordEditor(
         note.nutritionGrams > 0 || note.nutritionCalories > 0 ||
         note.nutritionProtein > 0 || note.nutritionFat > 0 || note.nutritionCarbs > 0
     )
-    var catalogVisible by remember { mutableStateOf(false) }
-    var catalogSearch by remember { mutableStateOf("") }
-    var addingProducts by remember { mutableStateOf(note.nutritionItems.isEmpty() && !legacyRecord) }
-    var draftLines by remember { mutableStateOf(listOf(NutritionDraftLine())) }
-    var focusDraftId by remember { mutableStateOf(draftLines.firstOrNull()?.id) }
+    var catalogVisible by remember(note.id) { mutableStateOf(false) }
+    var catalogSearch by remember(note.id) { mutableStateOf("") }
+    var addingProducts by remember(note.id) { mutableStateOf(note.nutritionItems.isEmpty() && !legacyRecord) }
+    var draftLines by remember(note.id) { mutableStateOf(listOf(NutritionDraftLine())) }
+    var focusDraftId by remember(note.id) { mutableStateOf(draftLines.firstOrNull()?.id) }
     val keyboardController = LocalSoftwareKeyboardController.current
-    var editingProduct by remember { mutableStateOf<NutritionProduct?>(null) }
-    var productFormVisible by remember { mutableStateOf(false) }
-    var pendingDraftId by remember { mutableStateOf<String?>(null) }
-    var returnToCatalog by remember { mutableStateOf(false) }
-    var activeDragId by remember { mutableStateOf<String?>(null) }
-    var dragPointerY by remember { mutableFloatStateOf(0f) }
-    var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
-    var dragReleaseRequested by remember { mutableStateOf(false) }
-    var reorderSession by remember { mutableStateOf<ReorderSession?>(null) }
-    val listState = rememberLazyListState()
+    var editingProduct by remember(note.id) { mutableStateOf<NutritionProduct?>(null) }
+    var productFormVisible by remember(note.id) { mutableStateOf(false) }
+    var pendingDraftId by remember(note.id) { mutableStateOf<String?>(null) }
+    var returnToCatalog by remember(note.id) { mutableStateOf(false) }
+    var activeDragId by remember(note.id) { mutableStateOf<String?>(null) }
+    var dragPointerY by remember(note.id) { mutableFloatStateOf(0f) }
+    var dragGrabOffsetPx by remember(note.id) { mutableFloatStateOf(0f) }
+    var dragReleaseRequested by remember(note.id) { mutableStateOf(false) }
+    var reorderSession by remember(note.id) { mutableStateOf<ReorderSession?>(null) }
+    val listState = remember(note.id) { LazyListState() }
     val density = LocalDensity.current
     val orderedItems = remember(note.nutritionItems, reorderSession?.keys) {
         val byId = note.nutritionItems.associateBy { it.id }
