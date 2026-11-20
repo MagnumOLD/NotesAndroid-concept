@@ -59,7 +59,6 @@ internal fun TimeTrackingAnalyticsScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = MaterialTheme.colorScheme.surface,
-                navigationIcon = { androidx.compose.material3.IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
                 title = { Text("Учёт времени", style = AppTypography.screenTitleStyle()) }
             )
         }
