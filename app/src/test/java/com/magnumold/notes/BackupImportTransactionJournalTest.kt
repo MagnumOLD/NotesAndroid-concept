@@ -24,6 +24,7 @@ class BackupImportTransactionJournalTest {
         val tracking = preferences("import_journal_failure_tracking")
         val journal = preferences("import_journal_failure_journal")
         records.edit().putString("notes", "old-notes")
+            .putString("nutrition_products", "old-products")
             .putString("recovery_corrupt_notes_1", "old-recovery").commit()
         tracking.edit().putString("time_tracking_state_v1", "old-tracking")
             .putString("recovery_corrupt_timer_1", "old-timer-recovery").commit()
@@ -33,6 +34,7 @@ class BackupImportTransactionJournalTest {
         try {
             transaction.execute {
                 records.edit().putString("notes", "new-notes")
+                    .putString("nutrition_products", "new-products")
                     .putString("recovery_corrupt_notes_2", "new-recovery").commit()
                 tracking.edit().putString("time_tracking_state_v1", "new-tracking")
                     .putString("recovery_corrupt_timer_2", "new-timer-recovery").commit()
@@ -44,6 +46,7 @@ class BackupImportTransactionJournalTest {
 
         assertTrue(failed)
         assertEquals("old-notes", records.getString("notes", null))
+        assertEquals("old-products", records.getString("nutrition_products", null))
         assertEquals("old-recovery", records.getString("recovery_corrupt_notes_1", null))
         assertFalse(records.contains("recovery_corrupt_notes_2"))
         assertEquals("old-tracking", tracking.getString("time_tracking_state_v1", null))

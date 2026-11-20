@@ -110,7 +110,7 @@ internal class BackupImportTransactionJournal(
     private companion object {
         const val JOURNAL_KEY = "active_backup_import_v1"
         const val TRACKING_STATE_KEY = "time_tracking_state_v1"
-        val RECORD_DATA_KEYS = listOf("notes", "collections", "archive", "trash")
+        val RECORD_DATA_KEYS = listOf("notes", "collections", "archive", "trash", "nutrition_products")
         val LOCK = Any()
     }
 }
