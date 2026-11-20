@@ -126,6 +126,7 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
     }
 
     private fun deliverInexactAlarm(context: Context) {
+        recoverBackupImportIfNeeded(context)
         val trackingRepository = TimeTrackingRepository(
             context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         )
@@ -219,6 +220,7 @@ internal class ProtectionTimerReceiver : BroadcastReceiver() {
 internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != Intent.ACTION_BOOT_COMPLETED) return
+        recoverBackupImportIfNeeded(context)
         val repository = TimeTrackingRepository(
             context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         )

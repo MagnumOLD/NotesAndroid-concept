@@ -1,5 +1,6 @@
 package com.magnumold.notes
 
+import android.content.Context
 import android.content.SharedPreferences
 import org.json.JSONObject
 
@@ -105,4 +106,15 @@ internal class BackupImportTransactionJournal(
         val RECORD_DATA_KEYS = listOf("notes", "collections", "archive", "trash")
         val LOCK = Any()
     }
+}
+
+/** Shared recovery entry point for Activity, services and alarm receivers. */
+internal fun recoverBackupImportIfNeeded(context: Context) {
+    val records = context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    val tracking = context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
+    BackupImportTransactionJournal(
+        records,
+        tracking,
+        context.getSharedPreferences("backup_import_journal", Context.MODE_PRIVATE)
+    ).recoverIfNeeded()
 }

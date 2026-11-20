@@ -395,15 +395,7 @@ internal class ProtectionTimerAlertService : Service() {
         wakeLock = null
     }
 
-    private fun recoverInterruptedBackupImport() {
-        val records = getSharedPreferences(NotesRepository.PREFERENCES_NAME, MODE_PRIVATE)
-        val tracking = getSharedPreferences("time_tracking", MODE_PRIVATE)
-        BackupImportTransactionJournal(
-            records,
-            tracking,
-            getSharedPreferences("backup_import_journal", MODE_PRIVATE)
-        ).recoverIfNeeded()
-    }
+    private fun recoverInterruptedBackupImport() = recoverBackupImportIfNeeded(this)
 
     private fun timeRepository(): TimeTrackingRepository {
         recoverInterruptedBackupImport()

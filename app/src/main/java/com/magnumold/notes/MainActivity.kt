@@ -163,14 +163,13 @@ class MainActivity : ComponentActivity() {
         val recordPreferences = getPreferences(Context.MODE_PRIVATE)
         val timeTrackingPreferences = getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
         val repository = NotesRepository(recordPreferences)
+        // Recover an interrupted multi-store import before repositories load state.
+        recoverBackupImportIfNeeded(this)
         val backupImportJournal = BackupImportTransactionJournal(
             recordPreferences,
             timeTrackingPreferences,
             getSharedPreferences("backup_import_journal", Context.MODE_PRIVATE)
         )
-        // Recover an interrupted multi-store import before any repository reads
-        // persisted state or the timer service can start using it.
-        backupImportJournal.recoverIfNeeded()
         timeTrackingRepository = TimeTrackingRepository(timeTrackingPreferences)
         recoveryDataRepository = RecoveryDataRepository(recordPreferences, timeTrackingPreferences)
         lastExternalTaskStatusUpdate = recordPreferences.getLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, 0L)
