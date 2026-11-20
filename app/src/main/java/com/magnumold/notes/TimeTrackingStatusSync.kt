@@ -294,6 +294,7 @@ internal fun applyPendingProtectionTaskPause(
     trackingRepository: TimeTrackingRepository,
     notesRepository: NotesRepository
 ): Long? {
+    trackingRepository.reload()
     val taskId = trackingRepository.load().pendingProtectionTaskPauseId ?: return null
     notesRepository.updateTaskStatus(taskId, RecordStatus.PAUSED)
     trackingRepository.update { latest ->
