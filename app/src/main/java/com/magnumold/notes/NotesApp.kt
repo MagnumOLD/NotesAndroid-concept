@@ -166,7 +166,6 @@ internal fun NotesApp(
                                 navigation.returnToHomeKeepingModuleScreens()
                             }
                         },
-                        onBack = { navigation.closeModuleManagement() },
                         themeColors = activeThemeColors
                     )
                 } else if (navigation.modulesVisible && selected == null) {
