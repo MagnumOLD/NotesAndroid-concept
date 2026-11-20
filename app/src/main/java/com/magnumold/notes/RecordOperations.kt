@@ -49,6 +49,11 @@ internal object RecordOperations {
             usedNoteIds += timer.taskId
             timer.parentTaskId?.let { usedNoteIds += it }
         }
+        currentTimeTracking.firedProtectionAlert?.let { timer ->
+            usedNoteIds += timer.taskId
+            timer.parentTaskId?.let { usedNoteIds += it }
+        }
+        currentTimeTracking.pendingProtectionTaskPauseId?.let { usedNoteIds += it }
         val existingNoteIds = usedNoteIds.toSet()
 
         val importedNoteIdMap = linkedMapOf<Long, Long>()

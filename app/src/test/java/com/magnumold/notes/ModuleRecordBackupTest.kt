@@ -291,6 +291,43 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun importingTasksDoesNotReuseIdsHeldByFiredAlertsOrPendingPauseActions() {
+        val currentTracking = TimeTrackingState(
+            firedProtectionAlert = ProtectionTimer(
+                taskId = 77L,
+                taskTitle = "Deleted task alert",
+                subtaskTitle = null,
+                startedAtMillis = 100L,
+                endsAtMillis = 200L,
+                endMode = ProtectionEndMode.STOP_AND_PAUSE
+            ),
+            pendingProtectionTaskPauseId = 88L
+        )
+        val imported = BackupData(
+            notes = listOf(
+                Note(77L, "", listOf(NoteBlock("New task A")), 300L, type = RecordType.TASK),
+                Note(88L, "", listOf(NoteBlock("New task B")), 400L, type = RecordType.TASK)
+            ),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(emptyList(), emptyList(), emptyList(), emptyList()),
+            imported,
+            currentTracking
+        )
+
+        val importedIds = merged.snapshot.notes.map { it.id }
+        assertEquals(2, importedIds.toSet().size)
+        assertNotEquals(77L, importedIds[0])
+        assertNotEquals(88L, importedIds[1])
+        assertEquals(merged.snapshot.notes[0].id, merged.importedNoteIdMap.getValue(77L))
+        assertEquals(merged.snapshot.notes[1].id, merged.importedNoteIdMap.getValue(88L))
+    }
+
+    @Test
     fun importedVaultNeighborLinksFollowRekeyedActiveRecordIds() {
         val currentRecord = Note(
             id = 200L,
