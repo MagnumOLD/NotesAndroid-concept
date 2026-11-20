@@ -10,7 +10,6 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -82,9 +81,6 @@ internal fun TimerRecordEditor(
                         .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text("Таймер", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
                 }
             }
