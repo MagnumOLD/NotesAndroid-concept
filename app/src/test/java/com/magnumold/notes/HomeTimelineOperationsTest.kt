@@ -18,6 +18,18 @@ class HomeTimelineOperationsTest {
         )
 
     @Test
+    fun timelineEmptyStatesReflectSelectedRangeAndSearch() {
+        assertEquals("Пока нет записей", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.ALL, false))
+        assertEquals("На сегодня записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TODAY, false))
+        assertEquals("На завтра записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TOMORROW, false))
+        assertEquals("На эту неделю записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.WEEK, false))
+        assertEquals("В этом месяце записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.MONTH, false))
+        assertEquals("История пока пуста", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.HISTORY, false))
+        assertEquals("В избранном пока пусто", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.FAVORITES, false))
+        assertEquals("Ничего не найдено", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TODAY, true))
+    }
+
+    @Test
     fun homeTimelineIncludesRootAndCollectionRecords() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(note(1)),
