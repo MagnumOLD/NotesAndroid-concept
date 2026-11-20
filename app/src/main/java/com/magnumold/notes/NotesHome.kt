@@ -97,6 +97,7 @@ internal fun NotesHome(
     } else rangeNotes
     val filtered = displayNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
+    val activeButtonLayout = if (timelineMode) homeButtonLayout else HomeButtonLayout.SEPARATE
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
     val selectedNoteBackground = themeColors.selection
@@ -235,7 +236,7 @@ internal fun NotesHome(
                     } else {
                         Text(screenTitle, style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        if (homeButtonLayout == HomeButtonLayout.SEPARATE) {
+                        if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
                             IconButton(onClick = onOpenModules) {
                                 AppIcon(NoteIcon.Modules, contentDescription = "Модули")
                             }
@@ -258,7 +259,7 @@ internal fun NotesHome(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                     ) {
-                        if (homeButtonLayout == HomeButtonLayout.SIDE_BY_SIDE) {
+                        if (activeButtonLayout == HomeButtonLayout.SIDE_BY_SIDE) {
                             Surface(
                                 modifier = Modifier.size(PrimaryAddButtonDimensions.diameter),
                                 shape = RoundedCornerShape(16.dp),
@@ -269,7 +270,7 @@ internal fun NotesHome(
                                     AppIcon(NoteIcon.Modules, contentDescription = "Модули")
                                 }
                             }
-                        } else if (homeButtonLayout == HomeButtonLayout.SHARED_PANEL) {
+                        } else if (activeButtonLayout == HomeButtonLayout.SHARED_PANEL) {
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(18.dp))
@@ -306,12 +307,12 @@ internal fun NotesHome(
                             }
                         }
 
-                        if (homeButtonLayout != HomeButtonLayout.SHARED_PANEL) {
+                        if (activeButtonLayout != HomeButtonLayout.SHARED_PANEL) {
                             Box(
                                 modifier = Modifier
                                     .size(PrimaryAddButtonDimensions.diameter)
                                     .then(
-                                        if (homeButtonLayout == HomeButtonLayout.SEPARATE)
+                                        if (activeButtonLayout == HomeButtonLayout.SEPARATE)
                                             Modifier.shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
                                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                         else Modifier.shadow(3.dp, RoundedCornerShape(16.dp))
