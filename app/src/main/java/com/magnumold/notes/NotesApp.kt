@@ -335,6 +335,8 @@ internal fun NotesApp(
                         } else {
                             navigation.activeModule in collectionVisibleModules
                         },
+                        collectionsAvailable = navigation.activeModule == AppModule.ALL ||
+                            navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
