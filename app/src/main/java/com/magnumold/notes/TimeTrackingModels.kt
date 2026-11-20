@@ -71,7 +71,9 @@ internal data class TimeTrackingState(
     val protectionTimer: ProtectionTimer? = null,
     val soundUri: String? = null,
     val soundEnabled: Boolean = true,
-    val firedProtectionAlert: ProtectionTimer? = null
+    val firedProtectionAlert: ProtectionTimer? = null,
+    /** Durable outbox entry: apply STOP_AND_PAUSE to the task after timer completion. */
+    val pendingProtectionTaskPauseId: Long? = null
 )
 
 internal enum class ProtectionEndMode {
