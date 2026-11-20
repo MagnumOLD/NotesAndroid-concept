@@ -366,6 +366,8 @@ internal fun NotesApp(
                 } else if (selected.type == RecordType.NUTRITION) {
                     NutritionRecordEditor(
                         note = selected,
+                        products = snapshot.nutritionProducts,
+                        onProductsChange = recordsViewModel::updateNutritionProducts,
                         topBarColor = activeThemeColors.topBar,
                         onBack = {
                             if (!selected.hasContent()) {
