@@ -68,7 +68,8 @@ internal fun NutritionRecordEditor(
         } else {
             Column(
                 Modifier.fillMaxSize().padding(padding)
-                    .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.lg),
+                    .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.lg)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
             ) {
                 Text("Продукты в приёме пищи", style = MaterialTheme.typography.titleMedium)
