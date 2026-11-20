@@ -78,6 +78,36 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun returningFromModuleOpenedOnModulesPageRestoresModulesPage() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+
+        assertFalse(state.modulesVisible)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+        assertFalse(state.canReturnToModules)
+    }
+
+    @Test
+    fun closingModulesAfterReturningFromModuleGoesBackToHome() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.NUTRITION)
+        state.returnFromModuleToModules()
+        state.closeModules()
+
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+        assertEquals(AppModule.ALL, state.activeModule)
+    }
+
+    @Test
     fun disablingCurrentModuleFallsBackHomeWithoutClosingModuleManagement() {
         val state = AppNavigationState()
         state.selectModule(AppModule.TASKS)
