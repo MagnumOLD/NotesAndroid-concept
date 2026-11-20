@@ -262,8 +262,10 @@ internal class TimeTrackingRepository(
             updated
         }
 
-    private companion object {
-        const val KEY_STATE = "time_tracking_state_v1"
-        val LOCK = Any()
+    companion object {
+        private const val KEY_STATE = "time_tracking_state_v1"
+        private val LOCK = Any()
+
+        internal fun <T> withExclusiveAccess(block: () -> T): T = synchronized(LOCK, block)
     }
 }

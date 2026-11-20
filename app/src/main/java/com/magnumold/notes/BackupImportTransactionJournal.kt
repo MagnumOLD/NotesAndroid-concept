@@ -15,36 +15,43 @@ internal class BackupImportTransactionJournal(
     private val journalPreferences: SharedPreferences
 ) {
     fun <T> execute(block: () -> T): T = synchronized(LOCK) {
-        val before = capture()
-        check(journalPreferences.edit().putString(JOURNAL_KEY, before.toString()).commit()) {
-            "Не удалось подготовить безопасный импорт резервной копии"
-        }
-        try {
-            val result = block()
-            check(journalPreferences.edit().remove(JOURNAL_KEY).commit()) {
-                "Не удалось завершить транзакцию импорта"
+        // Share the timer repository's process-wide lock for the whole
+        // transaction, including journal rollback. A timer service must not
+        // write a new state between an import failure and its restoration.
+        TimeTrackingRepository.withExclusiveAccess {
+            val before = capture()
+            check(journalPreferences.edit().putString(JOURNAL_KEY, before.toString()).commit()) {
+                "Не удалось подготовить безопасный импорт резервной копии"
             }
-            result
-        } catch (failure: Throwable) {
-            val rollback = runCatching { restore(before) }
-            rollback.exceptionOrNull()?.let(failure::addSuppressed)
-            // Never discard the write-ahead journal unless every store was
-            // restored. Startup recovery must retain another chance after a
-            // transient storage failure.
-            if (rollback.isSuccess) {
-                runCatching { clearJournal() }
-                    .exceptionOrNull()?.let(failure::addSuppressed)
+            try {
+                val result = block()
+                check(journalPreferences.edit().remove(JOURNAL_KEY).commit()) {
+                    "Не удалось завершить транзакцию импорта"
+                }
+                result
+            } catch (failure: Throwable) {
+                val rollback = runCatching { restore(before) }
+                rollback.exceptionOrNull()?.let(failure::addSuppressed)
+                // Never discard the write-ahead journal unless every store was
+                // restored. Startup recovery must retain another chance after a
+                // transient storage failure.
+                if (rollback.isSuccess) {
+                    runCatching { clearJournal() }
+                        .exceptionOrNull()?.let(failure::addSuppressed)
+                }
+                throw failure
             }
-            throw failure
         }
     }
 
     /** Must run before repositories load state or background services start. */
     fun recoverIfNeeded() = synchronized(LOCK) {
-        val raw = journalPreferences.getString(JOURNAL_KEY, null) ?: return@synchronized
-        val journal = JSONObject(raw)
-        restore(journal)
-        clearJournal()
+        TimeTrackingRepository.withExclusiveAccess {
+            val raw = journalPreferences.getString(JOURNAL_KEY, null) ?: return@withExclusiveAccess
+            val journal = JSONObject(raw)
+            restore(journal)
+            clearJournal()
+        }
     }
 
     private fun capture(): JSONObject {
