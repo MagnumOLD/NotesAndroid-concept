@@ -132,6 +132,7 @@ internal fun ModulesScreen(
     configuration: ModuleConfiguration,
     onConfigurationChange: (ModuleConfiguration) -> Unit,
     onOpenModule: (AppModule) -> Unit,
+    onOpenManagement: () -> Unit,
     onBack: () -> Unit,
     themeColors: CustomThemeColors
 ) {
@@ -211,7 +212,9 @@ internal fun ModulesScreen(
                             Icon(Icons.Outlined.Close, contentDescription = "Снять выделение")
                         }
                     } else {
-                        Icon(Icons.Outlined.Tune, contentDescription = null)
+                        IconButton(onClick = onOpenManagement) {
+                            Icon(Icons.Outlined.Tune, contentDescription = "Управление модулями")
+                        }
                     }
                 }
             }
@@ -233,7 +236,7 @@ internal fun ModulesScreen(
                 }
                 item(key = "modules_description") {
                     Text(
-                        "Выберите модуль. Порядок и доступность можно менять — отключение не удаляет данные.",
+                        "Меняйте порядок модулей перетаскиванием. Доступность настраивается отдельно.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = AppSpacing.md)
@@ -303,23 +306,7 @@ internal fun ModulesScreen(
                                 }
                             )
 
-                            if (!row.isGroup) {
-                                Switch(
-                                    checked = enabled,
-                                    enabled = !isDragging,
-                                    onCheckedChange = { checked ->
-                                        onConfigurationChange(
-                                            configuration.copy(
-                                                enabled = if (checked) configuration.enabled + module
-                                                else configuration.enabled - module
-                                            )
-                                        )
-                                    }
-                                )
-                            } else {
-                                Spacer(Modifier.width(8.dp))
-                            }
-                        }
+switch removal                        }
                         HorizontalDivider(
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.42f),
                             thickness = 0.7.dp
