@@ -147,14 +147,17 @@ internal fun SettingsScreen(
     var colorEditorIndex by remember { mutableStateOf<Int?>(null) }
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
+    var cardBehaviorVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible) {
+    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
-        } else {
+        } else if (personalizationVisible) {
             personalizationVisible = false
+        } else {
+            cardBehaviorVisible = false
         }
     }
 
@@ -200,7 +203,7 @@ internal fun SettingsScreen(
                 backgroundColor = themeColors.topBar,
                 title = {
                     Text(
-                        if (personalizationVisible) "Персонализация" else "Настройки",
+                        if (personalizationVisible) "Персонализация" else if (cardBehaviorVisible) "Поведение карточек" else "Настройки",
                         style = AppTypography.screenTitleStyle()
                     )
                 }
@@ -267,26 +270,17 @@ internal fun SettingsScreen(
                 TextButton(onClick = { onNoteColorsChange(defaultNoteColors) }, modifier = Modifier.padding(start = AppSpacing.screenHorizontal)) {
                     Text("Вернуть стандартные цвета")
                 }
-            } else {
-                ListItem(
-                    headlineContent = { Text("Персонализация") },
-                    supportingContent = { Text("Темы и цвета интерфейса и заметок") },
-                    leadingContent = { AppIcon(NoteIcon.Palette, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { personalizationVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text("Поведение карточек", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+            } else if (cardBehaviorVisible) {
+                ListItem(headlineContent = { Text("Интерактивность", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Интерактивные карточки") },
                     supportingContent = { Text("Быстро отмечать задачи, покупки и тренировки, запускать и ставить на паузу таймеры прямо в списке") },
-                    trailingContent = {
-                        Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange)
-                    },
+                    trailingContent = { Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange) },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(
-                    headlineContent = { Text("Состав данных на карточках") },
+                    headlineContent = { Text("Состав данных на карточках", style = AppTypography.emphasisBodyStyle()) },
                     supportingContent = { Text("Включайте и отключайте отдельные поля для каждого модуля") },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
@@ -305,6 +299,22 @@ internal fun SettingsScreen(
                         )
                     }
                 }
+            } else {
+                ListItem(
+                    headlineContent = { Text("Персонализация") },
+                    supportingContent = { Text("Темы и цвета интерфейса и заметок") },
+                    leadingContent = { AppIcon(NoteIcon.Palette, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.clickable { personalizationVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                ListItem(
+                    headlineContent = { Text("Поведение карточек") },
+                    supportingContent = { Text("Интерактивность и состав данных на карточках") },
+                    leadingContent = { AppIcon(NoteIcon.Description, contentDescription = null) },
+                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                    modifier = Modifier.clickable { cardBehaviorVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(
                     headlineContent = { Text("Подборки по модулям", style = AppTypography.emphasisBodyStyle()) },
