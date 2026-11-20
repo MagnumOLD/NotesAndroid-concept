@@ -60,4 +60,16 @@ class TimeTrackingRepositoryImportTransactionTest {
         assertEquals(false, repository.load().soundEnabled)
         assertEquals(false, TimeTrackingRepository(preferences).load().soundEnabled)
     }
+    @Test
+    fun repositoryInstancesReadTheLatestSharedPersistedState() {
+        val preferences = preferences("tracking_shared_repository_reads")
+        val first = TimeTrackingRepository(preferences)
+        val second = TimeTrackingRepository(preferences)
+        val latest = TimeTrackingState(soundEnabled = false)
+
+        first.save(latest)
+
+        assertEquals(latest, second.load())
+    }
+
 }
