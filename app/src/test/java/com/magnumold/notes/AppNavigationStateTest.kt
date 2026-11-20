@@ -95,6 +95,24 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun closingModulesShortcutFromInsideModulePreservesItsBackDestination() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+
+        state.openModules()
+        state.closeModules()
+
+        assertEquals(AppModule.TASKS, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+    }
+
+    @Test
     fun closingModulesAfterReturningFromModuleGoesBackToHome() {
         val state = AppNavigationState()
         state.openModules()
