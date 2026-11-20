@@ -65,15 +65,16 @@ class BackupImportTransactionJournalTest {
         firstProcess.execute {
             records.edit().putString("notes", "partially-imported").commit()
             tracking.edit().putString("time_tracking_state_v1", "partially-imported").commit()
-            // Leave a durable journal as if Android killed the process before commit.
-            journal.edit().putString(
-                "active_backup_import_v1",
-                org.json.JSONObject()
-                    .put("records", org.json.JSONObject().put("notes", "before-crash"))
-                    .put("tracking", org.json.JSONObject().put("time_tracking_state_v1", "tracking-before-crash"))
-                    .toString()
-            ).commit()
         }
+        // Recreate the durable write-ahead record left behind if the process
+        // had been killed before the transaction's final journal removal.
+        journal.edit().putString(
+            "active_backup_import_v1",
+            org.json.JSONObject()
+                .put("records", org.json.JSONObject().put("notes", "before-crash"))
+                .put("tracking", org.json.JSONObject().put("time_tracking_state_v1", "tracking-before-crash"))
+                .toString()
+        ).commit()
 
         BackupImportTransactionJournal(records, tracking, journal).recoverIfNeeded()
 
