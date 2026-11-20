@@ -42,7 +42,7 @@ internal fun WorkoutRecordEditor(
     var weightInput by remember(note.id) {
         mutableStateOf(if (note.workoutWeightKg == 0.0) "" else note.workoutWeightKg.toString())
     }
-    val volume = WorkoutOperations.totalVolume(note.workoutSets, note.workoutReps, note.workoutWeightKg)
+    val volume = WorkoutOperations.totalVolumeDecimal(note.workoutSets, note.workoutReps, note.workoutWeightKg)
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -107,7 +107,7 @@ internal fun WorkoutRecordEditor(
             )
             HorizontalDivider()
             Text("Общий объём", style = MaterialTheme.typography.titleMedium)
-            Text("%.1f кг".format(java.util.Locale.getDefault(), volume), style = MaterialTheme.typography.headlineSmall)
+            Text("${WorkoutOperations.formatVolume(volume)} кг", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "${note.workoutSets} подхода × ${note.workoutReps} повторений",
                 color = MaterialTheme.colorScheme.onSurfaceVariant

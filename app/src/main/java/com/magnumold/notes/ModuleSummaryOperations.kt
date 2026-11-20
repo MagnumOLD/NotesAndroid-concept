@@ -25,7 +25,13 @@ internal object ModuleSummaryOperations {
             "КБЖУ" -> {
                 val entries = today.filter { it.type == RecordType.NUTRITION }
                 if (entries.isEmpty()) "Сегодня пока нет записей о питании"
-                else "Сегодня: ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionCalories) })} ккал · Б ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionProtein) })} г · Ж ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionFat) })} г · У ${number(entries.sumOf { NutritionOperations.normalizeAmount(it.nutritionCarbs) })} г"
+                else {
+                    val calories = NutritionOperations.sumAmounts(entries.map { it.nutritionCalories })
+                    val protein = NutritionOperations.sumAmounts(entries.map { it.nutritionProtein })
+                    val fat = NutritionOperations.sumAmounts(entries.map { it.nutritionFat })
+                    val carbs = NutritionOperations.sumAmounts(entries.map { it.nutritionCarbs })
+                    "Сегодня: ${NutritionOperations.formatAmount(calories)} ккал · Б ${NutritionOperations.formatAmount(protein)} г · Ж ${NutritionOperations.formatAmount(fat)} г · У ${NutritionOperations.formatAmount(carbs)} г"
+                }
             }
             "Покупки" -> {
                 val entries = today.filter { it.type == RecordType.PURCHASE }
@@ -42,10 +48,8 @@ internal object ModuleSummaryOperations {
                 val entries = today.filter { it.type == RecordType.WORKOUT }
                 if (entries.isEmpty()) "На сегодня тренировок нет"
                 else {
-                    val volume = entries.sumOf {
-                        WorkoutOperations.totalVolume(it.workoutSets, it.workoutReps, it.workoutWeightKg)
-                    }
-                    "Упражнений: ${entries.size} · Общий объём: ${number(volume)} кг"
+                    val volume = WorkoutOperations.sumVolume(entries)
+                    "Упражнений: ${entries.size} · Общий объём: ${WorkoutOperations.formatVolume(volume)} кг"
                 }
             }
             "Таймеры" -> {
