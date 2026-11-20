@@ -240,7 +240,8 @@ internal fun ModulesScreen(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(
-                            horizontal = AppSpacing.screenHorizontal,
+                            start = AppSpacing.screenHorizontal,
+                            end = AppSpacing.screenHorizontal,
                             bottom = AppSpacing.md
                         )
                     )
