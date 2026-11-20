@@ -25,10 +25,14 @@ internal class BackupImportTransactionJournal(
             }
             result
         } catch (failure: Throwable) {
-            runCatching { restore(before) }
-                .exceptionOrNull()?.let(failure::addSuppressed)
-            if (runCatching { clearJournal() }.isFailure) {
-                failure.addSuppressed(IllegalStateException("Не удалось очистить журнал импорта"))
+            val rollback = runCatching { restore(before) }
+            rollback.exceptionOrNull()?.let(failure::addSuppressed)
+            // Never discard the write-ahead journal unless every store was
+            // restored. Startup recovery must retain another chance after a
+            // transient storage failure.
+            if (rollback.isSuccess) {
+                runCatching { clearJournal() }
+                    .exceptionOrNull()?.let(failure::addSuppressed)
             }
             throw failure
         }
