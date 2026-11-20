@@ -44,6 +44,8 @@ internal class ProtectionTimerAlertService : Service() {
         }
         val repository = timeRepository()
         val storedState = repository.load()
+        val pendingPauseTaskId = applyPendingProtectionTaskPause(repository, notesRepository())
+        if (pendingPauseTaskId != null) sendTaskStatusChanged(pendingPauseTaskId, RecordStatus.PAUSED)
         val timer = storedState.protectionTimer
         if (timer == null) {
             // A process may be recreated while the alert notification is still
@@ -86,12 +88,9 @@ internal class ProtectionTimerAlertService : Service() {
             return
         }
 
-        if (timer.endMode == ProtectionEndMode.STOP_AND_PAUSE) {
-            notesRepository().updateTaskStatus(timer.taskId, RecordStatus.PAUSED)
-            sendTaskStatusChanged(timer.taskId, RecordStatus.PAUSED)
-        } else {
-            sendTaskStatusChanged()
-        }
+        val pausedTaskId = applyPendingProtectionTaskPause(repository, notesRepository())
+        if (pausedTaskId != null) sendTaskStatusChanged(pausedTaskId, RecordStatus.PAUSED)
+        else sendTaskStatusChanged()
 
         protectionAlertActive = true
         activeProtectionAlert = timer
