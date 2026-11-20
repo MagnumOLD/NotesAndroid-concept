@@ -419,21 +419,14 @@ private fun SettingsNavigationItem(
     showChevron: Boolean = false,
     onClick: () -> Unit
 ) {
-    var supportingLineCount by remember(description) { mutableStateOf(0) }
     ListItem(
         headlineContent = { Text(title) },
-        supportingContent = {
-            Text(
-                description,
-                onTextLayout = { layout ->
-                    if (supportingLineCount != layout.lineCount) {
-                        supportingLineCount = layout.lineCount
-                    }
-                }
-            )
-        },
+        supportingContent = { Text(description) },
         leadingContent = {
-            Box(Modifier.offset(y = if (supportingLineCount > 2) 16.dp else 0.dp)) {
+            Box(
+                modifier = Modifier.fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
                 AppIcon(icon, contentDescription = null)
             }
         },
@@ -447,7 +440,6 @@ private fun SettingsNavigationItem(
             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
     )
 }
-
 
 @Composable
 private fun SettingsChevron() {
