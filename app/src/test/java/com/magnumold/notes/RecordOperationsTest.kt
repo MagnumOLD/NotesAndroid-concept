@@ -1,6 +1,7 @@
 package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -149,6 +150,51 @@ class RecordOperationsTest {
         assertEquals(600L, result.trash.single().note.timerDurationSeconds)
         assertEquals(RecordStatus.PAUSED, result.trash.single().note.status)
         assertEquals(120L, result.trash.single().note.timerRemainingSeconds)
+    }
+
+    @Test
+    fun externalCompletionOfNestedTaskUpdatesParentAndReopeningRestoresPreviousStatus() {
+        fun child(id: Long, status: RecordStatus) = Note(
+            id = id,
+            title = "",
+            blocks = listOf(NoteBlock("child $id")),
+            updated = 10L,
+            type = RecordType.TASK,
+            status = status
+        )
+        val parent = Note(
+            id = 70L,
+            title = "",
+            blocks = listOf(NoteBlock("parent")),
+            updated = 10L,
+            type = RecordType.TASK,
+            status = RecordStatus.IN_PROGRESS,
+            children = listOf(
+                child(71L, RecordStatus.COMPLETED),
+                child(72L, RecordStatus.WAITING)
+            )
+        )
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(parent),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val completed = RecordOperations.updateTaskStatus(
+            snapshot, 72L, RecordStatus.COMPLETED
+        )
+        val completedParent = completed.notes.single()
+        assertEquals(RecordStatus.COMPLETED, completedParent.status)
+        assertEquals(RecordStatus.IN_PROGRESS, completedParent.statusBeforeAutoCompletion)
+
+        val reopened = RecordOperations.updateTaskStatus(
+            completed, 71L, RecordStatus.PAUSED
+        )
+        val reopenedParent = reopened.notes.single()
+        assertEquals(RecordStatus.IN_PROGRESS, reopenedParent.status)
+        assertNull(reopenedParent.statusBeforeAutoCompletion)
+        assertEquals(RecordStatus.PAUSED, reopenedParent.children.first().status)
     }
 
     private fun note(id: Long, text: String) = Note(

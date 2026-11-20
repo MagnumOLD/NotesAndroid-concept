@@ -138,15 +138,19 @@ internal object RecordOperations {
         var found = false
         fun updateTree(notes: List<Note>): List<Note> = notes.map { note ->
             val children = updateTree(note.children)
+            // Keep parent completion in sync when an external status change
+            // completes or reopens one of its nested records.
+            val withUpdatedChildren = if (children != note.children) {
+                withUpdatedRecordChildren(note, children)
+            } else note
             if (note.id == taskId && note.type == RecordType.TASK) {
                 found = true
-                note.copy(
+                withUpdatedChildren.copy(
                     status = status,
                     deadlineResumeOverride = status == RecordStatus.IN_PROGRESS,
                     children = children
                 )
-            } else if (children != note.children) note.copy(children = children)
-            else note
+            } else withUpdatedChildren
         }
         val notes = updateTree(snapshot.notes)
         val collections = snapshot.collections.map { collection ->
