@@ -13,22 +13,16 @@ android {
         minSdk = 23
         targetSdk = 35
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-    testOptions {
-        unitTests.all {
-            // Use Maven Central's canonical endpoint for Robolectric runtime artifacts.
-            systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
-            systemProperty("robolectric.dependency.repo.id", "mavenCentral")
-        }
-    }
-    testOptions {
-        unitTests.all {
-            // Use Maven Central's canonical endpoint for Robolectric runtime artifacts.
-            systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
-            systemProperty("robolectric.dependency.repo.id", "mavenCentral")
-        }
-    }
         versionCode = 1
         versionName = "1.0.0-concept"
+    }
+
+    testOptions {
+        unitTests.all {
+            // Use Maven Central's canonical endpoint for Robolectric runtime artifacts.
+            systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+            systemProperty("robolectric.dependency.repo.id", "mavenCentral")
+        }
     }
 
     buildTypes {
