@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.*
@@ -120,15 +119,6 @@ internal fun NutritionRecordEditor(
                         .padding(start = AppSpacing.screenHorizontal, end = AppSpacing.toolbarControlInset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
-                        when {
-                            catalogVisible -> catalogVisible = false
-                            addingProducts -> onBack()
-                            else -> onBack()
-                        }
-                    }) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text(
                         when { catalogVisible -> "База продуктов"; addingProducts -> "Добавить продукты"; else -> "КБЖУ" },
                         style = AppTypography.screenTitleStyle(),
