@@ -377,6 +377,7 @@ internal fun NotesApp(
                             }
                             navigation.closeEditor()
                         },
+                        onSaved = { navigation.closeEditor() },
                         onChange = { changed ->
                             val updated = changed.copy(updated = System.currentTimeMillis())
                             if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
