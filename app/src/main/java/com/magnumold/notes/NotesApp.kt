@@ -33,6 +33,12 @@ internal fun NotesApp(
             val collectionVisibilityStore = remember(activity) {
                 CollectionVisibilitySettingsStore(activity.getSharedPreferences("notes_collection_visibility", Context.MODE_PRIVATE))
             }
+            val homeButtonLayoutStore = remember(activity) {
+                HomeButtonLayoutStore(activity.getSharedPreferences("notes_home_buttons", Context.MODE_PRIVATE))
+            }
+            var homeButtonLayout by remember(homeButtonLayoutStore) {
+                androidx.compose.runtime.mutableStateOf(homeButtonLayoutStore.load())
+            }
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
             }
@@ -252,6 +258,11 @@ internal fun NotesApp(
                             homeCollectionVisible = visible
                             collectionVisibilityStore.saveHomeVisible(visible)
                         },
+                        homeButtonLayout = homeButtonLayout,
+                        onHomeButtonLayoutChange = { layout ->
+                            homeButtonLayout = layout
+                            homeButtonLayoutStore.save(layout)
+                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -338,6 +349,7 @@ internal fun NotesApp(
                         collectionsAvailable = navigation.activeModule == AppModule.ALL ||
                             navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
+                        homeButtonLayout = homeButtonLayout,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
