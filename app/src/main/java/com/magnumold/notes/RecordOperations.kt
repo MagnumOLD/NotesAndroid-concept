@@ -152,7 +152,19 @@ internal object RecordOperations {
         val collections = snapshot.collections.map { collection ->
             collection.copy(notes = updateTree(collection.notes))
         }
-        return if (!found) snapshot else snapshot.copy(notes = notes, collections = collections)
+        fun updateVault(entries: List<VaultNote>): List<VaultNote> =
+            entries.map { entry ->
+                val updated = updateTree(listOf(entry.note)).single()
+                if (updated == entry.note) entry else entry.copy(note = updated)
+            }
+        val archived = updateVault(snapshot.archived)
+        val trash = updateVault(snapshot.trash)
+        return if (!found) snapshot else snapshot.copy(
+            notes = notes,
+            collections = collections,
+            archived = archived,
+            trash = trash
+        )
     }
 
     /**
@@ -173,6 +185,8 @@ internal object RecordOperations {
         }
         collect(persisted.notes)
         persisted.collections.forEach { collect(it.notes) }
+        persisted.archived.forEach { collect(listOf(it.note)) }
+        persisted.trash.forEach { collect(listOf(it.note)) }
 
         fun updateTree(notes: List<Note>): List<Note> = notes.map { note ->
             val children = updateTree(note.children)
@@ -189,11 +203,18 @@ internal object RecordOperations {
                 else -> note
             }
         }
+        fun updateVault(entries: List<VaultNote>): List<VaultNote> =
+            entries.map { entry ->
+                val updated = updateTree(listOf(entry.note)).single()
+                if (updated == entry.note) entry else entry.copy(note = updated)
+            }
         return current.copy(
             notes = updateTree(current.notes),
             collections = current.collections.map { collection ->
                 collection.copy(notes = updateTree(collection.notes))
-            }
+            },
+            archived = updateVault(current.archived),
+            trash = updateVault(current.trash)
         )
     }
 
