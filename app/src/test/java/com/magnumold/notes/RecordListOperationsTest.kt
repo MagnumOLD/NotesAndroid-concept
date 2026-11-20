@@ -39,6 +39,19 @@ class RecordListOperationsTest {
     }
 
     @Test
+    fun moduleReorderRejectsUnknownOrSelectedDropAnchor() {
+        val original = listOf(note(1), note(2), note(3))
+        assertEquals(original, NoteReorderModel.moveSelected(original, setOf(3L), afterId = 99L))
+        assertEquals(original, NoteReorderModel.moveSelected(original, setOf(3L), afterId = 3L))
+    }
+
+    @Test
+    fun moduleReorderCannotCrossPinnedPartition() {
+        val original = listOf(note(1, pinned = true), note(2))
+        assertEquals(original, NoteReorderModel.moveSelected(original, setOf(2L), afterId = 1L))
+    }
+
+    @Test
     fun pinningWithNoMatchingSelectionDoesNotReorderRecords() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(note(1), note(2, pinned = true), note(3)),

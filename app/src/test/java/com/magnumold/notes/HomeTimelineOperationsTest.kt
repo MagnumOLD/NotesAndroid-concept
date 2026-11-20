@@ -143,6 +143,22 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun homeTimelineRejectsDropAnchorsFromAnotherDayOrPinnedPartition() {
+        val today = note(1, order = 30, created = 10 * 86_400_000L)
+        val tomorrow = note(2, order = 20, created = 11 * 86_400_000L)
+        val pinned = note(3, order = 10, created = 10 * 86_400_000L).copy(pinned = true)
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(today, tomorrow, pinned),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        assertEquals(snapshot, HomeTimelineOperations.reorder(snapshot, setOf(1L), afterId = 2L))
+        assertEquals(snapshot, HomeTimelineOperations.reorder(snapshot, setOf(1L), afterId = 3L))
+    }
+
+    @Test
     fun homeTimelineKeepsPinnedRecordsInTheirOwnReorderPartition() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(
