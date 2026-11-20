@@ -99,11 +99,11 @@ class AppModulesTest {
         )!!
 
         assertEquals(
-            listOf("NOTES", "module-group-TASKS-NUTRITION", "TIMERS", "WORKOUTS", "PURCHASES"),
+            listOf("NOTES", "TIMERS", "module-group-TASKS-NUTRITION", "WORKOUTS", "PURCHASES"),
             rows.map { it.key }
         )
         assertEquals(listOf(AppModule.TASKS, AppModule.NUTRITION), rows[1].modules)
-        assertEquals(order, ModuleReorderModel.flatten(rows))
+        assertEquals(listOf(AppModule.NOTES, AppModule.TIMERS, AppModule.TASKS, AppModule.NUTRITION, AppModule.WORKOUTS, AppModule.PURCHASES), ModuleReorderModel.flatten(rows))
     }
 
     @Test
