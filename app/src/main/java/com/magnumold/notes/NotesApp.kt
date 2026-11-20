@@ -163,7 +163,7 @@ internal fun NotesApp(
                             moduleConfiguration = updated.normalized()
                             moduleSettingsStore.save(moduleConfiguration)
                             if (navigation.activeModule != AppModule.ALL && navigation.activeModule !in moduleConfiguration.enabled) {
-                                navigation.selectModule(AppModule.ALL)
+                                navigation.returnToHomeKeepingModuleScreens()
                             }
                         },
                         onBack = { navigation.closeModuleManagement() },
