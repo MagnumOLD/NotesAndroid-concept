@@ -1,8 +1,10 @@
 package com.magnumold.notes
 
 import android.content.Context
+import android.content.SharedPreferences
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import java.lang.reflect.Proxy
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -100,4 +102,63 @@ class RecoveryDataRepositoryTest {
         assertEquals(12, org.json.JSONObject(encoded).getInt("version"))
         assertEquals(listOf(entry), decoded.recoveryEntries)
     }
+    @Test
+    fun duplicateEntriesInOnePayloadAreWrittenOnlyOnce() {
+        val records = preferences("recovery_duplicate_payload_records_test")
+        val tracking = preferences("recovery_duplicate_payload_tracking_test")
+        val entry = RecoveryEntry("records", "recovery_corrupt_notes_600", "{same-fragment")
+
+        val imported = RecoveryDataRepository(records, tracking).importEntries(listOf(entry, entry))
+
+        assertEquals(1, imported)
+        assertEquals("{same-fragment", records.getString(entry.key, null))
+        assertEquals(1, records.all.keys.count { it.startsWith("recovery_corrupt_") })
+    }
+
+    @Test
+    fun failedSecondStoreCommitRollsBackEarlierStoreWrites() {
+        val records = preferences("recovery_rollback_records_test")
+        val trackingBase = preferences("recovery_rollback_tracking_test")
+        var failCommit = true
+        val tracking = Proxy.newProxyInstance(
+            SharedPreferences::class.java.classLoader,
+            arrayOf(SharedPreferences::class.java)
+        ) { _, method, args ->
+            if (method.name == "edit") {
+                val editor = trackingBase.edit()
+                Proxy.newProxyInstance(
+                    SharedPreferences.Editor::class.java.classLoader,
+                    arrayOf(SharedPreferences.Editor::class.java)
+                ) { proxy, editorMethod, editorArgs ->
+                    if (editorMethod.name == "commit" && failCommit) {
+                        failCommit = false
+                        false
+                    } else {
+                        val result = editorMethod.invoke(editor, *(editorArgs ?: emptyArray()))
+                        if (result is SharedPreferences.Editor) proxy else result
+                    }
+                }
+            } else {
+                method.invoke(trackingBase, *(args ?: emptyArray()))
+            }
+        } as SharedPreferences
+        val repository = RecoveryDataRepository(records, tracking)
+
+        var failed = false
+        try {
+            repository.importEntries(
+                listOf(
+                    RecoveryEntry("records", "recovery_corrupt_notes_700", "{record-fragment"),
+                    RecoveryEntry("time_tracking", "recovery_corrupt_timer_800", "{timer-fragment")
+                )
+            )
+        } catch (_: IllegalStateException) {
+            failed = true
+        }
+
+        assertTrue(failed)
+        assertTrue(records.all.keys.none { it.startsWith("recovery_corrupt_") })
+        assertTrue(trackingBase.all.keys.none { it.startsWith("recovery_corrupt_") })
+    }
+
 }
