@@ -2,10 +2,8 @@ package com.magnumold.notes
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onAllNodes
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.assertIsDisplayed
@@ -40,7 +38,9 @@ class ModuleManagementScreenTest {
         composeRule.onNodeWithText("КБЖУ").assertIsDisplayed()
         composeRule.onNodeWithText("Тренировки").assertIsDisplayed()
         composeRule.onNodeWithText("Покупки").assertIsDisplayed()
-        composeRule.onAllNodes(isToggleable()).assertCountEquals(6)
+        AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
+            composeRule.onNodeWithTag("module-switch-${module.name}").assertIsDisplayed()
+        }
     }
 
     @Test
@@ -57,7 +57,7 @@ class ModuleManagementScreenTest {
             }
         }
 
-        composeRule.onAllNodes(isToggleable())[0].performClick()
+        composeRule.onNodeWithTag("module-switch-NOTES").performClick()
         composeRule.runOnIdle {
             assertFalse(AppModule.NOTES in state.value.enabled)
             assertTrue(AppModule.TASKS in state.value.enabled)
