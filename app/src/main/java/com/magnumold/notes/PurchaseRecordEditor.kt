@@ -27,7 +27,7 @@ internal fun PurchaseRecordEditor(
             onValueChange = { raw ->
                 if (raw.length <= 12 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
                     input = raw
-                    update(raw.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0)
+                    update(PurchaseOperations.normalizeAmount(raw.replace(',', '.').toDoubleOrNull() ?: 0.0))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -37,7 +37,8 @@ internal fun PurchaseRecordEditor(
         )
     }
     val purchased = note.status == RecordStatus.COMPLETED
-    val total = note.purchaseQuantity * note.purchaseUnitPrice
+    val total = PurchaseOperations.normalizeAmount(note.purchaseQuantity) *
+        PurchaseOperations.normalizeAmount(note.purchaseUnitPrice)
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
