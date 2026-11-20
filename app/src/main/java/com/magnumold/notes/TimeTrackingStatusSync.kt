@@ -11,6 +11,9 @@ internal data class TaskTrackingContext(
     val parent: Note?
 )
 
+internal fun PersistenceSnapshot.taskTrackingRoots(): List<Note> =
+    notes + collections.flatMap { it.notes } + archived.map { it.note } + trash.map { it.note }
+
 internal fun findTaskTrackingContext(
     roots: List<Note>,
     taskId: Long

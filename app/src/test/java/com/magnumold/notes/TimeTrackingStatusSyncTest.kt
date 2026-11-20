@@ -18,6 +18,31 @@ class TimeTrackingStatusSyncTest {
         timeTrackingEnabled = trackingEnabled, children = children
     )
 
+    @Test fun protectionTimerCanResolveTasksStoredInArchiveOrTrash() {
+        val archivedChild = task(31L, "Archived child", RecordStatus.PAUSED)
+        val trashedChild = task(41L, "Trashed child", RecordStatus.PAUSED)
+        val snapshot = PersistenceSnapshot(
+            notes = emptyList(),
+            collections = emptyList(),
+            archived = listOf(VaultNote(
+                task(30L, "Archived parent", RecordStatus.IN_PROGRESS, listOf(archivedChild)),
+                null, 0, 100L
+            )),
+            trash = listOf(VaultNote(
+                task(40L, "Trashed parent", RecordStatus.IN_PROGRESS, listOf(trashedChild)),
+                null, 0, 200L
+            ))
+        )
+
+        val archivedContext = findTaskTrackingContext(snapshot.taskTrackingRoots(), 31L)
+        val trashedContext = findTaskTrackingContext(snapshot.taskTrackingRoots(), 41L)
+
+        assertEquals("Archived child", archivedContext?.task?.trackingDisplayTitle())
+        assertEquals(30L, archivedContext?.parent?.id)
+        assertEquals("Trashed child", trashedContext?.task?.trackingDisplayTitle())
+        assertEquals(40L, trashedContext?.parent?.id)
+    }
+
     @Test fun startingParentDoesNotStartItsOwnStopwatch() {
         val parent = task(10, "Parent", RecordStatus.IN_PROGRESS)
         val state = syncWorkSessionsForTaskChanges(emptyList(), listOf(parent), TimeTrackingState(), 100L)

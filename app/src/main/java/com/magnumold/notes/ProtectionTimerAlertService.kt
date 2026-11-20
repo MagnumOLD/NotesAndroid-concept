@@ -259,7 +259,7 @@ internal class ProtectionTimerAlertService : Service() {
         // must be claimed atomically in the tracking repository before changing
         // the task status; otherwise a stale tap can race a timer replacement
         // and pause/resume a task even though its tracking action is rejected.
-        val context = findTaskTrackingContext(HomeTimelineOperations.records(notes.loadSnapshot()), taskId)
+        val context = findTaskTrackingContext(notes.loadSnapshot().taskTrackingRoots(), taskId)
         var actionApplied = false
         timeRepository().update { state ->
             if (!isProtectionTimerActionCurrent(
