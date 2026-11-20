@@ -32,7 +32,7 @@ internal object HomeTimelineOperations {
                 // including earlier days, not just the remaining days.
                 HomeTimelineRange.MONTH -> day in monthBounds
                 HomeTimelineRange.HISTORY -> day < todayDay
-                HomeTimelineRange.FAVORITES -> note.favorite && note.showOnHome
+                HomeTimelineRange.FAVORITES -> note.favorite
             }
         }
     }
@@ -48,7 +48,7 @@ internal object HomeTimelineOperations {
         )
 
     fun orderedFavoritesByModule(notes: List<Note>): List<Note> =
-        notes.filter { it.favorite && it.showOnHome }.sortedWith(
+        notes.filter { it.favorite }.sortedWith(
             compareBy<Note> { it.type.ordinal }
                 .thenByDescending { timelineDayKey(it) }
                 .thenByDescending { it.pinned }
