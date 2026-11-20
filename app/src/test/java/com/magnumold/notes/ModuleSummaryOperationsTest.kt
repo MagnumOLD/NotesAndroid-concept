@@ -123,4 +123,22 @@ class ModuleSummaryOperationsTest {
         )
     }
 
+    @Test
+    fun nutritionSummaryIgnoresNegativeAndNonFiniteImportedValues() {
+        val day = 800L
+        val entry = Note(
+            1, "", listOf(NoteBlock()), 1L,
+            type = RecordType.NUTRITION,
+            scheduledAt = day * 86_400_000L,
+            nutritionCalories = 250.0,
+            nutritionProtein = -10.0,
+            nutritionFat = Double.NaN,
+            nutritionCarbs = Double.POSITIVE_INFINITY
+        )
+        assertEquals(
+            "Сегодня: 250 ккал · Б 0 г · Ж 0 г · У 0 г",
+            ModuleSummaryOperations.summary("КБЖУ", listOf(entry), day)
+        )
+    }
+
 }
