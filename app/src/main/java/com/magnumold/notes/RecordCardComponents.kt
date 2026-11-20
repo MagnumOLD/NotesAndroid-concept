@@ -298,7 +298,7 @@ internal fun recordCardPrimaryText(note: Note): String {
     val text = note.titleText.trim()
     return when (note.type) {
         RecordType.TIMER -> text.ifBlank { "Таймер" }
-        RecordType.NUTRITION -> text.ifBlank { "Запись КБЖУ" }
+        RecordType.NUTRITION -> note.nutritionItems.joinToString("\n") { it.productName }.ifBlank { text.ifBlank { "Запись КБЖУ" } }
         RecordType.WORKOUT -> text.ifBlank { "Тренировка" }
         else -> if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && text.isNotBlank()) {
             text

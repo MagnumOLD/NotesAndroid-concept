@@ -110,4 +110,24 @@ class RecordCardComponentsTest {
         }
     }
 
+    @Test
+    fun nutritionCardPrimaryTextListsEveryProductOnItsOwnLine() {
+        val base = Note(
+            id = 24L,
+            title = "",
+            blocks = emptyList(),
+            updated = 1L,
+            type = RecordType.NUTRITION
+        )
+        val buckwheat = NutritionCatalogOperations.createMealItem(
+            NutritionProduct(1L, "Гречка", 260.0, 6.0, 6.0, 6.0), 100.0
+        )
+        val chicken = NutritionCatalogOperations.createMealItem(
+            NutritionProduct(2L, "Курица", 165.0, 31.0, 3.6, 0.0), 150.0
+        )
+
+        assertEquals("Гречка", recordCardPrimaryText(base.copy(nutritionItems = listOf(buckwheat))))
+        assertEquals("Гречка\\nКурица", recordCardPrimaryText(base.copy(nutritionItems = listOf(buckwheat, chicken))))
+    }
+
 }
