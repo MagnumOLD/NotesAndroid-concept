@@ -52,7 +52,6 @@ class ModuleManagementScreenTest {
                 ModuleManagementScreen(
                     configuration = state.value,
                     onConfigurationChange = { state.value = it },
-                    onBack = {},
                     themeColors = CustomThemeColors(topBar = Color.DarkGray)
                 )
             }
