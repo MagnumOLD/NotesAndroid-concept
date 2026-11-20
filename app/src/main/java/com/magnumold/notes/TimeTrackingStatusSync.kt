@@ -265,7 +265,11 @@ internal fun resumeWorkAfterProtectionTimer(
     subtaskTitle: String?,
     nowMillis: Long
 ): TimeTrackingState {
-    val clean = state.copy(protectionTimer = null, firedProtectionAlert = null)
+    val clean = state.copy(
+        protectionTimer = null,
+        firedProtectionAlert = null,
+        pendingProtectionTaskPauseId = null
+    )
     if (parentTaskId == null || taskId in clean.activeSessions) return clean
     return TimeTrackingEngine.start(
         state = clean,
