@@ -526,7 +526,6 @@ private fun NoteColorEditorScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = topBarColor,
-                navigationIcon = { IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
                 title = { Text("Изменение цвета", style = AppTypography.screenTitleStyle()) }
             )
         }
