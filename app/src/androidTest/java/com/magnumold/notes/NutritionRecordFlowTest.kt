@@ -87,4 +87,51 @@ class NutritionRecordFlowTest {
             assertEquals(listOf(created), visibleNutritionRecords)
         }
     }
+    @Test
+    fun editorResetsDraftStateWhenSwitchingToAnotherNutritionRecord() {
+        val first = Note(
+            id = 92001L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 1L,
+            type = RecordType.NUTRITION
+        )
+        val second = NutritionCatalogOperations.withMealItems(
+            Note(
+                id = 92002L,
+                title = "",
+                blocks = listOf(NoteBlock()),
+                updated = 2L,
+                type = RecordType.NUTRITION
+            ),
+            listOf(
+                NutritionCatalogOperations.createMealItem(
+                    NutritionProduct(92003L, "Гречка", 343.0, 13.3, 3.4, 71.5),
+                    80.0
+                )
+            )
+        )
+        val current = androidx.compose.runtime.mutableStateOf(first)
+
+        composeRule.setContent {
+            MaterialTheme {
+                NutritionRecordEditor(
+                    note = current.value,
+                    products = emptyList(),
+                    topBarColor = Color(0xFF202020),
+                    addButtonColor = Color(0xFF4A90E2),
+                    onBack = {},
+                    onSaved = {},
+                    onChange = {},
+                    onProductsChange = {}
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Добавить продукты").assertExists()
+        composeRule.runOnIdle { current.value = second }
+        composeRule.onNodeWithText("Продукты в приёме пищи").assertExists()
+        composeRule.onNodeWithText("Гречка").assertExists()
+    }
+
 }
