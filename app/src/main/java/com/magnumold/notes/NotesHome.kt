@@ -348,7 +348,6 @@ internal fun NotesHome(
                         HomeTimelineRange.TOMORROW to "Завтра",
                         HomeTimelineRange.WEEK to "Неделя",
                         HomeTimelineRange.MONTH to "Месяц",
-                        HomeTimelineRange.HISTORY to "История",
                         HomeTimelineRange.FAVORITES to "Избранное"
                     )
                     ranges.forEach { (range, label) ->
