@@ -36,6 +36,9 @@ internal fun NotesApp(
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
             }
+            var homeCollectionVisible by remember(collectionVisibilityStore) {
+                androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.loadHomeVisible())
+            }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
             }
@@ -244,6 +247,11 @@ internal fun NotesApp(
                                 navigation.selectCollection(null)
                             }
                         },
+                        homeCollectionVisible = homeCollectionVisible,
+                        onHomeCollectionVisibilityChange = { visible ->
+                            homeCollectionVisible = visible
+                            collectionVisibilityStore.saveHomeVisible(visible)
+                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -322,7 +330,11 @@ internal fun NotesApp(
                         timelineMode = homeTimelineMode,
                         interactiveCards = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
-                        showCollections = navigation.activeModule == AppModule.ALL || navigation.activeModule in collectionVisibleModules,
+                        showCollections = if (navigation.activeModule == AppModule.ALL) {
+                            homeCollectionVisible
+                        } else {
+                            navigation.activeModule in collectionVisibleModules
+                        },
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
