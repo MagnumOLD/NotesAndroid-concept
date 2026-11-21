@@ -38,6 +38,15 @@ class CollectionVisibilitySettingsStoreTest {
     }
 
     @Test
+    fun previouslyEnabledHomeVisibilityRemainsEnabled() {
+        val preferences = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("collection_visibility_existing_test", Context.MODE_PRIVATE)
+        preferences.edit().putBoolean("collection_home_visible", true).commit()
+
+        assertTrue(CollectionVisibilitySettingsStore(preferences).loadHomeVisible())
+    }
+
+    @Test
     fun homeVisibilityPersistsIndependentlyFromModuleVisibility() {
         val store = store()
         val selectedModules = setOf(AppModule.NOTES, AppModule.NUTRITION)
