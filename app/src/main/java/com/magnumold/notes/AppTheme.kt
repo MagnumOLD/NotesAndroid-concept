@@ -41,7 +41,7 @@ internal fun themeColorsForMode(
     "system" -> if (systemDark) sets.dark else sets.light
     "light" -> sets.light
     "dark" -> sets.dark
-    else -> sets.custom
+    else -> sets.light
 }
 internal fun updateThemeColorSets(sets: ThemeColorSets, mode: String, key: String, color: Color): ThemeColorSets {
     fun update(current: CustomThemeColors) = when (key) {
@@ -52,11 +52,8 @@ internal fun updateThemeColorSets(sets: ThemeColorSets, mode: String, key: Strin
         "addButton" -> current.copy(addButton = color)
         else -> current.copy(collectionText = color)
     }
-    return when (mode) {
-        "light" -> sets.copy(light = update(sets.light))
-        "dark" -> sets.copy(dark = update(sets.dark))
-        else -> sets.copy(custom = update(sets.custom))
-    }
+    return if (mode == "dark") sets.copy(dark = update(sets.dark))
+    else sets.copy(light = update(sets.light))
 }
 internal fun customThemeColor(colors: CustomThemeColors, key: String): Color = when (key) {
     "background" -> colors.background
