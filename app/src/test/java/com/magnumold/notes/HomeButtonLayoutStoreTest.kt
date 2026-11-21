@@ -23,10 +23,30 @@ class HomeButtonLayoutStoreTest {
     @Test
     fun selectedLayoutPersistsAfterStoreRecreation() {
         val prefs = preferences()
-        HomeButtonLayoutStore(prefs).save(HomeButtonLayout.SIDE_BY_SIDE)
-        assertEquals(HomeButtonLayout.SIDE_BY_SIDE, HomeButtonLayoutStore(prefs).load())
-        HomeButtonLayoutStore(prefs).save(HomeButtonLayout.SHARED_PANEL)
-        assertEquals(HomeButtonLayout.SHARED_PANEL, HomeButtonLayoutStore(prefs).load())
+        HomeButtonLayoutStore(prefs).save(HomeButtonLayout.VERTICAL)
+        assertEquals(HomeButtonLayout.VERTICAL, HomeButtonLayoutStore(prefs).load())
+        HomeButtonLayoutStore(prefs).save(HomeButtonLayout.VERTICAL_PANEL)
+        assertEquals(HomeButtonLayout.VERTICAL_PANEL, HomeButtonLayoutStore(prefs).load())
+    }
+
+    @Test
+    fun buttonSizeDefaultsToNormalAndPersists() {
+        val prefs = preferences()
+        val store = HomeButtonLayoutStore(prefs)
+        assertEquals(HomeButtonSize.NORMAL, store.loadSize())
+        store.saveSize(HomeButtonSize.SMALL)
+        assertEquals(HomeButtonSize.SMALL, HomeButtonLayoutStore(prefs).loadSize())
+        HomeButtonLayoutStore(prefs).saveSize(HomeButtonSize.LARGE)
+        assertEquals(HomeButtonSize.LARGE, HomeButtonLayoutStore(prefs).loadSize())
+    }
+
+    @Test
+    fun formerHorizontalLayoutsMigrateToSupportedVerticalChoices() {
+        val prefs = preferences()
+        prefs.edit().putString("home_button_layout", "SHARED_PANEL").commit()
+        assertEquals(HomeButtonLayout.VERTICAL_PANEL, HomeButtonLayoutStore(prefs).load())
+        prefs.edit().putString("home_button_layout", "SIDE_BY_SIDE").commit()
+        assertEquals(HomeButtonLayout.SEPARATE, HomeButtonLayoutStore(prefs).load())
     }
 
     @Test

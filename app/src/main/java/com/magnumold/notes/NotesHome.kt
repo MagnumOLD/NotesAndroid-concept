@@ -59,6 +59,7 @@ internal fun NotesHome(
     collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
     homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    homeButtonSize: HomeButtonSize = HomeButtonSize.NORMAL,
     isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -254,89 +255,109 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                Column(horizontalAlignment = Alignment.End) {
-                    Row(
-                        modifier = Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
-                    ) {
-                        if (activeButtonLayout == HomeButtonLayout.SIDE_BY_SIDE) {
-                            Surface(
-                                modifier = Modifier.size(PrimaryAddButtonDimensions.diameter),
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                onClick = onOpenModules
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    AppIcon(NoteIcon.Modules, contentDescription = "Модули")
-                                }
-                            }
-                        } else if (activeButtonLayout == HomeButtonLayout.SHARED_PANEL) {
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(18.dp))
-                                    .background(MaterialTheme.colorScheme.surfaceVariant)
-                                    .padding(4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
-                                        .combinedClickable(role = Role.Button, onClick = onOpenModules, onLongClick = {}),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AppIcon(NoteIcon.Modules, contentDescription = "Модули")
-                                }
-                                Spacer(Modifier.width(4.dp))
-                                Box(
-                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
-                                        .background(themeColors.addButton)
-                                        .combinedClickable(
-                                            role = Role.Button,
-                                            onClick = {
-                                                enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
-                                            },
-                                            onLongClick = {
-                                                if (enabledModules.isEmpty()) onOpenModules()
-                                                else createMenuExpanded = true
-                                            }
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text("+", fontSize = 32.sp, fontWeight = FontWeight.Light,
-                                        color = noteTextColor(themeColors.addButton))
-                                }
-                            }
-                        }
+                val scale = homeButtonSize.scale
+                val modulesDiameter = 48.dp * scale
+                val addDiameter = if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
+                    PrimaryAddButtonDimensions.diameter
+                } else {
+                    56.dp * scale
+                }
+                val buttonGap = 8.dp * scale
+                val addAction: () -> Unit = {
+                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                }
+                val addLongAction: () -> Unit = {
+                    if (enabledModules.isEmpty()) onOpenModules()
+                    else createMenuExpanded = true
+                }
 
-                        if (activeButtonLayout != HomeButtonLayout.SHARED_PANEL) {
+                Column(
+                    modifier = Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(buttonGap)
+                ) {
+                    if (activeButtonLayout == HomeButtonLayout.VERTICAL) {
+                        Box(
+                            modifier = Modifier.size(modulesDiameter)
+                                .shadow(3.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .combinedClickable(
+                                    role = Role.Button,
+                                    onClick = onOpenModules,
+                                    onLongClick = {}
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        }
+                    } else if (activeButtonLayout == HomeButtonLayout.VERTICAL_PANEL) {
+                        Column(
+                            modifier = Modifier
+                                .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(4.dp * scale),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp * scale)
+                        ) {
                             Box(
-                                modifier = Modifier
-                                    .size(PrimaryAddButtonDimensions.diameter)
-                                    .then(
-                                        if (activeButtonLayout == HomeButtonLayout.SEPARATE)
-                                            Modifier.shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
-                                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                        else Modifier.shadow(3.dp, RoundedCornerShape(16.dp))
-                                            .clip(RoundedCornerShape(16.dp))
-                                    )
-                                    .background(themeColors.addButton)
+                                modifier = Modifier.size(modulesDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
                                     .combinedClickable(
                                         role = Role.Button,
-                                        onClick = {
-                                            enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
-                                        },
-                                        onLongClick = {
-                                            if (enabledModules.isEmpty()) onOpenModules()
-                                            else createMenuExpanded = true
-                                        }
+                                        onClick = onOpenModules,
+                                        onLongClick = {}
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("+", fontSize = 34.sp, fontWeight = FontWeight.Light,
-                                    color = noteTextColor(themeColors.addButton))
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
+                            Box(
+                                modifier = Modifier.size(addDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(themeColors.addButton)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = addAction,
+                                        onLongClick = addLongAction
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "+",
+                                    fontSize = 34.sp * scale,
+                                    fontWeight = FontWeight.Light,
+                                    color = noteTextColor(themeColors.addButton)
+                                )
                             }
                         }
                     }
+
+                    if (activeButtonLayout != HomeButtonLayout.VERTICAL_PANEL) {
+                        Box(
+                            modifier = Modifier
+                                .size(addDiameter)
+                                .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(themeColors.addButton)
+                                .combinedClickable(
+                                    role = Role.Button,
+                                    onClick = addAction,
+                                    onLongClick = addLongAction
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "+",
+                                fontSize = if (activeButtonLayout == HomeButtonLayout.SEPARATE) 34.sp else 34.sp * scale,
+                                fontWeight = FontWeight.Light,
+                                color = noteTextColor(themeColors.addButton)
+                            )
+                        }
+                    }
+                }
+            }
                     DropdownMenu(
                         expanded = createMenuExpanded,
                         onDismissRequest = { createMenuExpanded = false }
