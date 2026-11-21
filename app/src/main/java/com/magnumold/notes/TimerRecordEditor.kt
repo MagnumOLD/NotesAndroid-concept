@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -43,7 +42,7 @@ internal fun TimerRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
-    BackHandler { onBack() }
+    AppBackHandler { onBack() }
     val context = LocalContext.current
     val exactAlarmsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
