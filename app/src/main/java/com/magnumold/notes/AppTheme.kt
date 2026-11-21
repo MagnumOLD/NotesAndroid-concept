@@ -21,8 +21,8 @@ internal data class ThemeColorSets(
         collectionText = Color(0xFF007AFF)
     ),
     val dark: CustomThemeColors = CustomThemeColors(
-        background = Color.Black, topBar = Color(0xFF9B2D30), statusBar = Color.Black,
-        selection = Color(0xFF1C2B40), addButton = Color(0xFF9B2D30),
+        background = Color.Black, topBar = Color(0xFF7F1C30), statusBar = Color.Black,
+        selection = Color(0xFF1C2B40), addButton = Color(0xFF7F1C30),
         collectionText = Color.White
     ),
     val custom: CustomThemeColors = CustomThemeColors()
