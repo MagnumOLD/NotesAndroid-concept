@@ -181,11 +181,11 @@ internal fun SettingsScreen(
         ThemeColorEditorScreen(
             title = title,
             color = customThemeColor(themeColors, key),
-            resetColor = customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key),
+            resetColor = customThemeColor(if (activeColorMode == "dark") ThemeColorSets().dark else ThemeColorSets().light, key),
             topBarColor = themeColors.topBar,
             onBack = { customColorEditorKey = null },
             onColorChange = { onThemeColorChange(key, it) },
-            onReset = { onThemeColorChange(key, customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key)) }
+            onReset = { onThemeColorChange(key, customThemeColor(if (activeColorMode == "dark") ThemeColorSets().dark else ThemeColorSets().light, key)) }
         )
         return
     }
