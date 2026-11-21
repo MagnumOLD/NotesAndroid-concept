@@ -1,6 +1,5 @@
 package com.magnumold.notes
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -105,7 +104,9 @@ internal fun NutritionRecordEditor(
         onSessionChange = { reorderSession = it },
         onFinishDrag = { finishDrag() }
     )
-    BackHandler(enabled = addingProducts || catalogVisible) {
+    // The product form is a platform dialog and handles its own Back event.
+    // Otherwise dismiss the catalog first; on the record itself, leave the editor.
+    AppBackHandler {
         if (catalogVisible) catalogVisible = false else onBack()
     }
 
