@@ -38,6 +38,12 @@ internal fun NotesApp(
             var homeButtonLayout by remember(homeButtonLayoutStore) {
                 androidx.compose.runtime.mutableStateOf(homeButtonLayoutStore.load())
             }
+            val homeAddRecordTypeStore = remember(activity) {
+                HomeAddRecordTypeStore(activity.getSharedPreferences("notes_home_add", Context.MODE_PRIVATE))
+            }
+            var homeAddRecordType by remember(homeAddRecordTypeStore) {
+                androidx.compose.runtime.mutableStateOf(homeAddRecordTypeStore.load())
+            }
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
             }
@@ -254,6 +260,12 @@ internal fun NotesApp(
                             homeButtonLayout = layout
                             homeButtonLayoutStore.save(layout)
                         },
+                        homeAddRecordType = homeAddRecordType,
+                        enabledModules = moduleConfiguration.enabled,
+                        onHomeAddRecordTypeChange = { type ->
+                            homeAddRecordType = type
+                            homeAddRecordTypeStore.save(type)
+                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -341,6 +353,7 @@ internal fun NotesApp(
                             navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         homeButtonLayout = homeButtonLayout,
+                        homeAddRecordType = homeAddRecordType,
                         isMainHome = navigation.activeModule == AppModule.ALL,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
