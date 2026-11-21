@@ -168,7 +168,7 @@ internal fun NotesApp(
                 themeSettings = themeSettings
             )
 
-            NotesTheme(dark, activeThemeColors, themeMode == "custom") {
+            NotesTheme(dark, activeThemeColors) {
                 val selected = activeNotes.firstOrNull { it.id == selectedId }
                 if (navigation.modulesVisible && navigation.moduleManagementVisible && selected == null) {
                     ModuleManagementScreen(
