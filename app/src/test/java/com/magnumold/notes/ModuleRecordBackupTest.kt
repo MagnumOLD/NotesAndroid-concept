@@ -454,8 +454,7 @@ class ModuleRecordBackupTest {
             status = RecordStatus.IN_PROGRESS,
             dateMode = RecordDateMode.DEADLINE,
             dateAt = java.util.Calendar.getInstance().apply {
-                clear()
-                set(2026, java.util.Calendar.NOVEMBER, 20)
+                add(java.util.Calendar.DAY_OF_YEAR, 30)
             }.timeInMillis,
             children = listOf(
                 Note(31L, "", listOf(NoteBlock("Done")), 100L, type = RecordType.TASK, status = RecordStatus.COMPLETED),
@@ -463,7 +462,9 @@ class ModuleRecordBackupTest {
             )
         )
 
-        assertEquals("Выполняется · 1/2 · до 20.11", recordCardSecondaryText(task))
+        val expectedDeadline = java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault())
+            .format(task.dateAt)
+        assertEquals("Выполняется · 1/2 · до $expectedDeadline", recordCardSecondaryText(task))
     }
 
 
