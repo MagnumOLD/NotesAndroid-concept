@@ -17,6 +17,15 @@ android {
         versionName = "1.0.0-concept"
     }
 
+    testOptions {
+        unitTests.all {
+            // The explicit Test receiver is required by the Kotlin DSL action overload.
+            // Use Maven Central's canonical endpoint for Robolectric runtime artifacts.
+            it.systemProperty("robolectric.dependency.repo.url", "https://repo.maven.apache.org/maven2")
+            it.systemProperty("robolectric.dependency.repo.id", "mavenCentral")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false

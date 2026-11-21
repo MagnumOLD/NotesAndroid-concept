@@ -11,7 +11,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.BackHandler
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
@@ -38,9 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DragHandle
@@ -57,13 +54,11 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.FileUpload
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ChevronRight
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.withFrameNanos
@@ -142,20 +137,33 @@ internal fun SettingsScreen(
     onCardPreviewFieldsChange: (Set<String>) -> Unit = {},
     collectionVisibleModules: Set<AppModule> = ModuleConfiguration().enabled,
     onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
+    homeCollectionVisible: Boolean = true,
+    onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    onHomeButtonLayoutChange: (HomeButtonLayout) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
     var colorEditorIndex by remember { mutableStateOf<Int?>(null) }
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
+    var cardBehaviorVisible by remember { mutableStateOf(false) }
+    var storageVisible by remember { mutableStateOf(false) }
+    var moduleCollectionsVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible) {
+    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
-        } else {
+        } else if (personalizationVisible) {
             personalizationVisible = false
+        } else if (cardBehaviorVisible) {
+            cardBehaviorVisible = false
+        } else if (storageVisible) {
+            storageVisible = false
+        } else {
+            moduleCollectionsVisible = false
         }
     }
 
@@ -172,11 +180,11 @@ internal fun SettingsScreen(
         ThemeColorEditorScreen(
             title = title,
             color = customThemeColor(themeColors, key),
-            resetColor = customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key),
+            resetColor = customThemeColor(if (activeColorMode == "dark") ThemeColorSets().dark else ThemeColorSets().light, key),
             topBarColor = themeColors.topBar,
             onBack = { customColorEditorKey = null },
             onColorChange = { onThemeColorChange(key, it) },
-            onReset = { onThemeColorChange(key, customThemeColor(when (activeColorMode) { "light" -> ThemeColorSets().light; "dark" -> ThemeColorSets().dark; else -> defaultCustomThemeColors }, key)) }
+            onReset = { onThemeColorChange(key, customThemeColor(if (activeColorMode == "dark") ThemeColorSets().dark else ThemeColorSets().light, key)) }
         )
         return
     }
@@ -199,14 +207,15 @@ internal fun SettingsScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = themeColors.topBar,
-                navigationIcon = {
-                    IconButton(onClick = { if (personalizationVisible) personalizationVisible = false else onBack() }) {
-                        AppIcon(NoteIcon.Back, contentDescription = "Назад")
-                    }
-                },
                 title = {
                     Text(
-                        if (personalizationVisible) "Персонализация" else "Настройки",
+                        when {
+                            personalizationVisible -> "Персонализация"
+                            cardBehaviorVisible -> "Поведение карточек"
+                            storageVisible -> "Хранение"
+                            moduleCollectionsVisible -> "Подборки по модулям"
+                            else -> "Настройки"
+                        },
                         style = AppTypography.screenTitleStyle()
                     )
                 }
@@ -215,6 +224,29 @@ internal fun SettingsScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (personalizationVisible) {
+                ListItem(headlineContent = { Text("Главная страница", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                ListItem(
+                    headlineContent = { Text("Расположение кнопок") },
+                    supportingContent = { Text("Выберите расположение кнопок модулей и добавления записи") }
+                )
+                listOf(
+                    HomeButtonLayout.SEPARATE to "Раздельно — как сейчас",
+                    HomeButtonLayout.VERTICAL to "Вертикально — отдельные кнопки",
+                    HomeButtonLayout.VERTICAL_PANEL to "Вертикальная панель"
+                ).forEach { (layout, label) ->
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        trailingContent = {
+                            RadioButton(
+                                selected = homeButtonLayout == layout,
+                                onClick = { onHomeButtonLayoutChange(layout) }
+                            )
+                        },
+                        modifier = Modifier.clickable { onHomeButtonLayoutChange(layout) }
+                            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Внешний вид", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Системная тема") },
@@ -232,32 +264,25 @@ internal fun SettingsScreen(
                     trailingContent = { RadioButton(selected = themeMode == "dark", onClick = { onThemeModeChange("dark") }) },
                     modifier = Modifier.clickable { onThemeModeChange("dark") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
-                ListItem(
-                    headlineContent = { Text("Своя тема") },
-                    supportingContent = { Text("Независимое оформление приложения") },
-                    trailingContent = { RadioButton(selected = themeMode == "custom", onClick = { onThemeModeChange("custom") }) },
-                    modifier = Modifier.clickable { onThemeModeChange("custom") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text(if (themeMode == "custom") "Настройка своей темы" else "Настройка цветов темы", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
-                val themeRows = buildList {
-                    if (themeMode == "custom") add(Triple("background", "Фон приложения", themeColors.background))
-                    add(Triple("topBar", "Панель приложения", themeColors.topBar))
-                    add(Triple("statusBar", "Строка состояния", themeColors.statusBar))
-                    add(Triple("selection", "Цвет выделенных карточек", themeColors.selection))
-                    add(Triple("addButton", "Кнопки добавления", themeColors.addButton))
-                    add(Triple("collectionText", "Текст выбранной подборки", themeColors.collectionText))
-                }
+                ListItem(headlineContent = { Text("Настройка цветов темы", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                val themeRows = listOf(
+                    Triple("topBar", "Панель приложения", themeColors.topBar),
+                    Triple("statusBar", "Строка состояния", themeColors.statusBar),
+                    Triple("selection", "Цвет выделенных карточек", themeColors.selection),
+                    Triple("addButton", "Кнопки добавления", themeColors.addButton),
+                    Triple("collectionText", "Текст выбранной подборки", themeColors.collectionText)
+                )
                 themeRows.forEach { (key, label, color) ->
                     ListItem(
                         headlineContent = { Text(label) },
                         leadingContent = { Box(Modifier.size(30.dp).background(color, RoundedCornerShape(7.dp))) },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { customColorEditorKey = key }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
                 TextButton(onClick = onResetThemeColors, modifier = Modifier.padding(start = AppSpacing.screenHorizontal)) {
-                    Text(if (themeMode == "custom") "Сбросить свою тему" else "Сбросить цвета темы")
+                    Text("Сбросить цвета темы")
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Цвета заметок", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
@@ -265,7 +290,7 @@ internal fun SettingsScreen(
                     ListItem(
                         headlineContent = { Text(listOf("Бирюзовый", "Оранжевый", "Жёлтый", "Зелёный", "Розовый", "Фиолетовый")[index]) },
                         leadingContent = { Box(Modifier.size(30.dp).background(color.copy(alpha = noteColorOpacity), RoundedCornerShape(7.dp))) },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { colorEditorIndex = index }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
@@ -273,26 +298,17 @@ internal fun SettingsScreen(
                 TextButton(onClick = { onNoteColorsChange(defaultNoteColors) }, modifier = Modifier.padding(start = AppSpacing.screenHorizontal)) {
                     Text("Вернуть стандартные цвета")
                 }
-            } else {
-                ListItem(
-                    headlineContent = { Text("Персонализация") },
-                    supportingContent = { Text("Темы и цвета интерфейса и заметок") },
-                    leadingContent = { AppIcon(NoteIcon.Palette, contentDescription = null) },
-                    trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
-                    modifier = Modifier.clickable { personalizationVisible = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text("Поведение карточек", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+            } else if (cardBehaviorVisible) {
+                ListItem(headlineContent = { Text("Интерактивность", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Интерактивные карточки") },
                     supportingContent = { Text("Быстро отмечать задачи, покупки и тренировки, запускать и ставить на паузу таймеры прямо в списке") },
-                    trailingContent = {
-                        Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange)
-                    },
+                    trailingContent = { Switch(checked = interactiveCardsEnabled, onCheckedChange = onInteractiveCardsEnabledChange) },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(
-                    headlineContent = { Text("Состав данных на карточках") },
+                    headlineContent = { Text("Состав данных на карточках", style = AppTypography.emphasisBodyStyle()) },
                     supportingContent = { Text("Включайте и отключайте отдельные поля для каждого модуля") },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
@@ -311,37 +327,16 @@ internal fun SettingsScreen(
                         )
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(
-                    headlineContent = { Text("Подборки по модулям", style = AppTypography.emphasisBodyStyle()) },
-                    supportingContent = { Text("Скрытие подборок не удаляет их и содержащиеся в них записи") },
-                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
-                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
-                    ListItem(
-                        headlineContent = { Text(module.title) },
-                        supportingContent = { Text("Показывать подборки в этом модуле") },
-                        trailingContent = {
-                            Switch(
-                                checked = module in collectionVisibleModules,
-                                onCheckedChange = { onCollectionVisibilityChange(module, it) }
-                            )
-                        },
-                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                    )
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text("Хранение", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+            } else if (storageVisible) {
                 ListItem(
                     headlineContent = { Text("Архив") },
-                    supportingContent = { Text("Отложенные заметки") },
+                    supportingContent = { Text("Отложенные записи") },
                     leadingContent = { AppIcon(NoteIcon.Archive, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onOpenArchive).padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 ListItem(
                     headlineContent = { Text("Корзина") },
-                    supportingContent = { Text("Удалённые заметки") },
+                    supportingContent = { Text("Удалённые записи") },
                     leadingContent = { AppIcon(NoteIcon.Trash, contentDescription = null) },
                     modifier = Modifier.clickable(onClick = onOpenTrash).padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
@@ -351,13 +346,10 @@ internal fun SettingsScreen(
                         supportingContent = {
                             Text(if (trashRetentionDays <= 0) "Без автоматического удаления" else "$trashRetentionDays дней, затем удаление навсегда")
                         },
-                        trailingContent = { Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant) },
+                        trailingContent = { SettingsChevron() },
                         modifier = Modifier.clickable { retentionMenuExpanded = true }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
-                    DropdownMenu(
-                        expanded = retentionMenuExpanded,
-                        onDismissRequest = { retentionMenuExpanded = false }
-                    ) {
+                    DropdownMenu(expanded = retentionMenuExpanded, onDismissRequest = { retentionMenuExpanded = false }) {
                         listOf(7, 30, 90, 365, 0).forEach { days ->
                             DropdownMenuItem(
                                 text = { Text(if (days == 0) "Не удалять автоматически" else "$days дней") },
@@ -365,32 +357,135 @@ internal fun SettingsScreen(
                                     onTrashRetentionDaysChange(days)
                                     retentionMenuExpanded = false
                                 },
-                                trailingIcon = {
-                                    if (trashRetentionDays == days) Icon(Icons.Outlined.CheckCircle, contentDescription = null)
-                                }
+                                trailingIcon = { if (trashRetentionDays == days) Icon(Icons.Outlined.CheckCircle, contentDescription = null) }
                             )
                         }
                     }
                 }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+            } else if (moduleCollectionsVisible) {
                 ListItem(
-                    headlineContent = { Text("Экспорт заметок") },
-                    supportingContent = { Text("Записи, архив, корзина и данные восстановления в JSON-файл") },
-                    leadingContent = { AppIcon(NoteIcon.Upload, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onExport).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    headlineContent = { Text("Отображение подборок", style = AppTypography.emphasisBodyStyle()) },
+                    supportingContent = { Text("Выберите, в каких модулях показывать подборки. Скрытие не удаляет подборки и записи внутри них.") },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 ListItem(
-                    headlineContent = { Text("Импорт заметок") },
-                    supportingContent = { Text("Добавить заметки из резервной копии") },
-                    leadingContent = { AppIcon(NoteIcon.Download, contentDescription = null) },
-                    modifier = Modifier.clickable(onClick = onImport).padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    headlineContent = { Text("Главная") },
+                    supportingContent = { Text("Показывать подборки на главной странице") },
+                    trailingContent = {
+                        Switch(
+                            checked = homeCollectionVisible,
+                            onCheckedChange = onHomeCollectionVisibilityChange
+                        )
+                    },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
+                    ListItem(
+                        headlineContent = { Text(module.title) },
+                        supportingContent = { Text("Показывать подборки в этом модуле") },
+                        trailingContent = {
+                            Switch(checked = module in collectionVisibleModules, onCheckedChange = { onCollectionVisibilityChange(module, it) })
+                        },
+                        modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
+            } else {
+                SettingsNavigationItem(
+                    title = "Персонализация",
+                    description = "Темы и цвета интерфейса и заметок",
+                    icon = NoteIcon.Palette,
+                    showChevron = true,
+                    onClick = { personalizationVisible = true }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                SettingsNavigationItem(
+                    title = "Поведение карточек",
+                    description = "Интерактивность и состав данных на карточках",
+                    icon = NoteIcon.Modules,
+                    showChevron = true,
+                    onClick = { cardBehaviorVisible = true }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                SettingsNavigationItem(
+                    title = "Подборки по модулям",
+                    description = "Настройка отображения подборок в каждом модуле",
+                    icon = NoteIcon.Folder,
+                    showChevron = true,
+                    onClick = { moduleCollectionsVisible = true }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                SettingsNavigationItem(
+                    title = "Хранение",
+                    description = "Архив, корзина и срок хранения удалённых записей",
+                    icon = NoteIcon.Archive,
+                    showChevron = true,
+                    onClick = { storageVisible = true }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                ListItem(headlineContent = { Text("Данные", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                SettingsNavigationItem(
+                    title = "Экспорт заметок",
+                    description = "Записи, архив, корзина и данные восстановления в JSON-файл",
+                    icon = NoteIcon.Upload,
+                    onClick = onExport
+                )
+                SettingsNavigationItem(
+                    title = "Импорт заметок",
+                    description = "Добавить заметки из резервной копии",
+                    icon = NoteIcon.Download,
+                    onClick = onImport
                 )
             }
         }
     }
 }
 
+
+@Composable
+private fun SettingsNavigationItem(
+    title: String,
+    description: String,
+    icon: NoteIcon,
+    showChevron: Boolean = false,
+    onClick: () -> Unit
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(description) },
+        leadingContent = {
+            Box(
+                modifier = Modifier.fillMaxHeight(),
+                contentAlignment = Alignment.Center
+            ) {
+                AppIcon(icon, contentDescription = null)
+            }
+        },
+        trailingContent = if (showChevron) {
+            { SettingsChevron() }
+        } else {
+            null
+        },
+        modifier = Modifier
+            .clickable(onClick = onClick)
+            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+    )
+}
+
+@Composable
+private fun SettingsChevron() {
+    Box(
+        modifier = Modifier.size(24.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
+        )
+    }
+}
 
 @Composable
 private fun CompactOpacitySlider(value: Float, onValueChange: (Float) -> Unit) {
@@ -468,7 +563,6 @@ private fun ThemeColorEditorScreen(
     Scaffold(containerColor = MaterialTheme.colorScheme.background, topBar = {
         AppPageTopBar(
             backgroundColor = topBarColor,
-            navigationIcon = { IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
             title = { Text(title, style = AppTypography.screenTitleStyle()) }
         )
     }) { padding ->
@@ -533,7 +627,6 @@ private fun NoteColorEditorScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = topBarColor,
-                navigationIcon = { IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
                 title = { Text("Изменение цвета", style = AppTypography.screenTitleStyle()) }
             )
         }

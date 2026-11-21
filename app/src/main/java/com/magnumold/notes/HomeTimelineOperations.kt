@@ -5,23 +5,36 @@ package com.magnumold.notes
  * notebook/collection; only their home presentation order is shared.
  */
 internal enum class HomeTimelineRange {
-    ALL, TODAY, TOMORROW, WEEK, MONTH, HISTORY, FAVORITES
+    ALL, TODAY, TOMORROW, WEEK, MONTH, FAVORITES
 }
 
 internal object HomeTimelineOperations {
-    fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> =
-        notes.filter { note ->
+    fun filterByRange(notes: List<Note>, range: HomeTimelineRange, todayDay: Long): List<Note> {
+        val monthBounds = if (range == HomeTimelineRange.MONTH) {
+            val utc = java.util.TimeZone.getTimeZone("UTC")
+            val calendar = java.util.Calendar.getInstance(utc).apply {
+                timeInMillis = todayDay * MILLIS_PER_DAY
+                set(java.util.Calendar.DAY_OF_MONTH, 1)
+            }
+            val monthStart = calendar.timeInMillis / MILLIS_PER_DAY
+            calendar.add(java.util.Calendar.MONTH, 1)
+            monthStart until (calendar.timeInMillis / MILLIS_PER_DAY)
+        } else 0L until 0L
+
+        return notes.filter { note ->
             val day = timelineDayKey(note)
             when (range) {
                 HomeTimelineRange.ALL -> true
                 HomeTimelineRange.TODAY -> day == todayDay
                 HomeTimelineRange.TOMORROW -> day == todayDay + 1
                 HomeTimelineRange.WEEK -> day in todayDay..(todayDay + 6)
-                HomeTimelineRange.MONTH -> day in todayDay..(todayDay + 29)
-                HomeTimelineRange.HISTORY -> day < todayDay
+                // "Месяц" covers the complete current calendar month,
+                // including earlier days, not just the remaining days.
+                HomeTimelineRange.MONTH -> day in monthBounds
                 HomeTimelineRange.FAVORITES -> note.favorite
             }
         }
+    }
 
     fun records(snapshot: PersistenceSnapshot): List<Note> =
         snapshot.notes + snapshot.collections.flatMap { it.notes }
@@ -44,15 +57,28 @@ internal object HomeTimelineOperations {
     fun moduleSectionTitle(type: RecordType): String =
         AppModule.entries.firstOrNull { it.recordType == type }?.title ?: "Другое"
 
+    fun emptyStateMessage(range: HomeTimelineRange, searching: Boolean): String {
+        if (searching) return "Ничего не найдено"
+        return when (range) {
+            HomeTimelineRange.ALL -> "Пока нет записей"
+            HomeTimelineRange.TODAY -> "На сегодня записей нет"
+            HomeTimelineRange.TOMORROW -> "На завтра записей нет"
+            HomeTimelineRange.WEEK -> "На эту неделю записей нет"
+            HomeTimelineRange.MONTH -> "В этом месяце записей нет"
+            HomeTimelineRange.FAVORITES -> "В избранном пока пусто"
+        }
+    }
+
     fun update(snapshot: PersistenceSnapshot, note: Note): PersistenceSnapshot {
-        if (snapshot.notes.any { it.id == note.id }) {
-            return snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
+        val updated = if (snapshot.notes.any { it.id == note.id }) {
+            snapshot.copy(notes = snapshot.notes.map { if (it.id == note.id) note else it })
+        } else {
+            val collections = snapshot.collections.map { collection ->
+                collection.copy(notes = collection.notes.map { if (it.id == note.id) note else it })
+            }
+            if (collections == snapshot.collections) snapshot else snapshot.copy(collections = collections)
         }
-        val collections = snapshot.collections.map { collection ->
-            collection.copy(notes = collection.notes.map { if (it.id == note.id) note else it })
-        }
-        return if (collections == snapshot.collections) snapshot
-        else snapshot.copy(collections = collections)
+        return updated.takeIf { it.hasUniqueRecordIds() } ?: snapshot
     }
 
     fun remove(snapshot: PersistenceSnapshot, id: Long): PersistenceSnapshot {
@@ -66,6 +92,29 @@ internal object HomeTimelineOperations {
 
     fun changeColor(snapshot: PersistenceSnapshot, id: Long, colorIndex: Int): PersistenceSnapshot =
         updateById(snapshot, id) { it.copy(colorIndex = colorIndex) }
+
+    fun toggleFavorite(snapshot: PersistenceSnapshot, ids: Set<Long>): PersistenceSnapshot {
+        if (ids.isEmpty()) return snapshot
+        val selected = records(snapshot).filter { it.id in ids }
+        if (selected.isEmpty()) return snapshot
+        val allFavorite = selected.all { it.favorite }
+        return mapAll(snapshot) { note ->
+            if (note.id in ids) note.copy(favorite = !allFavorite) else note
+        }
+    }
+
+    fun setShowOnHome(
+        snapshot: PersistenceSnapshot,
+        ids: Set<Long>,
+        show: Boolean
+    ): PersistenceSnapshot {
+        if (ids.isEmpty()) return snapshot
+        val existingIds = records(snapshot).asSequence().map { it.id }.toSet()
+        if (ids.none { it in existingIds }) return snapshot
+        return mapAll(snapshot) { note ->
+            if (note.id in ids) note.copy(showOnHome = show) else note
+        }
+    }
 
     fun togglePinned(snapshot: PersistenceSnapshot, ids: Set<Long>): PersistenceSnapshot {
         if (ids.isEmpty()) return snapshot
@@ -92,7 +141,11 @@ internal object HomeTimelineOperations {
         val movingPinned = moving.first().pinned
         val pinnedCount = remaining.count { it.pinned }
         val anchorIndex = afterId?.let { id -> remaining.indexOfFirst { it.id == id } } ?: -1
-        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (movingPinned) 0 else pinnedCount
+        if (afterId != null && anchorIndex >= 0 && remaining[anchorIndex].pinned != movingPinned) {
+            return snapshot
+        }
+        if (afterId != null && anchorIndex < 0 && ordered.any { it.id == afterId }) return snapshot
+        val targetIndex = if (anchorIndex >= 0) anchorIndex + 1 else if (afterId == null) 0 else remaining.size
         val insertAt = if (movingPinned) targetIndex.coerceIn(0, pinnedCount)
             else targetIndex.coerceIn(pinnedCount, remaining.size)
         val reorderedDay = remaining.toMutableList().apply { addAll(insertAt, moving) }
@@ -120,6 +173,8 @@ internal object HomeTimelineOperations {
     }
 
     private fun dayKey(note: Note): Long = timelineDayKey(note)
+
+    private const val MILLIS_PER_DAY = 86_400_000L
 
     fun moveToVault(
         snapshot: PersistenceSnapshot,

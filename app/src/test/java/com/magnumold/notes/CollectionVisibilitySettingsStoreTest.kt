@@ -2,6 +2,8 @@ package com.magnumold.notes
 
 import android.content.Context
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -28,6 +30,43 @@ class CollectionVisibilitySettingsStoreTest {
         val selected = setOf(AppModule.NOTES, AppModule.NUTRITION, AppModule.PURCHASES)
         store.save(selected + AppModule.ALL)
         assertEquals(selected, store.load())
+    }
+
+    @Test
+    fun homeCollectionsAreHiddenByDefaultForNewInstallations() {
+        assertFalse(store().loadHomeVisible())
+    }
+
+    @Test
+    fun previouslyEnabledHomeVisibilityRemainsEnabled() {
+        val preferences = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("collection_visibility_existing_test", Context.MODE_PRIVATE)
+        preferences.edit().putBoolean("collection_home_visible", true).commit()
+
+        assertTrue(CollectionVisibilitySettingsStore(preferences).loadHomeVisible())
+    }
+
+    @Test
+    fun homeVisibilityPersistsIndependentlyFromModuleVisibility() {
+        val store = store()
+        val selectedModules = setOf(AppModule.NOTES, AppModule.NUTRITION)
+        store.save(selectedModules)
+        store.saveHomeVisible(false)
+
+        val reloadedStore = CollectionVisibilitySettingsStore(
+            RuntimeEnvironment.getApplication()
+                .getSharedPreferences("collection_visibility_test", Context.MODE_PRIVATE)
+        )
+        assertFalse(reloadedStore.loadHomeVisible())
+        assertEquals(selectedModules, reloadedStore.load())
+    }
+
+    @Test
+    fun homeVisibilityCanBeEnabledAgain() {
+        val store = store()
+        store.saveHomeVisible(false)
+        store.saveHomeVisible(true)
+        assertTrue(store.loadHomeVisible())
     }
 
     @Test

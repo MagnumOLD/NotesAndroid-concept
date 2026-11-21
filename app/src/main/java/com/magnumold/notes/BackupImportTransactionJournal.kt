@@ -1,0 +1,127 @@
+package com.magnumold.notes
+
+import android.content.Context
+import android.content.SharedPreferences
+import org.json.JSONObject
+
+/**
+ * Durable write-ahead journal for imports spanning the records and tracking
+ * preference files. A process death before journal removal is recovered by
+ * restoring the exact pre-import values on the next app launch.
+ */
+internal class BackupImportTransactionJournal(
+    private val recordPreferences: SharedPreferences,
+    private val trackingPreferences: SharedPreferences,
+    private val journalPreferences: SharedPreferences
+) {
+    fun <T> execute(block: () -> T): T = synchronized(LOCK) {
+        // Share the timer repository's process-wide lock for the whole
+        // transaction, including journal rollback. A timer service must not
+        // write a new state between an import failure and its restoration.
+        TimeTrackingRepository.withExclusiveAccess {
+            val before = capture()
+            check(journalPreferences.edit().putString(JOURNAL_KEY, before.toString()).commit()) {
+                "Не удалось подготовить безопасный импорт резервной копии"
+            }
+            try {
+                val result = block()
+                check(journalPreferences.edit().remove(JOURNAL_KEY).commit()) {
+                    "Не удалось завершить транзакцию импорта"
+                }
+                result
+            } catch (failure: Throwable) {
+                val rollback = runCatching { restore(before) }
+                rollback.exceptionOrNull()?.let(failure::addSuppressed)
+                // Never discard the write-ahead journal unless every store was
+                // restored. Startup recovery must retain another chance after a
+                // transient storage failure.
+                if (rollback.isSuccess) {
+                    runCatching { clearJournal() }
+                        .exceptionOrNull()?.let(failure::addSuppressed)
+                }
+                throw failure
+            }
+        }
+    }
+
+    /** Must run before repositories load state or background services start. */
+    fun recoverIfNeeded() = synchronized(LOCK) {
+        TimeTrackingRepository.withExclusiveAccess {
+            val raw = journalPreferences.getString(JOURNAL_KEY, null) ?: return@withExclusiveAccess
+            val journal = JSONObject(raw)
+            restore(journal)
+            clearJournal()
+        }
+    }
+
+    private fun capture(): JSONObject {
+        val records = JSONObject()
+        val tracking = JSONObject()
+        val recordKeys = recordPreferences.all.keys.filter(::isRecordDataKey).toSet() +
+            RECORD_DATA_KEYS.filter(recordPreferences::contains)
+        val trackingKeys = trackingPreferences.all.keys.filter(::isRecoveryKey).toSet() +
+            listOf(TRACKING_STATE_KEY).filter(trackingPreferences::contains)
+        recordKeys.forEach { key ->
+            records.put(key, recordPreferences.getString(key, null) ?: JSONObject.NULL)
+        }
+        trackingKeys.forEach { key ->
+            tracking.put(key, trackingPreferences.getString(key, null) ?: JSONObject.NULL)
+        }
+        return JSONObject().put("records", records).put("tracking", tracking)
+    }
+
+    private fun restore(journal: JSONObject) {
+        restoreStore(recordPreferences, journal.getJSONObject("records"), ::isRecordDataKey, RECORD_DATA_KEYS)
+        restoreStore(
+            trackingPreferences,
+            journal.getJSONObject("tracking"),
+            { it == TRACKING_STATE_KEY || isRecoveryKey(it) },
+            listOf(TRACKING_STATE_KEY)
+        )
+    }
+
+    private fun restoreStore(
+        preferences: SharedPreferences,
+        saved: JSONObject,
+        isManagedKey: (String) -> Boolean,
+        fixedKeys: List<String>
+    ) {
+        val editor = preferences.edit()
+        (preferences.all.keys.filter(isManagedKey) + fixedKeys).toSet().forEach(editor::remove)
+        saved.keys().forEach { key ->
+            val value = saved.get(key)
+            if (value != JSONObject.NULL) editor.putString(key, value as String)
+        }
+        check(editor.commit()) { "Не удалось восстановить данные после прерванного импорта" }
+    }
+
+    private fun clearJournal() {
+        check(journalPreferences.edit().remove(JOURNAL_KEY).commit()) {
+            "Не удалось очистить журнал импорта"
+        }
+    }
+
+    private fun isRecordDataKey(key: String): Boolean =
+        key in RECORD_DATA_KEYS || isRecoveryKey(key)
+
+    private fun isRecoveryKey(key: String): Boolean =
+        key.startsWith(RecoveryDataRepository.RECOVERY_KEY_PREFIX)
+
+    private companion object {
+        const val JOURNAL_KEY = "active_backup_import_v1"
+        const val TRACKING_STATE_KEY = "time_tracking_state_v1"
+        val RECORD_DATA_KEYS = listOf("notes", "collections", "archive", "trash", "nutrition_products")
+        val LOCK = Any()
+    }
+}
+
+/** Shared recovery entry point for Activity, services and alarm receivers. */
+internal fun recoverBackupImportIfNeeded(context: Context) {
+    val records = context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+    val tracking = context.getSharedPreferences("time_tracking", Context.MODE_PRIVATE)
+    BackupImportTransactionJournal(
+        records,
+        tracking,
+        context.getSharedPreferences("backup_import_journal", Context.MODE_PRIVATE)
+    ).recoverIfNeeded()
+}

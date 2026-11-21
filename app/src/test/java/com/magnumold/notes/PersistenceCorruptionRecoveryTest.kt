@@ -1,11 +1,16 @@
 package com.magnumold.notes
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModelStore
 import org.junit.Assert.assertEquals
+import org.junit.Assert.fail
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.lang.reflect.Proxy
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
@@ -119,7 +124,12 @@ class PersistenceCorruptionRecoveryTest {
         val viewModel = NotesViewModel(
             NotesRepository(records),
             TimeTrackingRepository(tracking),
-            RecoveryDataRepository(records, tracking)
+            RecoveryDataRepository(records, tracking),
+            BackupImportTransactionJournal(
+                records,
+                tracking,
+                preferences("backup_import_flush_journal_test")
+            )
         )
         store.put("backup-import-test", viewModel)
         try {
@@ -168,4 +178,69 @@ class PersistenceCorruptionRecoveryTest {
 
         assertEquals(42L, NotesRepository(prefs).loadSnapshot().notes.single().id)
     }
+
+    @Test
+    fun failedExplicitFlushDoesNotDisableLaterAutosave() = runBlocking {
+        val base = preferences("failed_flush_autosave_recovery_test")
+        var failNextCommit = true
+        val wrapped = Proxy.newProxyInstance(
+            SharedPreferences::class.java.classLoader,
+            arrayOf(SharedPreferences::class.java)
+        ) { _, method, args ->
+            if (method.name == "edit") {
+                val editor = base.edit()
+                Proxy.newProxyInstance(
+                    SharedPreferences.Editor::class.java.classLoader,
+                    arrayOf(SharedPreferences.Editor::class.java)
+                ) { proxy, editorMethod, editorArgs ->
+                    if (editorMethod.name == "commit" && failNextCommit) {
+                        failNextCommit = false
+                        false
+                    } else {
+                        val result = editorMethod.invoke(editor, *(editorArgs ?: emptyArray()))
+                        if (result is SharedPreferences.Editor) proxy else result
+                    }
+                }
+            } else {
+                method.invoke(base, *(args ?: emptyArray()))
+            }
+        } as SharedPreferences
+        val tracking = preferences("failed_flush_autosave_tracking_test")
+        val store = ViewModelStore()
+        val viewModel = NotesViewModel(
+            NotesRepository(wrapped),
+            TimeTrackingRepository(tracking),
+            RecoveryDataRepository(wrapped, tracking),
+            BackupImportTransactionJournal(
+                wrapped,
+                tracking,
+                preferences("failed_flush_autosave_journal_test")
+            )
+        )
+        store.put("failed-flush-autosave-test", viewModel)
+        try {
+            try {
+                viewModel.flush()
+                fail("The first synchronous commit should fail")
+            } catch (_: IllegalStateException) {
+                // The observer must still be restarted in the finally block.
+            }
+
+            viewModel.createActiveRecord(
+                null,
+                Note(901L, "", listOf(NoteBlock("Autosaved after failed flush")), 901L)
+            )
+            delay(500L)
+
+            assertEquals(
+                901L,
+                NotesRepository(base).loadSnapshot().notes.single().id
+            )
+        } finally {
+            store.clear()
+            base.edit().clear().commit()
+            tracking.edit().clear().commit()
+        }
+    }
+
 }

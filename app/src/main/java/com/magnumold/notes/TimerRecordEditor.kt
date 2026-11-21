@@ -10,7 +10,6 @@ import android.provider.Settings
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,11 +42,14 @@ internal fun TimerRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    AppBackHandler { onBack() }
     val context = LocalContext.current
     val exactAlarmsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
         context.getSystemService(AlarmManager::class.java).canScheduleExactAlarms()
     val notificationsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
         context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    val latestNote by rememberUpdatedState(note)
+    val latestOnChange by rememberUpdatedState(onChange)
     var now by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
     var durationInput by remember(note.id) { mutableStateOf(note.timerDurationSeconds.toString()) }
     val running = note.timerEndsAtMillis != null
@@ -58,7 +61,11 @@ internal fun TimerRecordEditor(
         while (true) {
             now = System.currentTimeMillis()
             if (TimerOperations.remainingSeconds(end, now) <= 0L) {
-                onChange(note.copy(timerEndsAtMillis = null, timerRemainingSeconds = 0L, status = RecordStatus.COMPLETED))
+                latestOnChange(latestNote.copy(
+                    timerEndsAtMillis = null,
+                    timerRemainingSeconds = 0L,
+                    status = RecordStatus.COMPLETED
+                ))
                 break
             }
             delay(250L)
@@ -75,9 +82,6 @@ internal fun TimerRecordEditor(
                         .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text("Таймер", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
                 }
             }
@@ -160,8 +164,7 @@ internal fun TimerRecordEditor(
                     onClick = {
                         val duration = durationInput.toLongOrNull()?.let { TimerOperations.normalizeDuration(it) }
                             ?: note.timerDurationSeconds
-                        val left = if (note.timerRemainingSeconds == null) duration
-                            else note.timerRemainingSeconds.coerceIn(1L, duration)
+                        val left = TimerOperations.durationToStart(note.timerRemainingSeconds, duration)
                         val start = System.currentTimeMillis()
                         onChange(note.copy(
                             timerDurationSeconds = duration,

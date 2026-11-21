@@ -14,7 +14,8 @@ internal data class BackupData(
     val archived: List<VaultNote>,
     val trash: List<VaultNote>,
     val timeTracking: TimeTrackingState? = null,
-    val recoveryEntries: List<RecoveryEntry> = emptyList()
+    val recoveryEntries: List<RecoveryEntry> = emptyList(),
+    val nutritionProducts: List<NutritionProduct> = emptyList()
 )
 private fun noteToJson(note: Note): JSONObject {
     val blocks = JSONArray()
@@ -34,6 +35,7 @@ private fun noteToJson(note: Note): JSONObject {
         .put("nutritionGrams", note.nutritionGrams).put("nutritionCalories", note.nutritionCalories)
         .put("nutritionProtein", note.nutritionProtein).put("nutritionFat", note.nutritionFat)
         .put("nutritionCarbs", note.nutritionCarbs)
+        .put("nutritionItems", NutritionCatalogOperations.mealItemsToJson(note.nutritionItems))
         .put("purchaseQuantity", note.purchaseQuantity).put("purchaseUnitPrice", note.purchaseUnitPrice)
         .put("workoutSets", note.workoutSets).put("workoutReps", note.workoutReps)
         .put("workoutWeightKg", note.workoutWeightKg)
@@ -63,6 +65,15 @@ internal fun vaultToJson(items: List<VaultNote>): JSONArray {
 }
 private fun JSONObject.optionalArray(key: String): JSONArray =
     if (!has(key) || isNull(key)) JSONArray() else getJSONArray(key)
+
+private fun JSONObject.nonNegativeFiniteDouble(
+    key: String,
+    default: Double,
+    maximum: Double
+): Double {
+    val value = optDouble(key, default)
+    return if (value.isFinite()) value.coerceIn(0.0, maximum) else default
+}
 
 private fun parseNoteObject(obj: JSONObject, index: Int): Note {
     val blocksJson = obj.optionalArray("blocks")
@@ -96,16 +107,17 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         timerDurationSeconds = obj.optLong("timerDurationSeconds", 300L).coerceIn(1L, 86_400L),
         timerEndsAtMillis = if (obj.isNull("timerEndsAtMillis")) null else obj.optLong("timerEndsAtMillis"),
         timerRemainingSeconds = if (obj.isNull("timerRemainingSeconds")) null else obj.optLong("timerRemainingSeconds").coerceIn(0L, 86_400L),
-        nutritionGrams = obj.optDouble("nutritionGrams", 0.0).coerceAtLeast(0.0),
-        nutritionCalories = obj.optDouble("nutritionCalories", 0.0).coerceAtLeast(0.0),
-        nutritionProtein = obj.optDouble("nutritionProtein", 0.0).coerceAtLeast(0.0),
-        nutritionFat = obj.optDouble("nutritionFat", 0.0).coerceAtLeast(0.0),
-        nutritionCarbs = obj.optDouble("nutritionCarbs", 0.0).coerceAtLeast(0.0),
-        purchaseQuantity = obj.optDouble("purchaseQuantity", 1.0).coerceAtLeast(0.0),
-        purchaseUnitPrice = obj.optDouble("purchaseUnitPrice", 0.0).coerceAtLeast(0.0),
+        nutritionGrams = obj.nonNegativeFiniteDouble("nutritionGrams", 0.0, 9_999_999_999.0),
+        nutritionCalories = obj.nonNegativeFiniteDouble("nutritionCalories", 0.0, 9_999_999_999.0),
+        nutritionProtein = obj.nonNegativeFiniteDouble("nutritionProtein", 0.0, 9_999_999_999.0),
+        nutritionFat = obj.nonNegativeFiniteDouble("nutritionFat", 0.0, 9_999_999_999.0),
+        nutritionCarbs = obj.nonNegativeFiniteDouble("nutritionCarbs", 0.0, 9_999_999_999.0),
+        nutritionItems = NutritionCatalogOperations.parseMealItems(obj.optionalArray("nutritionItems")),
+        purchaseQuantity = obj.nonNegativeFiniteDouble("purchaseQuantity", 1.0, 999_999_999_999.0),
+        purchaseUnitPrice = obj.nonNegativeFiniteDouble("purchaseUnitPrice", 0.0, 999_999_999_999.0),
         workoutSets = obj.optInt("workoutSets", 3).coerceIn(1, 100),
         workoutReps = obj.optInt("workoutReps", 10).coerceIn(1, 1000),
-        workoutWeightKg = obj.optDouble("workoutWeightKg", 0.0).coerceAtLeast(0.0),
+        workoutWeightKg = obj.nonNegativeFiniteDouble("workoutWeightKg", 0.0, 1_000.0),
         dateMode = dateMode,
         dateAt = if (obj.isNull("dateAt")) null else obj.optLong("dateAt"),
         titleEnabled = obj.optBoolean("titleEnabled", false), titleText = obj.optString("titleText"),
@@ -162,7 +174,8 @@ internal fun createBackupJson(
     archived: List<VaultNote>,
     trash: List<VaultNote>,
     timeTracking: TimeTrackingState = TimeTrackingState(),
-    recoveryEntries: List<RecoveryEntry> = emptyList()
+    recoveryEntries: List<RecoveryEntry> = emptyList(),
+    nutritionProducts: List<NutritionProduct> = emptyList()
 ): String {
     val collectionArray = JSONArray()
     collections.forEach { collection ->
@@ -177,17 +190,18 @@ internal fun createBackupJson(
                 .put("raw", entry.raw)
         )
     }
-    return JSONObject().put("format", "notes_backup").put("version", 12).put("exportedAt", System.currentTimeMillis())
+    return JSONObject().put("format", "notes_backup").put("version", 13).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
         .put("timeTracking", timeTrackingToJson(timeTracking))
         .put("recoveryData", recoveryArray)
+        .put("nutritionProducts", NutritionCatalogOperations.productsToJson(nutritionProducts))
         .toString(2)
 }
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..12) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..13) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.getJSONArray("notes"))
     val collections = if (!root.has("collections") || root.isNull("collections")) emptyList()
         else parseCollectionsArray(root.getJSONArray("collections"))
@@ -213,7 +227,30 @@ internal fun parseBackupJson(raw: String): BackupData {
                 }
             }
         }
-    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries)
+
+    // Record IDs are global across the whole backup, including nested tasks,
+    // collections, archive and trash. A duplicate makes the time-tracking
+    // reference remap ambiguous, so reject the backup before importing anything.
+    val recordIds = mutableSetOf<Long>()
+    fun validateRecordIds(items: List<Note>) {
+        items.forEach { note ->
+            require(recordIds.add(note.id)) { "Duplicate record ID in backup: ${note.id}" }
+            validateRecordIds(note.children)
+        }
+    }
+    validateRecordIds(notes)
+    collections.forEach { validateRecordIds(it.notes) }
+    archived.forEach { validateRecordIds(listOf(it.note)) }
+    trash.forEach { validateRecordIds(listOf(it.note)) }
+
+    val collectionIds = mutableSetOf<Long>()
+    collections.forEach { collection ->
+        require(collectionIds.add(collection.id)) {
+            "Duplicate collection ID in backup: ${collection.id}"
+        }
+    }
+    val nutritionProducts = NutritionCatalogOperations.parseProducts(root.optJSONArray("nutritionProducts"))
+    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries, nutritionProducts)
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =
@@ -224,44 +261,97 @@ private fun Note.sameRecordContent(other: Note): Boolean =
         type == other.type &&
         blocks.map { Triple(it.text, it.checked, it.isChecklist) } ==
             other.blocks.map { Triple(it.text, it.checked, it.isChecklist) } &&
-        titleText == other.titleText && descriptionText == other.descriptionText &&
-        status == other.status && dateMode == other.dateMode && dateAt == other.dateAt &&
+        titleEnabled == other.titleEnabled && titleText == other.titleText &&
+        descriptionEnabled == other.descriptionEnabled && descriptionText == other.descriptionText &&
+        status == other.status && statusBeforeAutoCompletion == other.statusBeforeAutoCompletion &&
+        dateMode == other.dateMode && dateAt == other.dateAt &&
         scheduledAt == other.scheduledAt && deadlineResumeOverride == other.deadlineResumeOverride &&
         timeTrackingEnabled == other.timeTrackingEnabled &&
         timerDurationSeconds == other.timerDurationSeconds &&
         timerEndsAtMillis == other.timerEndsAtMillis &&
         timerRemainingSeconds == other.timerRemainingSeconds &&
+        nutritionItems == other.nutritionItems &&
         nutritionGrams == other.nutritionGrams && nutritionCalories == other.nutritionCalories &&
         nutritionProtein == other.nutritionProtein && nutritionFat == other.nutritionFat && nutritionCarbs == other.nutritionCarbs &&
         purchaseQuantity == other.purchaseQuantity && purchaseUnitPrice == other.purchaseUnitPrice &&
         workoutSets == other.workoutSets && workoutReps == other.workoutReps && workoutWeightKg == other.workoutWeightKg
 
 internal fun mergeImportedNotes(existing: List<Note>, imported: List<Note>): List<Note> {
+    val usedIds = mutableSetOf<Long>()
+    fun collectIds(notes: List<Note>) {
+        notes.forEach { note ->
+            usedIds += note.id
+            collectIds(note.children)
+        }
+    }
+    collectIds(existing)
+    return mergeImportedNotes(existing, imported, usedIds, null)
+}
+
+internal fun mergeImportedNotes(
+    existing: List<Note>,
+    imported: List<Note>,
+    usedIds: MutableSet<Long>,
+    importedIdMap: MutableMap<Long, Long>?
+): List<Note> {
     val result = existing.toMutableList()
+
+    fun nextUniqueId(): Long {
+        var candidate = System.currentTimeMillis().coerceAtLeast(0L)
+        while (!usedIds.add(candidate)) {
+            candidate = if (candidate == Long.MAX_VALUE) Long.MIN_VALUE else candidate + 1L
+        }
+        return candidate
+    }
+
+    fun copyWithUniqueTreeIds(note: Note): Note {
+        val safeId = if (usedIds.add(note.id)) note.id else nextUniqueId()
+        val idChanged = safeId != note.id
+        importedIdMap?.put(note.id, safeId)
+        return note.copy(
+            id = safeId,
+            blocks = if (idChanged) note.blocks.map {
+                it.copy(id = java.util.UUID.randomUUID().toString())
+            } else note.blocks,
+            children = note.children.map(::copyWithUniqueTreeIds)
+        )
+    }
+
     imported.forEach { incoming ->
         val sameIndex = result.indexOfFirst { it.sameRecordContent(incoming) }
         if (sameIndex >= 0) {
             val current = result[sameIndex]
             result[sameIndex] = current.copy(
-                children = mergeImportedNotes(current.children, incoming.children)
+                children = mergeImportedNotes(current.children, incoming.children, usedIds, importedIdMap)
             )
+            importedIdMap?.put(incoming.id, current.id)
             return@forEach
         }
-        val collision = result.any { it.id == incoming.id }
-        val safeId = if (!collision) incoming.id else {
-            var candidate = System.currentTimeMillis()
-            while (result.any { it.id == candidate }) candidate++
-            candidate
-        }
-        val blocks = if (collision) incoming.blocks.map {
-            it.copy(id = java.util.UUID.randomUUID().toString())
-        } else incoming.blocks
-        result.add(incoming.copy(id = safeId, blocks = blocks))
+        result.add(copyWithUniqueTreeIds(incoming))
     }
     return result
 }
-
 internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultNote>): List<VaultNote> {
+    val usedIds = mutableSetOf<Long>()
+    fun collectIds(entries: List<VaultNote>) {
+        entries.forEach { entry ->
+            fun collect(note: Note) {
+                usedIds += note.id
+                note.children.forEach(::collect)
+            }
+            collect(entry.note)
+        }
+    }
+    collectIds(existing)
+    return mergeImportedVault(existing, imported, usedIds, null)
+}
+
+internal fun mergeImportedVault(
+    existing: List<VaultNote>,
+    imported: List<VaultNote>,
+    usedIds: MutableSet<Long>,
+    importedIdMap: MutableMap<Long, Long>?
+): List<VaultNote> {
     val result = existing.toMutableList()
     imported.forEach { incoming ->
         val sameIndex = result.indexOfFirst { it.note.sameRecordContent(incoming.note) }
@@ -269,17 +359,13 @@ internal fun mergeImportedVault(existing: List<VaultNote>, imported: List<VaultN
             val current = result[sameIndex]
             result[sameIndex] = current.copy(
                 note = current.note.copy(
-                    children = mergeImportedNotes(current.note.children, incoming.note.children)
+                    children = mergeImportedNotes(current.note.children, incoming.note.children, usedIds, importedIdMap)
                 )
             )
+            importedIdMap?.put(incoming.note.id, current.note.id)
             return@forEach
         }
-        val collision = result.any { it.note.id == incoming.note.id }
-        val safeNote = if (!collision) incoming.note else {
-            var candidate = System.currentTimeMillis()
-            while (result.any { it.note.id == candidate }) candidate++
-            incoming.note.copy(id = candidate, blocks = incoming.note.blocks.map { it.copy(id = java.util.UUID.randomUUID().toString()) })
-        }
+        val safeNote = mergeImportedNotes(emptyList(), listOf(incoming.note), usedIds, importedIdMap).single()
         result.add(incoming.copy(note = safeNote))
     }
     return result
@@ -292,20 +378,44 @@ internal data class ImportedCollectionsMerge(
 
 internal fun mergeImportedCollectionsWithIdMap(
     existing: List<NoteCollection>,
-    imported: List<NoteCollection>
+    imported: List<NoteCollection>,
+    usedNoteIds: MutableSet<Long>? = null,
+    importedNoteIdMap: MutableMap<Long, Long>? = null
 ): ImportedCollectionsMerge {
+    val usedIds = usedNoteIds ?: mutableSetOf<Long>().also { ids ->
+        fun collect(notes: List<Note>) {
+            notes.forEach { note ->
+                ids += note.id
+                collect(note.children)
+            }
+        }
+        existing.forEach { collect(it.notes) }
+    }
     val result = existing.toMutableList()
     val idMap = linkedMapOf<Long, Long>()
     imported.forEach { incoming ->
         val sameName = result.indexOfFirst { it.name.equals(incoming.name, true) }
         if (sameName >= 0) {
             val target = result[sameName]
-            result[sameName] = target.copy(notes = mergeImportedNotes(target.notes, incoming.notes))
+            result[sameName] = target.copy(
+                notes = mergeImportedNotes(target.notes, incoming.notes, usedIds, importedNoteIdMap)
+            )
             idMap[incoming.id] = target.id
         } else {
-            var id = incoming.id
-            while (result.any { it.id == id }) id++
-            result.add(incoming.copy(id = id))
+            val usedCollectionIds = result.asSequence().map { it.id }.toHashSet()
+            val id = if (incoming.id !in usedCollectionIds) {
+                incoming.id
+            } else {
+                // Avoid overflowing Long.MAX_VALUE while resolving a rare ID collision.
+                generateSequence(0L) { previous ->
+                    if (previous == Long.MAX_VALUE) null else previous + 1L
+                }.firstOrNull { it !in usedCollectionIds }
+                    ?: throw IllegalStateException("No available collection ID")
+            }
+            result.add(incoming.copy(
+                id = id,
+                notes = mergeImportedNotes(emptyList(), incoming.notes, usedIds, importedNoteIdMap)
+            ))
             idMap[incoming.id] = id
         }
     }

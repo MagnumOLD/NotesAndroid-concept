@@ -3,7 +3,6 @@ package com.magnumold.notes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,15 +18,18 @@ internal fun PurchaseRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    AppBackHandler { onBack() }
     @Composable
     fun AmountField(label: String, value: Double, update: (Double) -> Unit) {
-        var input by remember(note.id, label) { mutableStateOf(if (value == 0.0) "" else value.toString()) }
+        var input by remember(note.id, label) {
+            mutableStateOf(DecimalInputOperations.format(value))
+        }
         OutlinedTextField(
             value = input,
             onValueChange = { raw ->
-                if (raw.length <= 12 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
+                if (DecimalInputOperations.isValid(raw, maxLength = 12)) {
                     input = raw
-                    update(raw.replace(',', '.').toDoubleOrNull()?.coerceAtLeast(0.0) ?: 0.0)
+                    update(PurchaseOperations.normalizeAmount(DecimalInputOperations.parse(raw)))
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -37,7 +39,7 @@ internal fun PurchaseRecordEditor(
         )
     }
     val purchased = note.status == RecordStatus.COMPLETED
-    val total = note.purchaseQuantity * note.purchaseUnitPrice
+    val total = PurchaseOperations.formatTotalCost(note.purchaseQuantity, note.purchaseUnitPrice)
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -48,9 +50,6 @@ internal fun PurchaseRecordEditor(
                         .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text("Покупки", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
                 }
             }
@@ -78,7 +77,7 @@ internal fun PurchaseRecordEditor(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text("Итого", style = MaterialTheme.typography.titleMedium)
-                    Text("%.2f".format(java.util.Locale.getDefault(), total), style = MaterialTheme.typography.headlineSmall)
+                    Text(total, style = MaterialTheme.typography.headlineSmall)
                 }
                 Text("Куплено", style = MaterialTheme.typography.bodyMedium)
                 Switch(

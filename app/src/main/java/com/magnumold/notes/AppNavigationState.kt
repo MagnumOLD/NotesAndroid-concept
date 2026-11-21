@@ -15,6 +15,13 @@ internal class AppNavigationState {
         private set
     var modulesVisible by mutableStateOf(false)
         private set
+    var returnToModulesOnBack by mutableStateOf(false)
+        private set
+
+    val canReturnToModules: Boolean
+        get() = returnToModulesOnBack && activeModule != AppModule.ALL && !modulesVisible
+    var moduleManagementVisible by mutableStateOf(false)
+        private set
     var activeCollectionId by mutableStateOf<Long?>(null)
         private set
     var selectedId by mutableStateOf<Long?>(null)
@@ -29,17 +36,66 @@ internal class AppNavigationState {
         private set
     var vaultScreen by mutableStateOf<String?>(null)
         private set
+    val hasTopLevelBackAction: Boolean
+        get() = settingsVisible || modulesVisible || (canReturnToModules && selectedId == null)
+
+    /**
+     * Resolves app-level Back in one explicit priority order.
+     * Screen-local handlers are composed later and get first refusal while visible.
+     */
+    fun handleTopLevelBack() {
+        when {
+            settingsVisible && vaultScreen != null -> closeVault()
+            settingsVisible -> closeSettings()
+            modulesVisible && moduleManagementVisible -> closeModuleManagement()
+            modulesVisible -> closeModules()
+            canReturnToModules && selectedId == null -> returnFromModuleToModules()
+        }
+    }
+
     fun openModules() { modulesVisible = true }
 
-    fun closeModules() { modulesVisible = false }
+    fun closeModules() {
+        modulesVisible = false
+        moduleManagementVisible = false
+    }
+
+    fun openModuleManagement() { moduleManagementVisible = true }
+
+    fun closeModuleManagement() { moduleManagementVisible = false }
+
+    fun returnToHomeKeepingModuleScreens() {
+        returnToModulesOnBack = false
+        activeModule = AppModule.ALL
+        activeCollectionId = null
+        selectedId = null
+        autoFocusNewNote = false
+        search = ""
+        searchVisible = false
+    }
 
     fun selectModule(module: AppModule) {
+        returnToModulesOnBack = module != AppModule.ALL && modulesVisible
         activeModule = module
         activeCollectionId = null
         selectedId = null
         modulesVisible = false
+        moduleManagementVisible = false
         search = ""
         searchVisible = false
+    }
+
+    fun returnFromModuleToModules() {
+        if (!canReturnToModules) return
+        activeModule = AppModule.ALL
+        activeCollectionId = null
+        selectedId = null
+        autoFocusNewNote = false
+        search = ""
+        searchVisible = false
+        modulesVisible = true
+        moduleManagementVisible = false
+        returnToModulesOnBack = false
     }
 
     fun selectCollection(id: Long?) {

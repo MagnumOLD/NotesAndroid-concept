@@ -3,7 +3,6 @@ package com.magnumold.notes
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,15 +18,19 @@ internal fun WorkoutRecordEditor(
     onBack: () -> Unit,
     onChange: (Note) -> Unit
 ) {
+    AppBackHandler { onBack() }
     @Composable
-    fun IntegerField(label: String, value: Int, update: (Int) -> Unit) {
+    fun IntegerField(label: String, value: Int, minimum: Int, maximum: Int, update: (Int) -> Unit) {
         var input by remember(note.id, label) { mutableStateOf(value.toString()) }
         OutlinedTextField(
             value = input,
             onValueChange = { raw ->
                 if (raw.length <= 4 && raw.all(Char::isDigit)) {
-                    input = raw
-                    raw.toIntOrNull()?.let(update)
+                    raw.toIntOrNull()?.let { parsed ->
+                        val normalized = parsed.coerceIn(minimum, maximum)
+                        input = normalized.toString()
+                        update(normalized)
+                    } ?: run { input = raw }
                 }
             },
             modifier = Modifier.fillMaxWidth(),
@@ -37,9 +40,9 @@ internal fun WorkoutRecordEditor(
         )
     }
     var weightInput by remember(note.id) {
-        mutableStateOf(if (note.workoutWeightKg == 0.0) "" else note.workoutWeightKg.toString())
+        mutableStateOf(DecimalInputOperations.format(note.workoutWeightKg))
     }
-    val volume = WorkoutOperations.totalVolume(note.workoutSets, note.workoutReps, note.workoutWeightKg)
+    val volume = WorkoutOperations.totalVolumeDecimal(note.workoutSets, note.workoutReps, note.workoutWeightKg)
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -50,9 +53,6 @@ internal fun WorkoutRecordEditor(
                         .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Назад")
-                    }
                     Text("Тренировка", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
                 }
             }
@@ -71,19 +71,19 @@ internal fun WorkoutRecordEditor(
                 label = { Text("Упражнение") },
                 placeholder = { Text("Например, подтягивания") }
             )
-            IntegerField("Подходы", note.workoutSets) {
-                onChange(note.copy(workoutSets = WorkoutOperations.normalizeSets(it)))
+            IntegerField("Подходы", note.workoutSets, 1, 100) {
+                onChange(note.copy(workoutSets = it))
             }
-            IntegerField("Повторения", note.workoutReps) {
-                onChange(note.copy(workoutReps = WorkoutOperations.normalizeReps(it)))
+            IntegerField("Повторения", note.workoutReps, 1, 1_000) {
+                onChange(note.copy(workoutReps = it))
             }
             OutlinedTextField(
                 value = weightInput,
                 onValueChange = { raw ->
-                    if (raw.length <= 10 && raw.all { it.isDigit() || it == '.' || it == ',' }) {
+                    if (DecimalInputOperations.isValid(raw, maxLength = 10)) {
                         weightInput = raw
                         onChange(note.copy(workoutWeightKg = WorkoutOperations.normalizeWeight(
-                            raw.replace(',', '.').toDoubleOrNull() ?: 0.0
+                            DecimalInputOperations.parse(raw)
                         )))
                     }
                 },
@@ -100,7 +100,7 @@ internal fun WorkoutRecordEditor(
             )
             HorizontalDivider()
             Text("Общий объём", style = MaterialTheme.typography.titleMedium)
-            Text("%.1f кг".format(java.util.Locale.getDefault(), volume), style = MaterialTheme.typography.headlineSmall)
+            Text("${WorkoutOperations.formatVolume(volume)} кг", style = MaterialTheme.typography.headlineSmall)
             Text(
                 "${note.workoutSets} подхода × ${note.workoutReps} повторений",
                 color = MaterialTheme.colorScheme.onSurfaceVariant

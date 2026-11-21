@@ -24,8 +24,7 @@ internal fun AppThemeEffects(
     themeSettings: ThemeSettingsStore
 ) {
     SideEffect {
-        val appBackground = if (themeMode == "custom") themeColors.background
-            else if (dark) Color.Black else Color.White
+        val appBackground = if (dark) Color.Black else Color.White
         val statusBarBackground = themeColors.statusBar
         activity.window.setBackgroundDrawable(
             android.graphics.drawable.ColorDrawable(appBackground.toArgbInt())

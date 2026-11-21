@@ -1,7 +1,6 @@
 package com.magnumold.notes
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -33,8 +32,17 @@ internal fun NotesApp(
             val collectionVisibilityStore = remember(activity) {
                 CollectionVisibilitySettingsStore(activity.getSharedPreferences("notes_collection_visibility", Context.MODE_PRIVATE))
             }
+            val homeButtonLayoutStore = remember(activity) {
+                HomeButtonLayoutStore(activity.getSharedPreferences("notes_home_buttons", Context.MODE_PRIVATE))
+            }
+            var homeButtonLayout by remember(homeButtonLayoutStore) {
+                androidx.compose.runtime.mutableStateOf(homeButtonLayoutStore.load())
+            }
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
+            }
+            var homeCollectionVisible by remember(collectionVisibilityStore) {
+                androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.loadHomeVisible())
             }
             var interactiveCardsEnabled by remember(cardInteractionStore) {
                 androidx.compose.runtime.mutableStateOf(cardInteractionStore.load())
@@ -61,6 +69,14 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
+            val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
+                HomeTimelineOperations.records(snapshot).filter {
+                    it.type == RecordType.TIMER && it.timerEndsAtMillis != null
+                }
+            }
+            LaunchedEffect(activeTimerRecords.map { it.id to it.timerEndsAtMillis }) {
+                activeTimerRecords.forEach(recordTimerScheduler::sync)
+            }
             LaunchedEffect(timeTrackingState.protectionTimer) {
                 val timer = timeTrackingState.protectionTimer
                 if (timer == null) protectionTimerScheduler.cancel()
@@ -68,13 +84,14 @@ internal fun NotesApp(
             }
             fun closeActiveSessionsForRemoved(records: List<Note>) {
                 if (records.isEmpty()) return
-                val updated = syncWorkSessionsForTaskChanges(
-                    oldRoots = records,
-                    newRoots = emptyList(),
-                    currentState = timeTrackingRepository.load(),
-                    nowMillis = System.currentTimeMillis()
-                )
-                if (updated != timeTrackingRepository.load()) timeTrackingRepository.save(updated)
+                timeTrackingRepository.update { current ->
+                    syncWorkSessionsForTaskChanges(
+                        oldRoots = records,
+                        newRoots = emptyList(),
+                        currentState = current,
+                        nowMillis = System.currentTimeMillis()
+                    )
+                }
             }
             val systemDark = isSystemInDarkTheme()
             val themeState = remember(themeSettings, savedThemeMode, initialThemeColorSets) {
@@ -127,9 +144,9 @@ internal fun NotesApp(
                 backupFileStore = backupFileStore
             )
 
-            BackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
-            BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
-            BackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
+            AppBackHandler(enabled = navigation.hasTopLevelBackAction) {
+                navigation.handleTopLevelBack()
+            }
 
             AppThemeEffects(
                 activity = activity,
@@ -142,9 +159,21 @@ internal fun NotesApp(
                 themeSettings = themeSettings
             )
 
-            NotesTheme(dark, activeThemeColors, themeMode == "custom") {
+            NotesTheme(dark, activeThemeColors) {
                 val selected = activeNotes.firstOrNull { it.id == selectedId }
-                if (navigation.modulesVisible && selected == null) {
+                if (navigation.modulesVisible && navigation.moduleManagementVisible && selected == null) {
+                    ModuleManagementScreen(
+                        configuration = moduleConfiguration,
+                        onConfigurationChange = { updated ->
+                            moduleConfiguration = updated.normalized()
+                            moduleSettingsStore.save(moduleConfiguration)
+                            if (navigation.activeModule != AppModule.ALL && navigation.activeModule !in moduleConfiguration.enabled) {
+                                navigation.returnToHomeKeepingModuleScreens()
+                            }
+                        },
+                        themeColors = activeThemeColors
+                    )
+                } else if (navigation.modulesVisible && selected == null) {
                     ModulesScreen(
                         configuration = moduleConfiguration,
                         onConfigurationChange = { updated ->
@@ -155,6 +184,7 @@ internal fun NotesApp(
                             }
                         },
                         onOpenModule = { module -> navigation.selectModule(module) },
+                        onOpenManagement = { navigation.openModuleManagement() },
                         onBack = { navigation.closeModules() },
                         themeColors = activeThemeColors
                     )
@@ -164,10 +194,26 @@ internal fun NotesApp(
                         entries = if (navigation.vaultScreen == "archive") archived else trash,
                         isTrash = navigation.vaultScreen == "trash",
                         onBack = { navigation.closeVault() },
-                        onRestore = { entry -> recordsViewModel.restoreVaultEntry(entry, fromArchive = navigation.vaultScreen == "archive") },
-                        onMoveToTrash = { entry -> recordsViewModel.moveArchivedToTrash(entry) },
-                        onDeleteForever = { entry -> recordsViewModel.deleteFromTrash(entry) },
-                        onEmptyTrash = { recordsViewModel.emptyTrash() },
+                        onRestore = { entry ->
+                            recordsViewModel.restoreVaultEntry(entry, fromArchive = navigation.vaultScreen == "archive")
+                            recordsViewModel.flush()
+                            val restored = HomeTimelineOperations.records(recordsViewModel.snapshot.value)
+                                .firstOrNull { it.id == entry.note.id }
+                            if (restored != null) recordTimerScheduler.sync(restored)
+                            else recordTimerScheduler.cancel(entry.note.id)
+                        },
+                        onMoveToTrash = { entry ->
+                            recordTimerScheduler.cancel(entry.note.id)
+                            recordsViewModel.moveArchivedToTrash(entry)
+                        },
+                        onDeleteForever = { entry ->
+                            recordTimerScheduler.cancel(entry.note.id)
+                            recordsViewModel.deleteFromTrash(entry)
+                        },
+                        onEmptyTrash = {
+                            snapshot.trash.forEach { recordTimerScheduler.cancel(it.note.id) }
+                            recordsViewModel.emptyTrash()
+                        },
                         themeColors = activeThemeColors
                     )
                 } else if (settingsVisible && selected == null) {
@@ -197,6 +243,16 @@ internal fun NotesApp(
                             if (!visible && navigation.activeModule == module && navigation.activeCollectionId != null) {
                                 navigation.selectCollection(null)
                             }
+                        },
+                        homeCollectionVisible = homeCollectionVisible,
+                        onHomeCollectionVisibilityChange = { visible ->
+                            homeCollectionVisible = visible
+                            collectionVisibilityStore.saveHomeVisible(visible)
+                        },
+                        homeButtonLayout = homeButtonLayout,
+                        onHomeButtonLayoutChange = { layout ->
+                            homeButtonLayout = layout
+                            homeButtonLayoutStore.save(layout)
                         },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
@@ -242,12 +298,18 @@ internal fun NotesApp(
                         onOpenSettings = { navigation.openSettings() },
                         onOpen = { navigation.openRecord(it) },
                         onArchiveSelected = { ids ->
-                            closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
+                            val selectedRecords = activeNotes.filter { it.id in ids }
+                            closeActiveSessionsForRemoved(selectedRecords)
+                            selectedRecords.filter { it.type == RecordType.TIMER }
+                                .forEach { recordTimerScheduler.cancel(it.id) }
                             if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = false)
                             else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = false)
                         },
                         onDeleteSelected = { ids ->
-                            closeActiveSessionsForRemoved(activeNotes.filter { it.id in ids })
+                            val selectedRecords = activeNotes.filter { it.id in ids }
+                            closeActiveSessionsForRemoved(selectedRecords)
+                            selectedRecords.filter { it.type == RecordType.TIMER }
+                                .forEach { recordTimerScheduler.cancel(it.id) }
                             if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = true)
                             else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = true)
                         },
@@ -259,6 +321,8 @@ internal fun NotesApp(
                             if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(ids)
                             else recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, ids)
                         },
+                        onToggleFavorite = { ids -> recordsViewModel.toggleRecordsFavorite(ids) },
+                        onSetShowOnHome = { ids, show -> recordsViewModel.setRecordsShowOnHome(ids, show) },
                         onChangeNoteColor = { noteId, colorIndex ->
                             if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
                             else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
@@ -268,19 +332,28 @@ internal fun NotesApp(
                         timelineMode = homeTimelineMode,
                         interactiveCards = interactiveCardsEnabled,
                         cardPreviewFields = cardPreviewFields,
-                        showCollections = navigation.activeModule == AppModule.ALL || navigation.activeModule in collectionVisibleModules,
+                        showCollections = if (navigation.activeModule == AppModule.ALL) {
+                            homeCollectionVisible
+                        } else {
+                            navigation.activeModule in collectionVisibleModules
+                        },
+                        collectionsAvailable = navigation.activeModule == AppModule.ALL ||
+                            navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
+                        homeButtonLayout = homeButtonLayout,
+                        isMainHome = navigation.activeModule == AppModule.ALL,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
                             if (record.type == RecordType.TASK) {
-                                val updatedTimeState = syncWorkSessionsForTaskChanges(
-                                    oldRoots = listOf(record),
-                                    newRoots = listOf(changed),
-                                    currentState = timeTrackingState,
-                                    nowMillis = now
-                                )
-                                if (updatedTimeState != timeTrackingState) timeTrackingRepository.save(updatedTimeState)
+                                timeTrackingRepository.update { current ->
+                                    syncWorkSessionsForTaskChanges(
+                                        oldRoots = listOf(record),
+                                        newRoots = listOf(changed),
+                                        currentState = current,
+                                        nowMillis = now
+                                    )
+                                }
                             }
                             val updated = changed.copy(updated = now)
                             if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
@@ -332,7 +405,10 @@ internal fun NotesApp(
                 } else if (selected.type == RecordType.NUTRITION) {
                     NutritionRecordEditor(
                         note = selected,
+                        products = snapshot.nutritionProducts,
+                        onProductsChange = recordsViewModel::updateNutritionProducts,
                         topBarColor = activeThemeColors.topBar,
+                        addButtonColor = activeThemeColors.addButton,
                         onBack = {
                             if (!selected.hasContent()) {
                                 if (homeTimelineMode) recordsViewModel.removeHomeRecord(selected.id)
@@ -340,6 +416,7 @@ internal fun NotesApp(
                             }
                             navigation.closeEditor()
                         },
+                        onSaved = { navigation.closeEditor() },
                         onChange = { changed ->
                             val updated = changed.copy(updated = System.currentTimeMillis())
                             if (homeTimelineMode) recordsViewModel.updateHomeRecord(updated)
@@ -374,7 +451,9 @@ internal fun NotesApp(
                         autoFocus = autoFocusNewNote,
                         timeTrackingState = timeTrackingState,
                         onTimeTrackingStateChange = { updated ->
-                            timeTrackingRepository.save(updated)
+                            timeTrackingRepository.update { current ->
+                                mergeTimeTrackingUiChange(current, timeTrackingState, updated)
+                            }
                         },
                         onBack = {
                             if (!selected.hasContent()) {
@@ -386,14 +465,13 @@ internal fun NotesApp(
                         onChange = { changed ->
                             val previous = activeNotes.firstOrNull { it.id == changed.id } ?: selected
                             val now = System.currentTimeMillis()
-                            val updatedTimeState = syncWorkSessionsForTaskChanges(
-                                oldRoots = listOf(previous),
-                                newRoots = listOf(changed),
-                                currentState = timeTrackingState,
-                                nowMillis = now
-                            )
-                            if (updatedTimeState != timeTrackingState) {
-                                timeTrackingRepository.save(updatedTimeState)
+                            timeTrackingRepository.update { current ->
+                                syncWorkSessionsForTaskChanges(
+                                    oldRoots = listOf(previous),
+                                    newRoots = listOf(changed),
+                                    currentState = current,
+                                    nowMillis = now
+                                )
                             }
                             val index = activeNotes.indexOfFirst { it.id == changed.id }
                             if (index >= 0) {

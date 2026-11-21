@@ -44,6 +44,25 @@ class TrashRetentionTest {
     }
 
     @Test
+    fun cutoffSaturatesWhenSubtractingRetentionWouldUnderflow() {
+        val snapshot = PersistenceSnapshot(
+            emptyList(), emptyList(), emptyList(),
+            listOf(
+                VaultNote(note(1), null, 0, Long.MIN_VALUE),
+                VaultNote(note(2), null, 1, Long.MIN_VALUE + 1L)
+            )
+        )
+
+        val result = RecordOperations.purgeExpiredTrash(
+            snapshot,
+            retentionDays = 365,
+            now = Long.MIN_VALUE
+        )
+
+        assertEquals(listOf(1L, 2L), result.trash.map { it.note.id })
+    }
+
+    @Test
     fun movingArchivedEntryToTrashRestartsItsRetentionPeriod() {
         val archived = VaultNote(note(1), null, 0, 1L)
         val snapshot = PersistenceSnapshot(emptyList(), emptyList(), listOf(archived), emptyList())

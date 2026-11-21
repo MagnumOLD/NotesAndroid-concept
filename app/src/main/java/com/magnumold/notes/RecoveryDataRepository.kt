@@ -21,31 +21,61 @@ internal class RecoveryDataRepository(
             collect(STORAGE_TIME_TRACKING, timeTrackingPreferences))
             .sortedWith(compareBy<RecoveryEntry> { it.storage }.thenBy { it.key })
 
+    /**
+     * Plans every destination before writing, then commits each backing store
+     * as a batch. If a later store fails, keys written to earlier stores are
+     * removed again so a failed backup import does not leave half its recovery
+     * fragments behind.
+     */
     fun importEntries(entries: List<RecoveryEntry>): Int {
-        // Validate the entire payload before the first write. A malformed
-        // later entry must not leave an earlier fragment partially imported.
         entries.forEach { entry ->
             require(entry.key.startsWith(RECOVERY_KEY_PREFIX)) {
                 "Invalid recovery entry key"
             }
             preferencesFor(entry.storage)
         }
-        var importedCount = 0
+
+        val planned = linkedMapOf(
+            STORAGE_RECORDS to linkedMapOf<String, String>(),
+            STORAGE_TIME_TRACKING to linkedMapOf<String, String>()
+        )
         entries.forEach { entry ->
-            require(entry.key.startsWith(RECOVERY_KEY_PREFIX)) {
-                "Invalid recovery entry key"
-            }
             val preferences = preferencesFor(entry.storage)
+            val destination = planned.getValue(entry.storage)
             var candidate = entry.key
             var suffix = 1
-            while (preferences.contains(candidate)) {
-                if (preferences.all[candidate] == entry.raw) return@forEach
+            while (preferences.contains(candidate) || destination.containsKey(candidate)) {
+                if (preferences.all[candidate] == entry.raw || destination[candidate] == entry.raw) {
+                    return@forEach
+                }
                 candidate = "${entry.key}_import_${suffix++}"
             }
-            check(preferences.edit().putString(candidate, entry.raw).commit()) {
-                "Не удалось импортировать фрагмент восстановления: ${entry.key}"
+            destination[candidate] = entry.raw
+        }
+
+        val attempted = mutableListOf<Pair<SharedPreferences, Set<String>>>()
+        var importedCount = 0
+        try {
+            planned.forEach { (storage, values) ->
+                if (values.isEmpty()) return@forEach
+                val preferences = preferencesFor(storage)
+                attempted += preferences to values.keys.toSet()
+                val editor = preferences.edit()
+                values.forEach { (key, raw) -> editor.putString(key, raw) }
+                check(editor.commit()) {
+                    "Не удалось импортировать фрагменты восстановления: $storage"
+                }
+                importedCount += values.size
             }
-            importedCount++
+        } catch (failure: Exception) {
+            attempted.asReversed().forEach { (preferences, keys) ->
+                runCatching {
+                    val editor = preferences.edit()
+                    keys.forEach(editor::remove)
+                    check(editor.commit()) { "Не удалось отменить импорт фрагментов восстановления" }
+                }.exceptionOrNull()?.let(failure::addSuppressed)
+            }
+            throw failure
         }
         return importedCount
     }

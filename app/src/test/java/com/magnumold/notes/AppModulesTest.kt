@@ -85,4 +85,49 @@ class AppModulesTest {
             ModuleVisibilityOperations.visibleRecords(records, setOf(AppModule.TIMERS, AppModule.NUTRITION)).map { it.id }
         )
     }
+
+    @Test
+    fun moduleReorderCreatesOneTemporaryGroupAtTheAnchorPosition() {
+        val order = listOf(
+            AppModule.NOTES, AppModule.TASKS, AppModule.TIMERS,
+            AppModule.NUTRITION, AppModule.WORKOUTS, AppModule.PURCHASES
+        )
+        val rows = ModuleReorderModel.createRows(
+            order,
+            setOf(AppModule.TASKS, AppModule.NUTRITION),
+            AppModule.NUTRITION
+        )!!
+
+        assertEquals(
+            listOf("NOTES", "TIMERS", "module-group-TASKS-NUTRITION", "WORKOUTS", "PURCHASES"),
+            rows.map { it.key }
+        )
+        assertEquals(listOf(AppModule.TASKS, AppModule.NUTRITION), rows[2].modules)
+        assertEquals(listOf(AppModule.NOTES, AppModule.TIMERS, AppModule.TASKS, AppModule.NUTRITION, AppModule.WORKOUTS, AppModule.PURCHASES), ModuleReorderModel.flatten(rows))
+    }
+
+    @Test
+    fun moduleReorderKeepsSelectedModulesInOriginalRelativeOrder() {
+        val order = listOf(AppModule.NOTES, AppModule.TASKS, AppModule.TIMERS, AppModule.PURCHASES)
+        val rows = ModuleReorderModel.createRows(
+            order,
+            setOf(AppModule.NOTES, AppModule.TIMERS),
+            AppModule.TIMERS
+        )!!
+
+        assertEquals(
+            listOf(AppModule.TASKS, AppModule.NOTES, AppModule.TIMERS, AppModule.PURCHASES),
+            ModuleReorderModel.flatten(rows)
+        )
+        assertEquals(1, rows.count { it.isGroup })
+    }
+
+    @Test
+    fun moduleReorderUsesSingleRowsForSingleSelection() {
+        val order = listOf(AppModule.NOTES, AppModule.TASKS, AppModule.TIMERS)
+        val rows = ModuleReorderModel.createRows(order, setOf(AppModule.TASKS), AppModule.TASKS)!!
+
+        assertEquals(order, ModuleReorderModel.flatten(rows))
+        assertTrue(rows.none { it.isGroup })
+    }
 }

@@ -38,6 +38,21 @@ class CollectionOperationsTest {
     }
 
     @Test
+    fun createAndRenameRejectBlankDuplicateNamesAndDuplicateIds() {
+        val initial = snapshot(collections = listOf(
+            NoteCollection(10, "Work"),
+            NoteCollection(20, "Personal")
+        ))
+
+        assertSame(initial, CollectionOperations.create(initial, 10, "Another"))
+        assertSame(initial, CollectionOperations.create(initial, 30, " work "))
+        assertSame(initial, CollectionOperations.create(initial, 30, "   "))
+        assertSame(initial, CollectionOperations.rename(initial, 20, "WORK"))
+        assertSame(initial, CollectionOperations.rename(initial, 20, "  "))
+        assertEquals("Personal", CollectionOperations.rename(initial, 20, "  Personal  ").collections[1].name)
+    }
+
+    @Test
     fun transferMovesSelectedRecordsInTheirExistingOrder() {
         val source = NoteCollection(10, "Source", listOf(note(1), note(2), note(3)))
         val target = NoteCollection(20, "Target", listOf(note(4)))
@@ -60,6 +75,21 @@ class CollectionOperationsTest {
 
         assertEquals(listOf(1L, 2L, 3L), moved.notes.map { it.id })
         assertTrue(moved.collections.single().notes.isEmpty())
+    }
+
+
+    @Test
+    fun transferToMissingCollectionLeavesSourceRecordsUntouched() {
+        val initial = snapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Source", listOf(note(2), note(3))))
+        )
+
+        val unchanged = CollectionOperations.transfer(initial, 10, 999, setOf(2, 3))
+
+        assertSame(initial, unchanged)
+        assertEquals(listOf(2L, 3L), unchanged.collections.single().notes.map { it.id })
+        assertEquals(listOf(1L), unchanged.notes.map { it.id })
     }
 
     @Test

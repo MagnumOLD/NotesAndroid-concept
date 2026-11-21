@@ -45,11 +45,11 @@ class NoteReorderModelTest {
 
     @Test
     fun movesAnUnpinnedNoteAfterTargetWithoutCrossingPinnedPartition() {
-        val notes = listOf(note(1, true), note(2, true), note(3), note(4))
+        val notes = listOf(note(1, true), note(2, true), note(4), note(3))
 
-        val moved = NoteReorderModel.moveSelected(notes, setOf(4), afterId = 1)
+        val moved = NoteReorderModel.moveSelected(notes, setOf(4), afterId = 3)
 
-        assertEquals(listOf(1L, 2L, 4L, 3L), moved.map { it.id })
+        assertEquals(listOf(1L, 2L, 3L, 4L), moved.map { it.id })
         assertEquals(listOf(true, true, false, false), moved.map { it.pinned })
     }
 
@@ -90,4 +90,40 @@ class NoteReorderModelTest {
         assertNull(NoteReorderModel.createDragRows(notes, setOf(999), 2))
         assertEquals(notes, NoteReorderModel.moveSelected(notes, setOf(999), null))
     }
+
+    @Test
+    fun moduleListsCanReorderAcrossScheduledDays() {
+        val first = Note(1, "", listOf(NoteBlock()), 1L, scheduledAt = 1L)
+        val second = Note(2, "", listOf(NoteBlock()), 2L, scheduledAt = 86_400_000L)
+
+        assertEquals(true, NoteReorderModel.canSwapRows(listOf(first), listOf(second), timelineMode = false))
+    }
+
+    @Test
+    fun homeTimelineKeepsAdjacentSwapsInsideOneCalendarDay() {
+        val first = Note(1, "", listOf(NoteBlock()), 1L, scheduledAt = 1L)
+        val sameDay = Note(2, "", listOf(NoteBlock()), 2L, scheduledAt = 86_399_999L)
+        val nextDay = Note(3, "", listOf(NoteBlock()), 3L, scheduledAt = 86_400_000L)
+
+        assertEquals(true, NoteReorderModel.canSwapRows(listOf(first), listOf(sameDay), timelineMode = true))
+        assertEquals(false, NoteReorderModel.canSwapRows(listOf(first), listOf(nextDay), timelineMode = true))
+    }
+
+    @Test
+    fun adjacentReorderNeverCrossesPinnedPartition() {
+        val pinned = Note(1, "", listOf(NoteBlock()), 1L, pinned = true)
+        val unpinned = Note(2, "", listOf(NoteBlock()), 2L, pinned = false)
+
+        assertEquals(false, NoteReorderModel.canSwapRows(listOf(pinned), listOf(unpinned), timelineMode = false))
+    }
+
+    @Test
+    fun homeTimelineRejectsMixedDayMovingGroups() {
+        val first = Note(1, "", listOf(NoteBlock()), 1L, scheduledAt = 1L)
+        val nextDay = Note(2, "", listOf(NoteBlock()), 2L, scheduledAt = 86_400_000L)
+        val neighbour = Note(3, "", listOf(NoteBlock()), 3L, scheduledAt = 1L)
+
+        assertEquals(false, NoteReorderModel.canSwapRows(listOf(first, nextDay), listOf(neighbour), timelineMode = true))
+    }
+
 }

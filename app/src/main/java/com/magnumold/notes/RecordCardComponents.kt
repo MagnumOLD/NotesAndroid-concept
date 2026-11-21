@@ -13,6 +13,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Redo
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Apps
@@ -29,13 +32,10 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.PauseCircleOutline
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Redo
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -298,7 +298,7 @@ internal fun recordCardPrimaryText(note: Note): String {
     val text = note.titleText.trim()
     return when (note.type) {
         RecordType.TIMER -> text.ifBlank { "Таймер" }
-        RecordType.NUTRITION -> text.ifBlank { "Запись КБЖУ" }
+        RecordType.NUTRITION -> note.nutritionItems.joinToString("\n") { it.productName }.ifBlank { text.ifBlank { "Запись КБЖУ" } }
         RecordType.WORKOUT -> text.ifBlank { "Тренировка" }
         else -> if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && text.isNotBlank()) {
             text
@@ -312,20 +312,20 @@ internal fun recordCardPrimaryText(note: Note): String {
 
 
 internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis(), enabledFields: Set<String> = CardPreviewField.defaults): String? {
-    fun amount(value: Double) = if (value % 1.0 == 0.0) value.toLong().toString() else "%.1f".format(java.util.Locale.getDefault(), value)
+    fun amount(value: Double) = PurchaseOperations.formatAmount(value)
     fun on(field: CardPreviewField) = field.key in enabledFields
     val parts = when (note.type) {
         RecordType.TASK -> buildList {
             if (on(CardPreviewField.TASK_STATUS)) add(recordStatusCompactText(note.recordStatus()))
             if (on(CardPreviewField.TASK_PROGRESS) && note.children.isNotEmpty()) add("${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}")
             if (on(CardPreviewField.TASK_DATE)) note.dateAt?.let { ts ->
-                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru")).format(java.util.Date(ts)))
+                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + formatRecordShortDate(ts))
             }
         }
         RecordType.NUTRITION -> if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
             note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0 && note.nutritionGrams == 0.0
         ) emptyList() else buildList {
-            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${amount(note.nutritionCalories)} ккал")
+            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${NutritionOperations.formatCalories(note.nutritionCalories)} ккал")
             if (on(CardPreviewField.NUTRITION_PROTEIN)) add("Б ${amount(note.nutritionProtein)}")
             if (on(CardPreviewField.NUTRITION_FAT)) add("Ж ${amount(note.nutritionFat)}")
             if (on(CardPreviewField.NUTRITION_CARBS)) add("У ${amount(note.nutritionCarbs)}")
@@ -333,7 +333,7 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
         }
         RecordType.PURCHASE -> buildList {
             if (on(CardPreviewField.PURCHASE_PRICE) && (note.purchaseUnitPrice > 0 || note.purchaseQuantity != 1.0)) {
-                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${PurchaseOperations.formatAmount(PurchaseOperations.totalCost(note.purchaseQuantity, note.purchaseUnitPrice))}")
             } else if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
             if (on(CardPreviewField.PURCHASE_STATUS)) add(if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке")
         }
@@ -667,7 +667,7 @@ internal fun AppIcon(
     val imageVector = when (icon) {
         NoteIcon.Back -> Icons.AutoMirrored.Outlined.ArrowBack
         NoteIcon.Add -> Icons.Outlined.Add
-        NoteIcon.AddBlock -> Icons.Outlined.PlaylistAdd
+        NoteIcon.AddBlock -> Icons.AutoMirrored.Outlined.PlaylistAdd
         NoteIcon.Search -> Icons.Outlined.Search
         NoteIcon.Close -> Icons.Outlined.Close
         NoteIcon.More -> Icons.Outlined.MoreVert
@@ -678,8 +678,8 @@ internal fun AppIcon(
         NoteIcon.Download -> Icons.Outlined.FileDownload
         NoteIcon.Pin -> Icons.Outlined.PushPin
         NoteIcon.Folder -> Icons.Outlined.Folder
-        NoteIcon.Undo -> Icons.Outlined.Undo
-        NoteIcon.Redo -> Icons.Outlined.Redo
+        NoteIcon.Undo -> Icons.AutoMirrored.Outlined.Undo
+        NoteIcon.Redo -> Icons.AutoMirrored.Outlined.Redo
         NoteIcon.Share -> Icons.Outlined.Share
         NoteIcon.Modules -> Icons.Outlined.Apps
     }

@@ -8,11 +8,17 @@ import org.json.JSONArray
  * Preference names and JSON keys are preserved for upgrade compatibility.
  */
 internal class NotesRepository(private val preferences: SharedPreferences) {
+    companion object {
+        // Activity.getPreferences() uses the Activity's local class name.
+        // Services and receivers must open this exact same file.
+        const val PREFERENCES_NAME = "MainActivity"
+    }
     fun loadSnapshot() = PersistenceSnapshot(
         notes = loadNotes(),
         collections = loadCollections(),
         archived = loadVault("archive"),
-        trash = loadVault("trash")
+        trash = loadVault("trash"),
+        nutritionProducts = loadJsonArray("nutrition_products", emptyList()) { NutritionCatalogOperations.parseProducts(it) }
     )
 
     @Synchronized
@@ -33,6 +39,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             .putString("collections", collectionsToJson(snapshot.collections).toString())
             .putString("archive", vaultToJson(snapshot.archived).toString())
             .putString("trash", vaultToJson(snapshot.trash).toString())
+            .putString("nutrition_products", NutritionCatalogOperations.productsToJson(snapshot.nutritionProducts).toString())
 
     fun findTask(taskId: Long): Note? {
         val snapshot = loadSnapshot()
@@ -43,7 +50,10 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             }
             return null
         }
-        return find(snapshot.notes) ?: find(snapshot.collections.flatMap { it.notes })
+        return find(snapshot.notes)
+            ?: find(snapshot.collections.flatMap { it.notes })
+            ?: find(snapshot.archived.map { it.note })
+            ?: find(snapshot.trash.map { it.note })
     }
 
     fun updateTaskStatus(taskId: Long, status: RecordStatus): Boolean {
@@ -51,20 +61,41 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         var found = false
         fun updateTree(items: List<Note>): List<Note> = items.map { note ->
             val updatedChildren = updateTree(note.children)
+            val withUpdatedChildren = if (updatedChildren != note.children) {
+                withUpdatedRecordChildren(note, updatedChildren)
+            } else note
             if (note.id == taskId && note.type == RecordType.TASK) {
                 found = true
-                note.copy(status = status, deadlineResumeOverride = status == RecordStatus.IN_PROGRESS, children = updatedChildren)
-            } else if (updatedChildren != note.children) {
-                note.copy(children = updatedChildren)
-            } else note
+                withUpdatedChildren.copy(
+                    status = status,
+                    deadlineResumeOverride = status == RecordStatus.IN_PROGRESS,
+                    children = updatedChildren
+                )
+            } else withUpdatedChildren
         }
         val updatedNotes = updateTree(current.notes)
         val updatedCollections = current.collections.map { collection ->
             collection.copy(notes = updateTree(collection.notes))
         }
+        fun updateVault(entries: List<VaultNote>): List<VaultNote> =
+            entries.map { entry ->
+                val updated = updateTree(listOf(entry.note)).single()
+                if (updated == entry.note) entry else entry.copy(note = updated)
+            }
+        val updatedArchive = updateVault(current.archived)
+        val updatedTrash = updateVault(current.trash)
         if (found) {
-            flushSnapshot(current.copy(notes = updatedNotes, collections = updatedCollections))
-            preferences.edit().putLong(KEY_EXTERNAL_STATUS_UPDATE, System.currentTimeMillis()).apply()
+            flushSnapshot(current.copy(
+                notes = updatedNotes,
+                collections = updatedCollections,
+                archived = updatedArchive,
+                trash = updatedTrash
+            ))
+            preferences.edit()
+                .putLong(ExternalRecordUpdateKeys.TASK_STATUS_AT, System.currentTimeMillis())
+                .putLong(ExternalRecordUpdateKeys.TASK_STATUS_ID, taskId)
+                .putString(ExternalRecordUpdateKeys.TASK_STATUS_VALUE, status.name)
+                .apply()
         }
         return found
     }
@@ -92,9 +123,18 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
     private fun loadVault(key: String): List<VaultNote> =
         loadJsonArray(key, emptyList(), ::parseVaultArray)
 
-    private companion object {
-        const val KEY_EXTERNAL_STATUS_UPDATE = "external_task_status_update"
+    fun markExternalTimerStateUpdate() {
+        preferences.edit()
+            .putLong(ExternalRecordUpdateKeys.TIMER_STATE_AT, System.currentTimeMillis())
+            .apply()
     }
+}
+
+internal object ExternalRecordUpdateKeys {
+    const val TASK_STATUS_AT = "external_task_status_update"
+    const val TASK_STATUS_ID = "external_task_status_update_id"
+    const val TASK_STATUS_VALUE = "external_task_status_update_value"
+    const val TIMER_STATE_AT = "external_timer_state_update"
 }
 
 /**

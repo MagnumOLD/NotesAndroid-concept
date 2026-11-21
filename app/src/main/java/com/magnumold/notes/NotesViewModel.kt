@@ -22,7 +22,8 @@ import kotlinx.coroutines.runBlocking
 internal class NotesViewModel(
     private val repository: NotesRepository,
     private val timeTrackingRepository: TimeTrackingRepository,
-    private val recoveryDataRepository: RecoveryDataRepository
+    private val recoveryDataRepository: RecoveryDataRepository,
+    private val backupImportJournal: BackupImportTransactionJournal
 ) : ViewModel() {
     private val _snapshot = MutableStateFlow(repository.loadSnapshot())
     val snapshot: StateFlow<PersistenceSnapshot> = _snapshot.asStateFlow()
@@ -54,12 +55,26 @@ internal class NotesViewModel(
         runBlocking {
             pendingJob?.cancelAndJoin()
         }
-        repository.flushSnapshot(_snapshot.value)
-        startPersistenceObserver()
+        try {
+            repository.flushSnapshot(_snapshot.value)
+        } finally {
+            // A failed synchronous commit must not permanently disable
+            // autosave for every edit made later in this ViewModel's lifetime.
+            startPersistenceObserver()
+        }
     }
 
     fun refreshFromRepository() {
         _snapshot.value = repository.loadSnapshot()
+    }
+
+    fun applyExternalTaskStatus(taskId: Long, status: RecordStatus) {
+        updateSnapshot { RecordOperations.updateTaskStatus(it, taskId, status) }
+    }
+
+    fun refreshTimerStatesFromRepository() {
+        val persisted = repository.loadSnapshot()
+        updateSnapshot { RecordOperations.refreshTimerStates(it, persisted) }
     }
 
     private fun updateSnapshot(transform: (PersistenceSnapshot) -> PersistenceSnapshot) {
@@ -88,6 +103,10 @@ internal class NotesViewModel(
         updateSnapshot { CollectionOperations.transfer(it, sourceId, targetId, ids) }
     }
 
+    fun updateNutritionProducts(products: List<NutritionProduct>) {
+        updateSnapshot { it.copy(nutritionProducts = products.distinctBy { product -> product.id }) }
+    }
+
     fun updateHomeRecord(note: Note) {
         updateSnapshot { HomeTimelineOperations.update(it, note) }
     }
@@ -102,6 +121,14 @@ internal class NotesViewModel(
 
     fun toggleHomeRecordsPinned(ids: Set<Long>) {
         updateSnapshot { HomeTimelineOperations.togglePinned(it, ids) }
+    }
+
+    fun toggleRecordsFavorite(ids: Set<Long>) {
+        updateSnapshot { HomeTimelineOperations.toggleFavorite(it, ids) }
+    }
+
+    fun setRecordsShowOnHome(ids: Set<Long>, show: Boolean) {
+        updateSnapshot { HomeTimelineOperations.setShowOnHome(it, ids, show) }
     }
 
     fun changeHomeRecordColor(noteId: Long, colorIndex: Int) {
@@ -138,20 +165,38 @@ internal class NotesViewModel(
 
     fun importBackup(json: String): BackupImportResult {
         val imported = parseBackupJson(json)
-        val importedRecoveryCount = recoveryDataRepository.importEntries(imported.recoveryEntries)
-        imported.timeTracking?.let { backup ->
-            timeTrackingRepository.update { current -> mergeTimeTrackingBackup(current, backup) }
+        val before = _snapshot.value
+        lateinit var merge: RecordOperations.BackupMergeResult
+
+        // Keep timer/service writes behind the same repository lock until all
+        // three parts of the backup have committed or have been rolled back.
+        return backupImportJournal.execute {
+            timeTrackingRepository.withBackupImportTransaction(
+                prepare = { currentTimeTracking ->
+                    merge = RecordOperations.mergeBackupWithIdMap(before, imported, currentTimeTracking)
+                    imported.timeTracking?.let { backup ->
+                        val remapped = remapTimeTrackingTaskIds(backup, merge.importedNoteIdMap)
+                        mergeTimeTrackingBackup(currentTimeTracking, remapped)
+                    }
+                },
+                commit = { _, _ ->
+                    val importedCount =
+                        RecordOperations.recordCount(merge.snapshot) - RecordOperations.recordCount(before)
+                    updateSnapshot { merge.snapshot }
+                    try {
+                        flush()
+                        val importedRecoveryCount =
+                            recoveryDataRepository.importEntries(imported.recoveryEntries)
+                        BackupImportResult(importedCount, importedRecoveryCount)
+                    } catch (failure: Throwable) {
+                        _snapshot.value = before
+                        runCatching { flush() }
+                            .exceptionOrNull()?.let(failure::addSuppressed)
+                        throw failure
+                    }
+                }
+            )
         }
-        var importedCount = 0
-        updateSnapshot { current ->
-            val merged = RecordOperations.mergeBackup(current, imported)
-            importedCount = RecordOperations.recordCount(merged) - RecordOperations.recordCount(current)
-            merged
-        }
-        // Do not report a successful import while the merged records are only
-        // waiting in the debounced autosave queue.
-        flush()
-        return BackupImportResult(importedCount, importedRecoveryCount)
     }
 
     fun restoreVaultEntry(entry: VaultNote, fromArchive: Boolean) {
@@ -186,13 +231,14 @@ internal class NotesViewModel(
 internal class NotesViewModelFactory(
     private val repository: NotesRepository,
     private val timeTrackingRepository: TimeTrackingRepository,
-    private val recoveryDataRepository: RecoveryDataRepository
+    private val recoveryDataRepository: RecoveryDataRepository,
+    private val backupImportJournal: BackupImportTransactionJournal
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         require(modelClass.isAssignableFrom(NotesViewModel::class.java)) {
             "Unknown ViewModel class: ${modelClass.name}"
         }
-        return NotesViewModel(repository, timeTrackingRepository, recoveryDataRepository) as T
+        return NotesViewModel(repository, timeTrackingRepository, recoveryDataRepository, backupImportJournal) as T
     }
 }

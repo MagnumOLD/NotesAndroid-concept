@@ -28,6 +28,14 @@ class AppThemeStateTest {
     }
 
     @Test
+    fun darkPaletteUsesTheStandardBurgundyForTopBarAndAddButton() {
+        val dark = ThemeColorSets().dark
+
+        assertEquals(Color(0xFF7F1C30), dark.topBar)
+        assertEquals(Color(0xFF7F1C30), dark.addButton)
+    }
+
+    @Test
     fun systemModeUsesSeparateLightAndDarkNoteColorOpacity() {
         val state = state()
 
@@ -36,14 +44,21 @@ class AppThemeStateTest {
     }
 
     @Test
-    fun systemPaletteEditsDoNotOverwriteTheOtherPaletteOrCustomTheme() {
+    fun systemPaletteEditsDoNotOverwriteTheOtherPalette() {
         val state = state()
         state.updateThemeColor("topBar", Color.Red, systemDark = true)
 
         assertEquals(Color.Red, state.activeColors(systemDark = true).topBar)
         assertEquals(ThemeColorSets().light.topBar, state.activeColors(systemDark = false).topBar)
+    }
+
+    @Test
+    fun legacyCustomModeFallsBackToSystemAndCannotBeSelectedAgain() {
+        val state = state(mode = "custom")
+
+        assertEquals("system", state.mode)
         state.changeMode("custom")
-        assertEquals(defaultCustomThemeColors, state.activeColors(systemDark = false))
+        assertEquals("system", state.mode)
     }
 
     @Test

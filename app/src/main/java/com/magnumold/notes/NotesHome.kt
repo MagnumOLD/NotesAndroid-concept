@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -44,6 +45,8 @@ internal fun NotesHome(
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
     onChangeNoteColor: (Long, Int) -> Unit, onDeleteSelected: (Set<Long>) -> Unit, onArchiveSelected: (Set<Long>) -> Unit,
     onTogglePinned: (Set<Long>) -> Unit,
+    onToggleFavorite: (Set<Long>) -> Unit = {},
+    onSetShowOnHome: (Set<Long>, Boolean) -> Unit = { _, _ -> },
     onMoveSelected: (Set<Long>, Long?) -> Unit,
     collections: List<NoteCollection>, activeCollectionId: Long?,
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
@@ -53,11 +56,15 @@ internal fun NotesHome(
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
      showCollections: Boolean = true,
-    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
+    collectionsAvailable: Boolean = true,
+    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showMoveMenu by remember { mutableStateOf(false) }
+    var showSelectionActionsMenu by remember { mutableStateOf(false) }
     var collectionMenuId by remember { mutableStateOf<Long?>(null) }
     var showNewCollectionDialog by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
@@ -91,6 +98,7 @@ internal fun NotesHome(
     } else rangeNotes
     val filtered = displayNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
+    val activeButtonLayout = if (isMainHome) homeButtonLayout else HomeButtonLayout.SEPARATE
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
     val selectedNoteBackground = themeColors.selection
@@ -146,15 +154,11 @@ internal fun NotesHome(
         listState = listState,
         density = density,
         canSwap = { movingKey, neighbourKey ->
-            val movingNotes = dragBaseRows[movingKey]?.notes.orEmpty()
-            val neighbourNotes = dragBaseRows[neighbourKey]?.notes.orEmpty()
-            val movingPinStates = movingNotes.map { it.pinned }.distinct()
-            val neighbourPinStates = neighbourNotes.map { it.pinned }.distinct()
-            val movingDay = movingNotes.firstOrNull()?.let { timelineDayKey(it) }
-            val neighbourDay = neighbourNotes.firstOrNull()?.let { timelineDayKey(it) }
-            movingPinStates.size == 1 && neighbourPinStates.size == 1 &&
-                movingPinStates.single() == neighbourPinStates.single() &&
-                movingDay == neighbourDay
+            NoteReorderModel.canSwapRows(
+                moving = dragBaseRows[movingKey]?.notes.orEmpty(),
+                neighbour = dragBaseRows[neighbourKey]?.notes.orEmpty(),
+                timelineMode = timelineMode
+            )
         },
         onSessionChange = { reorderSession = it },
         onFinishDrag = { finishDrag() }
@@ -173,12 +177,46 @@ internal fun NotesHome(
                     if (selectionMode) {
                         Text("${selectedNoteIds.size} выбрано", style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        val allSelectedPinned = notes.filter { it.id in selectedNoteIds }.all { it.pinned }
-                        IconButton(onClick = { onTogglePinned(selectedNoteIds) }) {
-                            AppIcon(NoteIcon.Pin, contentDescription = if (allSelectedPinned) "Открепить заметки" else "Закрепить заметки")
+                        val selectedRecords = notes.filter { it.id in selectedNoteIds }
+                        val allSelectedPinned = selectedRecords.isNotEmpty() && selectedRecords.all { it.pinned }
+                        val allSelectedFavorite = selectedRecords.isNotEmpty() && selectedRecords.all { it.favorite }
+                        val allSelectedShownOnHome = selectedRecords.isNotEmpty() && selectedRecords.all { it.showOnHome }
+                        Box {
+                            IconButton(onClick = { showSelectionActionsMenu = true }) {
+                                AppIcon(NoteIcon.More, contentDescription = "Дополнительные действия")
+                            }
+                            DropdownMenu(
+                                expanded = showSelectionActionsMenu,
+                                onDismissRequest = { showSelectionActionsMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedPinned) "Открепить" else "Закрепить") },
+                                    onClick = {
+                                        onTogglePinned(selectedNoteIds)
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedFavorite) "Убрать из избранного" else "В избранное") },
+                                    onClick = {
+                                        onToggleFavorite(selectedNoteIds)
+                                        if (allSelectedFavorite) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedShownOnHome) "Скрыть с главной" else "Показывать на главной") },
+                                    onClick = {
+                                        val show = !allSelectedShownOnHome
+                                        onSetShowOnHome(selectedNoteIds, show)
+                                        if (!show) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                            }
                         }
                         IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
-                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
+                        IconButton(onClick = { showMoveMenu = true }, enabled = collectionsAvailable) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
                         DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
                             if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
                                 onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
@@ -199,8 +237,10 @@ internal fun NotesHome(
                     } else {
                         Text(screenTitle, style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = onOpenModules) {
-                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
+                            IconButton(onClick = onOpenModules) {
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
                         }
                         IconButton(onClick = onToggleSearch) {
                             AppIcon(if (searchVisible) NoteIcon.Close else NoteIcon.Search, contentDescription = "Поиск")
@@ -214,32 +254,108 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .offset(y = PrimaryAddButtonDimensions.verticalOffset)
-                            .size(PrimaryAddButtonDimensions.diameter)
-                            .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(themeColors.addButton)
-                            .combinedClickable(
-                                role = Role.Button,
-                                onClick = {
-                                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
-                                },
-                                onLongClick = {
-                                    if (enabledModules.isEmpty()) onOpenModules()
-                                    else createMenuExpanded = true
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "+",
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Light,
-                            color = noteTextColor(themeColors.addButton)
-                        )
+                val buttonDiameter = when (activeButtonLayout) {
+                    HomeButtonLayout.SEPARATE -> PrimaryAddButtonDimensions.diameter
+                    HomeButtonLayout.VERTICAL_PANEL -> 52.dp
+                    else -> 56.dp
+                }
+                val modulesDiameter = buttonDiameter
+                val addDiameter = buttonDiameter
+                val buttonGap = 8.dp
+                val addAction: () -> Unit = {
+                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                }
+                val addLongAction: () -> Unit = {
+                    if (enabledModules.isEmpty()) onOpenModules()
+                    else createMenuExpanded = true
+                }
+
+                Column(
+                    modifier = Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(buttonGap)
+                ) {
+                    if (activeButtonLayout == HomeButtonLayout.VERTICAL) {
+                        Box(
+                            modifier = Modifier.size(modulesDiameter)
+                                .shadow(3.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .combinedClickable(
+                                    role = Role.Button,
+                                    onClick = onOpenModules,
+                                    onLongClick = {}
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        }
+                    } else if (activeButtonLayout == HomeButtonLayout.VERTICAL_PANEL) {
+                        Column(
+                            modifier = Modifier
+                                .width(56.dp)
+                                .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.size(modulesDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = onOpenModules,
+                                        onLongClick = {}
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
+                            Box(
+                                modifier = Modifier.size(addDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(themeColors.addButton)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = addAction,
+                                        onLongClick = addLongAction
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "+",
+                                    fontSize = 34.sp,
+                                    fontWeight = FontWeight.Light,
+                                    color = noteTextColor(themeColors.addButton)
+                                )
+                            }
+                        }
+                    }
+
+                    if (activeButtonLayout != HomeButtonLayout.VERTICAL_PANEL) {
+                        Box(
+                            modifier = Modifier
+                                .size(addDiameter)
+                                .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(themeColors.addButton)
+                                .combinedClickable(
+                                    role = Role.Button,
+                                    onClick = addAction,
+                                    onLongClick = addLongAction
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "+",
+                                fontSize = 34.sp,
+                                fontWeight = FontWeight.Light,
+                                color = noteTextColor(themeColors.addButton)
+                            )
+                        }
                     }
                     DropdownMenu(
                         expanded = createMenuExpanded,
@@ -302,9 +418,10 @@ internal fun NotesHome(
             if (timelineMode) {
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.xs),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+                        .height(AppCollectionRowDimensions.height)
+                        .padding(horizontal = AppSpacing.screenHorizontal)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.lg),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val ranges = listOf(
@@ -313,17 +430,23 @@ internal fun NotesHome(
                         HomeTimelineRange.TOMORROW to "Завтра",
                         HomeTimelineRange.WEEK to "Неделя",
                         HomeTimelineRange.MONTH to "Месяц",
-                        HomeTimelineRange.HISTORY to "История",
                         HomeTimelineRange.FAVORITES to "Избранное"
                     )
                     ranges.forEach { (range, label) ->
-                        FilterChip(
-                            selected = timelineRange == range,
-                            onClick = {
-                                timelineRange = range
-                                selectedNoteIds = emptySet()
+                        Text(
+                            text = label,
+                            color = if (timelineRange == range) {
+                                themeColors.collectionText
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            label = { Text(label) }
+                            style = AppTypography.collectionLabelStyle(selected = timelineRange == range),
+                            modifier = Modifier.pointerInput(range, timelineRange) {
+                                detectTapGestures(onTap = {
+                                    timelineRange = range
+                                    selectedNoteIds = emptySet()
+                                })
+                            }
                         )
                     }
                 }
@@ -334,7 +457,14 @@ internal fun NotesHome(
 
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(if (search.isNotBlank()) "Ничего не найдено" else "Пока нет заметок")
+                    Text(
+                        if (timelineMode) {
+                            HomeTimelineOperations.emptyStateMessage(
+                                timelineRange,
+                                searching = search.isNotBlank()
+                            )
+                        } else if (search.isNotBlank()) "Ничего не найдено" else "Пока нет записей"
+                    )
                 }
             } else {
                 Box(

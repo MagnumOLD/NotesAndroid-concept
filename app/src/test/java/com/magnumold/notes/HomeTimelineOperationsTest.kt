@@ -18,6 +18,17 @@ class HomeTimelineOperationsTest {
         )
 
     @Test
+    fun timelineEmptyStatesReflectSelectedRangeAndSearch() {
+        assertEquals("Пока нет записей", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.ALL, false))
+        assertEquals("На сегодня записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TODAY, false))
+        assertEquals("На завтра записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TOMORROW, false))
+        assertEquals("На эту неделю записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.WEEK, false))
+        assertEquals("В этом месяце записей нет", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.MONTH, false))
+        assertEquals("В избранном пока пусто", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.FAVORITES, false))
+        assertEquals("Ничего не найдено", HomeTimelineOperations.emptyStateMessage(HomeTimelineRange.TODAY, true))
+    }
+
+    @Test
     fun homeTimelineIncludesRootAndCollectionRecords() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(note(1)),
@@ -131,6 +142,22 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun homeTimelineRejectsDropAnchorsFromAnotherDayOrPinnedPartition() {
+        val today = note(1, order = 30, created = 10 * 86_400_000L)
+        val tomorrow = note(2, order = 20, created = 11 * 86_400_000L)
+        val pinned = note(3, order = 10, created = 10 * 86_400_000L).copy(pinned = true)
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(today, tomorrow, pinned),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        assertEquals(snapshot, HomeTimelineOperations.reorder(snapshot, setOf(1L), afterId = 2L))
+        assertEquals(snapshot, HomeTimelineOperations.reorder(snapshot, setOf(1L), afterId = 3L))
+    }
+
+    @Test
     fun homeTimelineKeepsPinnedRecordsInTheirOwnReorderPartition() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(
@@ -152,23 +179,38 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
-    fun dateRangeFiltersCoverTodayTomorrowWeekMonthAndHistory() {
-        val today = 100L
+    fun dateRangeFiltersCoverTodayTomorrowWeekAndMonth() {
+        val utc = java.util.TimeZone.getTimeZone("UTC")
+        val today = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.NOVEMBER, 18, 0, 0, 0)
+        }.timeInMillis / 86_400_000L
+        val november30 = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.NOVEMBER, 30, 0, 0, 0)
+        }.timeInMillis
+        val december1 = java.util.Calendar.getInstance(utc).apply {
+            clear()
+            set(2026, java.util.Calendar.DECEMBER, 1, 0, 0, 0)
+        }.timeInMillis
+        fun scheduled(id: Long, day: Long) =
+            note(id, created = 0L).copy(scheduledAt = day * 86_400_000L)
         val records = listOf(
-            note(1, created = (today - 1) * 86_400_000L),
-            note(2, created = today * 86_400_000L),
-            note(3, created = (today + 1) * 86_400_000L),
-            note(4, created = (today + 6) * 86_400_000L),
-            note(5, created = (today + 7) * 86_400_000L),
-            note(6, created = (today + 29) * 86_400_000L),
-            note(7, created = (today + 30) * 86_400_000L)
+            scheduled(1, today - 1),
+            scheduled(2, today),
+            scheduled(3, today + 1),
+            scheduled(4, today + 6),
+            scheduled(5, today + 7),
+            scheduled(6, november30 / 86_400_000L),
+            scheduled(7, december1 / 86_400_000L)
         )
 
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L, 7L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.ALL, today).map { it.id })
         assertEquals(listOf(2L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TODAY, today).map { it.id })
         assertEquals(listOf(3L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.TOMORROW, today).map { it.id })
         assertEquals(listOf(2L, 3L, 4L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.WEEK, today).map { it.id })
-        assertEquals(listOf(2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
-        assertEquals(listOf(1L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.HISTORY, today).map { it.id })
+        // Month view is the whole calendar month, including days before today.
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L, 6L), HomeTimelineOperations.filterByRange(records, HomeTimelineRange.MONTH, today).map { it.id })
     }
 
     @Test
@@ -216,10 +258,11 @@ class HomeTimelineOperationsTest {
         val records = listOf(
             note(1).copy(favorite = true),
             note(2),
-            note(3).copy(favorite = true)
+            note(3).copy(favorite = true),
+            note(4).copy(favorite = true, showOnHome = false)
         )
         assertEquals(
-            listOf(1L, 3L),
+            listOf(1L, 3L, 4L),
             HomeTimelineOperations.filterByRange(records, HomeTimelineRange.FAVORITES, 100L).map { it.id }
         )
     }
@@ -235,9 +278,11 @@ class HomeTimelineOperationsTest {
             note(5, created = 7 * 86_400_000L).copy(type = RecordType.PURCHASE, favorite = true)
         )
 
-        val ordered = HomeTimelineOperations.orderedFavoritesByModule(records)
+        val hiddenFavorite = note(6, created = 11 * 86_400_000L)
+            .copy(type = RecordType.NOTE, favorite = true, showOnHome = false)
+        val ordered = HomeTimelineOperations.orderedFavoritesByModule(records + hiddenFavorite)
 
-        assertEquals(listOf(2L, 3L, 1L, 5L), ordered.map { it.id })
+        assertEquals(listOf(6L, 2L, 3L, 1L, 5L), ordered.map { it.id })
         assertEquals("Заметки", HomeTimelineOperations.moduleSectionTitle(RecordType.NOTE))
         assertEquals("Задачи", HomeTimelineOperations.moduleSectionTitle(RecordType.TASK))
     }
@@ -256,6 +301,41 @@ class HomeTimelineOperationsTest {
         )
 
         assertEquals(listOf(4L, 2L, 1L), ordered.map { it.id })
+    }
+
+    @Test
+    fun favoriteActionTogglesSelectedRecordsAcrossRootAndCollections() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(2)))),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val favorited = HomeTimelineOperations.toggleFavorite(snapshot, setOf(1L, 2L))
+        assertTrue(favorited.notes.single().favorite)
+        assertTrue(favorited.collections.single().notes.single().favorite)
+
+        val unfavorited = HomeTimelineOperations.toggleFavorite(favorited, setOf(1L, 2L))
+        assertFalse(unfavorited.notes.single().favorite)
+        assertFalse(unfavorited.collections.single().notes.single().favorite)
+    }
+
+    @Test
+    fun homeVisibilityCanBeDisabledAndRestoredWithoutDeletingRecords() {
+        val snapshot = PersistenceSnapshot(
+            notes = listOf(note(1)),
+            collections = listOf(NoteCollection(10, "Work", listOf(note(2)))),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val hidden = HomeTimelineOperations.setShowOnHome(snapshot, setOf(1L, 2L), false)
+        assertEquals(2, HomeTimelineOperations.records(hidden).size)
+        assertTrue(HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(hidden)).isEmpty())
+
+        val restored = HomeTimelineOperations.setShowOnHome(hidden, setOf(1L, 2L), true)
+        assertEquals(listOf(2L, 1L), HomeTimelineOperations.orderedVisibleRecords(HomeTimelineOperations.records(restored)).map { it.id })
     }
 
     @Test
