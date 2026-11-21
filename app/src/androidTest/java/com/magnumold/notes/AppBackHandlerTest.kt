@@ -7,6 +7,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.espresso.Espresso.pressBack as pressSystemBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -20,9 +21,7 @@ class AppBackHandlerTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private fun pressBack() {
-        composeRule.runOnUiThread {
-            composeRule.activity.onBackPressedDispatcher.onBackPressed()
-        }
+        pressSystemBack()
         composeRule.waitForIdle()
     }
 
