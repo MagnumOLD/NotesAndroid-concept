@@ -35,4 +35,11 @@ class HomeAddRecordTypeStoreTest {
         prefs.edit().putString("home_add_record_type", "UNKNOWN").commit()
         assertEquals(RecordType.NOTE, HomeAddRecordTypeStore(prefs).load())
     }
+
+    @Test
+    fun wrongStoredPreferenceTypeFallsBackToNote() {
+        val prefs = preferences()
+        prefs.edit().putInt("home_add_record_type", 42).commit()
+        assertEquals(RecordType.NOTE, HomeAddRecordTypeStore(prefs).load())
+    }
 }
