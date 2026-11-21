@@ -356,8 +356,6 @@ internal fun NotesHome(
                             )
                         }
                     }
-                }
-            }
                     DropdownMenu(
                         expanded = createMenuExpanded,
                         onDismissRequest = { createMenuExpanded = false }
