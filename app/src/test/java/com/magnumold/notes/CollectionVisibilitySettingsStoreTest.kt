@@ -33,8 +33,8 @@ class CollectionVisibilitySettingsStoreTest {
     }
 
     @Test
-    fun homeCollectionsAreVisibleByDefaultForExistingInstallations() {
-        assertTrue(store().loadHomeVisible())
+    fun homeCollectionsAreHiddenByDefaultForNewInstallations() {
+        assertFalse(store().loadHomeVisible())
     }
 
     @Test
