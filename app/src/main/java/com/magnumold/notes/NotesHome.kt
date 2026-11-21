@@ -304,6 +304,7 @@ internal fun NotesHome(
                             Box(
                                 modifier = Modifier.size(modulesDiameter)
                                     .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .combinedClickable(
                                         role = Role.Button,
                                         onClick = onOpenModules,
