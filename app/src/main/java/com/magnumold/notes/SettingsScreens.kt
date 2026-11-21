@@ -11,7 +11,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.activity.compose.setContent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.compose.BackHandler
 import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
@@ -153,7 +152,7 @@ internal fun SettingsScreen(
     var moduleCollectionsVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
+    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
