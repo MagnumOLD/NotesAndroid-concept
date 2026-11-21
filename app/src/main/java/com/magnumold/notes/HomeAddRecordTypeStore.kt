@@ -8,7 +8,8 @@ import android.content.SharedPreferences
  */
 internal class HomeAddRecordTypeStore(private val preferences: SharedPreferences) {
     fun load(): RecordType {
-        val stored = preferences.getString(KEY_RECORD_TYPE, null) ?: return RecordType.NOTE
+        val stored = runCatching { preferences.getString(KEY_RECORD_TYPE, null) }.getOrNull()
+            ?: return RecordType.NOTE
         return runCatching { RecordType.valueOf(stored) }.getOrDefault(RecordType.NOTE)
     }
 
