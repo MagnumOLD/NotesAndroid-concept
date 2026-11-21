@@ -28,6 +28,14 @@ class AppThemeStateTest {
     }
 
     @Test
+    fun darkPaletteUsesTheStandardBurgundyForTopBarAndAddButton() {
+        val dark = ThemeColorSets().dark
+
+        assertEquals(Color(0xFF7F1C30), dark.topBar)
+        assertEquals(Color(0xFF7F1C30), dark.addButton)
+    }
+
+    @Test
     fun systemModeUsesSeparateLightAndDarkNoteColorOpacity() {
         val state = state()
 
