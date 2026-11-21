@@ -265,22 +265,15 @@ internal fun SettingsScreen(
                     trailingContent = { RadioButton(selected = themeMode == "dark", onClick = { onThemeModeChange("dark") }) },
                     modifier = Modifier.clickable { onThemeModeChange("dark") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
-                ListItem(
-                    headlineContent = { Text("Своя тема") },
-                    supportingContent = { Text("Независимое оформление приложения") },
-                    trailingContent = { RadioButton(selected = themeMode == "custom", onClick = { onThemeModeChange("custom") }) },
-                    modifier = Modifier.clickable { onThemeModeChange("custom") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
-                ListItem(headlineContent = { Text(if (themeMode == "custom") "Настройка своей темы" else "Настройка цветов темы", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
-                val themeRows = buildList {
-                    if (themeMode == "custom") add(Triple("background", "Фон приложения", themeColors.background))
-                    add(Triple("topBar", "Панель приложения", themeColors.topBar))
-                    add(Triple("statusBar", "Строка состояния", themeColors.statusBar))
-                    add(Triple("selection", "Цвет выделенных карточек", themeColors.selection))
-                    add(Triple("addButton", "Кнопки добавления", themeColors.addButton))
-                    add(Triple("collectionText", "Текст выбранной подборки", themeColors.collectionText))
-                }
+                ListItem(headlineContent = { Text("Настройка цветов темы", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                val themeRows = listOf(
+                    Triple("topBar", "Панель приложения", themeColors.topBar),
+                    Triple("statusBar", "Строка состояния", themeColors.statusBar),
+                    Triple("selection", "Цвет выделенных карточек", themeColors.selection),
+                    Triple("addButton", "Кнопки добавления", themeColors.addButton),
+                    Triple("collectionText", "Текст выбранной подборки", themeColors.collectionText)
+                )
                 themeRows.forEach { (key, label, color) ->
                     ListItem(
                         headlineContent = { Text(label) },
@@ -290,7 +283,7 @@ internal fun SettingsScreen(
                     )
                 }
                 TextButton(onClick = onResetThemeColors, modifier = Modifier.padding(start = AppSpacing.screenHorizontal)) {
-                    Text(if (themeMode == "custom") "Сбросить свою тему" else "Сбросить цвета темы")
+                    Text("Сбросить цвета темы")
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Цвета заметок", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
