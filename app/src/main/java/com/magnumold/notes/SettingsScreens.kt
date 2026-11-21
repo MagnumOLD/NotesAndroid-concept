@@ -141,6 +141,9 @@ internal fun SettingsScreen(
     onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
     homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
     onHomeButtonLayoutChange: (HomeButtonLayout) -> Unit = {},
+    homeAddRecordType: RecordType = RecordType.NOTE,
+    enabledModules: Set<AppModule> = ModuleConfiguration().enabled,
+    onHomeAddRecordTypeChange: (RecordType) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -243,6 +246,32 @@ internal fun SettingsScreen(
                             )
                         },
                         modifier = Modifier.clickable { onHomeButtonLayoutChange(layout) }
+                            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
+                ListItem(
+                    headlineContent = { Text("Что создавать кнопкой «+»") },
+                    supportingContent = { Text("Выберите тип новой записи на главной странице") },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                AppModule.entries.filter { it != AppModule.ALL }.forEach { module ->
+                    val recordType = module.recordType ?: return@forEach
+                    val selected = homeAddRecordType == recordType
+                    val moduleDisabled = module !in enabledModules
+                    ListItem(
+                        headlineContent = { Text(module.title) },
+                        supportingContent = if (selected && moduleDisabled) {
+                            { Text("Модуль отключён. При нажатии «+» приложение предложит включить его или выбрать другой тип.") }
+                        } else {
+                            null
+                        },
+                        trailingContent = {
+                            RadioButton(
+                                selected = selected,
+                                onClick = { onHomeAddRecordTypeChange(recordType) }
+                            )
+                        },
+                        modifier = Modifier.clickable { onHomeAddRecordTypeChange(recordType) }
                             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
