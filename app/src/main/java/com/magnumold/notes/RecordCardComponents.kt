@@ -649,7 +649,7 @@ internal fun NoteRow(
 }
 internal enum class NoteIcon {
     Back, Add, AddBlock, Search, Close, More, Palette, Archive, Trash,
-    Upload, Download, Pin, Folder, Undo, Redo, Share, Modules
+    Upload, Download, Pin, Folder, Undo, Redo, Share, Modules, Home
 }
 
 /**
@@ -682,6 +682,7 @@ internal fun AppIcon(
         NoteIcon.Redo -> Icons.AutoMirrored.Outlined.Redo
         NoteIcon.Share -> Icons.Outlined.Share
         NoteIcon.Modules -> Icons.Outlined.Apps
+        NoteIcon.Home -> Icons.Outlined.Home
     }
 
     Icon(
