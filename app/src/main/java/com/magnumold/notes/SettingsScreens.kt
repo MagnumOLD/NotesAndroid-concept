@@ -429,7 +429,7 @@ internal fun SettingsScreen(
                 SettingsNavigationItem(
                     title = "Главная страница",
                     description = "Расположение кнопок и действие кнопки «+»",
-                    icon = NoteIcon.Modules,
+                    icon = NoteIcon.Home,
                     showChevron = true,
                     onClick = { homePageVisible = true }
                 )
