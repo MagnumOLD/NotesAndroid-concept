@@ -3,7 +3,6 @@ package com.magnumold.notes
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -283,7 +282,7 @@ internal fun NoteEditor(
     var childDragGrabOffsetPx by remember(note.id) { mutableFloatStateOf(0f) }
     var childDragReleaseRequested by remember(note.id) { mutableStateOf(false) }
 
-    BackHandler {
+    AppBackHandler {
         if (selectedChildIds.isNotEmpty()) selectedChildIds = emptySet() else onBack()
     }
 
