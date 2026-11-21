@@ -36,14 +36,21 @@ class AppThemeStateTest {
     }
 
     @Test
-    fun systemPaletteEditsDoNotOverwriteTheOtherPaletteOrCustomTheme() {
+    fun systemPaletteEditsDoNotOverwriteTheOtherPalette() {
         val state = state()
         state.updateThemeColor("topBar", Color.Red, systemDark = true)
 
         assertEquals(Color.Red, state.activeColors(systemDark = true).topBar)
         assertEquals(ThemeColorSets().light.topBar, state.activeColors(systemDark = false).topBar)
+    }
+
+    @Test
+    fun legacyCustomModeFallsBackToSystemAndCannotBeSelectedAgain() {
+        val state = state(mode = "custom")
+
+        assertEquals("system", state.mode)
         state.changeMode("custom")
-        assertEquals(defaultCustomThemeColors, state.activeColors(systemDark = false))
+        assertEquals("system", state.mode)
     }
 
     @Test
