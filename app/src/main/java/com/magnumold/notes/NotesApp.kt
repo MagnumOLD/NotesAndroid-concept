@@ -144,17 +144,9 @@ internal fun NotesApp(
                 backupFileStore = backupFileStore
             )
 
-            AppBackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
-            AppBackHandler(enabled = navigation.modulesVisible && navigation.moduleManagementVisible) {
-                navigation.closeModuleManagement()
+            AppBackHandler(enabled = navigation.hasTopLevelBackAction) {
+                navigation.handleTopLevelBack()
             }
-            AppBackHandler(
-                enabled = navigation.canReturnToModules && selectedId == null && !settingsVisible
-            ) {
-                navigation.returnFromModuleToModules()
-            }
-            AppBackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
-            AppBackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
 
             AppThemeEffects(
                 activity = activity,
