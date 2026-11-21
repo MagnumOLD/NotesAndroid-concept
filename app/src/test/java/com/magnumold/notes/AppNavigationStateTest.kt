@@ -126,6 +126,37 @@ class AppNavigationStateTest {
     }
 
     @Test
+    fun topLevelBackClosesNestedDestinationsBeforeTheirParents() {
+        val state = AppNavigationState()
+
+        state.openSettings()
+        state.openVault("archive")
+        assertTrue(state.hasTopLevelBackAction)
+        state.handleTopLevelBack()
+        assertNull(state.vaultScreen)
+        assertTrue(state.settingsVisible)
+        state.handleTopLevelBack()
+        assertFalse(state.settingsVisible)
+
+        state.openModules()
+        state.openModuleManagement()
+        state.handleTopLevelBack()
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+        state.handleTopLevelBack()
+        assertFalse(state.modulesVisible)
+
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+        assertTrue(state.hasTopLevelBackAction)
+        state.handleTopLevelBack()
+        assertTrue(state.modulesVisible)
+        assertEquals(AppModule.ALL, state.activeModule)
+        state.handleTopLevelBack()
+        assertFalse(state.modulesVisible)
+    }
+
+    @Test
     fun disablingCurrentModuleFallsBackHomeWithoutClosingModuleManagement() {
         val state = AppNavigationState()
         state.selectModule(AppModule.TASKS)
