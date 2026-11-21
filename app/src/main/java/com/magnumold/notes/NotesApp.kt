@@ -1,7 +1,6 @@
 package com.magnumold.notes
 
 import android.content.Context
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -145,17 +144,17 @@ internal fun NotesApp(
                 backupFileStore = backupFileStore
             )
 
-            BackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
-            BackHandler(enabled = navigation.modulesVisible && navigation.moduleManagementVisible) {
+            AppBackHandler(enabled = navigation.modulesVisible) { navigation.closeModules() }
+            AppBackHandler(enabled = navigation.modulesVisible && navigation.moduleManagementVisible) {
                 navigation.closeModuleManagement()
             }
-            BackHandler(
+            AppBackHandler(
                 enabled = navigation.canReturnToModules && selectedId == null && !settingsVisible
             ) {
                 navigation.returnFromModuleToModules()
             }
-            BackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
-            BackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
+            AppBackHandler(enabled = settingsVisible && vaultScreen != null) { navigation.closeVault() }
+            AppBackHandler(enabled = settingsVisible && navigation.vaultScreen == null) { navigation.closeSettings() }
 
             AppThemeEffects(
                 activity = activity,
