@@ -36,6 +36,23 @@ internal class AppNavigationState {
         private set
     var vaultScreen by mutableStateOf<String?>(null)
         private set
+    val hasTopLevelBackAction: Boolean
+        get() = settingsVisible || modulesVisible || (canReturnToModules && selectedId == null)
+
+    /**
+     * Resolves app-level Back in one explicit priority order.
+     * Screen-local handlers are composed later and get first refusal while visible.
+     */
+    fun handleTopLevelBack() {
+        when {
+            settingsVisible && vaultScreen != null -> closeVault()
+            settingsVisible -> closeSettings()
+            modulesVisible && moduleManagementVisible -> closeModuleManagement()
+            modulesVisible -> closeModules()
+            canReturnToModules && selectedId == null -> returnFromModuleToModules()
+        }
+    }
+
     fun openModules() { modulesVisible = true }
 
     fun closeModules() {
