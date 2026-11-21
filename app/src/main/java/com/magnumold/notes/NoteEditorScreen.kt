@@ -522,39 +522,6 @@ internal fun NoteEditor(
                 AppEditorTopBar(
                     title = if (isTaskListItem) "Подзадача" else "Заметка",
                     actions = {
-                        if (isTaskListItem) {
-                            Box {
-                                IconButton(onClick = { subtaskMenuExpanded = true }) {
-                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Действия")
-                                }
-                                DropdownMenu(
-                                    expanded = subtaskMenuExpanded,
-                                    onDismissRequest = { subtaskMenuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(if (taskDetailsExpanded) "Скрыть дату и статус" else "Показать дату и статус") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            taskDetailsExpanded = !taskDetailsExpanded
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Добавить сессию") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            manualSessionDialogVisible = true
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("История и статистика") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            timeAnalyticsVisible = true
-                                        }
-                                    )
-                                }
-                            }
-                        }
                         if (!isTaskListItem && note.type != RecordType.NOTE) {
                             IconButton(onClick = { onChange(note.copy(descriptionEnabled = !note.descriptionEnabled)) }) {
                                 Icon(
@@ -625,6 +592,39 @@ internal fun NoteEditor(
                                         onClick = {
                                             homeDateMenuExpanded = false
                                             onChange(note.copy(showOnHome = !note.showOnHome))
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        if (isTaskListItem) {
+                            Box {
+                                IconButton(onClick = { subtaskMenuExpanded = true }) {
+                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Действия")
+                                }
+                                DropdownMenu(
+                                    expanded = subtaskMenuExpanded,
+                                    onDismissRequest = { subtaskMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(if (taskDetailsExpanded) "Скрыть дату и статус" else "Показать дату и статус") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            taskDetailsExpanded = !taskDetailsExpanded
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Добавить сессию") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            manualSessionDialogVisible = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("История и статистика") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            timeAnalyticsVisible = true
                                         }
                                     )
                                 }
