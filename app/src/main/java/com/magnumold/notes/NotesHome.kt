@@ -293,10 +293,11 @@ internal fun NotesHome(
                     } else if (activeButtonLayout == HomeButtonLayout.VERTICAL_PANEL) {
                         Column(
                             modifier = Modifier
+                                .width(64.dp)
                                 .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(8.dp),
+                                .padding(4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
