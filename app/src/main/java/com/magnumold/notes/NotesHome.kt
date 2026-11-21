@@ -254,10 +254,10 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                val buttonDiameter = if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
-                    PrimaryAddButtonDimensions.diameter
-                } else {
-                    56.dp
+                val buttonDiameter = when (activeButtonLayout) {
+                    HomeButtonLayout.SEPARATE -> PrimaryAddButtonDimensions.diameter
+                    HomeButtonLayout.VERTICAL_PANEL -> 52.dp
+                    else -> 56.dp
                 }
                 val modulesDiameter = buttonDiameter
                 val addDiameter = buttonDiameter
@@ -293,7 +293,7 @@ internal fun NotesHome(
                     } else if (activeButtonLayout == HomeButtonLayout.VERTICAL_PANEL) {
                         Column(
                             modifier = Modifier
-                                .width(60.dp)
+                                .width(56.dp)
                                 .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
