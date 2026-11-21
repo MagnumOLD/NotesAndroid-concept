@@ -59,6 +59,7 @@ internal fun NotesHome(
     collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
     homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    homeAddRecordType: RecordType = RecordType.NOTE,
     isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -72,6 +73,7 @@ internal fun NotesHome(
     var renameCollectionName by remember { mutableStateOf("") }
     var deleteCollectionId by remember { mutableStateOf<Long?>(null) }
     var createMenuExpanded by remember { mutableStateOf(false) }
+    var showDisabledAddModuleDialog by remember { mutableStateOf(false) }
     var draggingIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var dragBaseRows by remember { mutableStateOf<Map<String, DragRow>>(emptyMap()) }
     var reorderSession by remember { mutableStateOf<ReorderSession?>(null) }
@@ -262,8 +264,17 @@ internal fun NotesHome(
                 val modulesDiameter = buttonDiameter
                 val addDiameter = buttonDiameter
                 val buttonGap = 8.dp
+                val selectedAddModule = AppModule.entries.firstOrNull { it.recordType == homeAddRecordType }
                 val addAction: () -> Unit = {
-                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                    if (isMainHome) {
+                        if (selectedAddModule == null || selectedAddModule !in enabledModules) {
+                            showDisabledAddModuleDialog = true
+                        } else {
+                            onCreate(homeAddRecordType)
+                        }
+                    } else {
+                        enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                    }
                 }
                 val addLongAction: () -> Unit = {
                     if (enabledModules.isEmpty()) onOpenModules()
@@ -374,6 +385,28 @@ internal fun NotesHome(
             }
         }
     ) { padding ->
+        if (showDisabledAddModuleDialog) {
+            AlertDialog(
+                onDismissRequest = { showDisabledAddModuleDialog = false },
+                title = { Text("Модуль отключён") },
+                text = {
+                    Text("Выбранный тип записи недоступен, потому что соответствующий модуль отключён. Включите модуль или выберите другой тип в персонализации.")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDisabledAddModuleDialog = false
+                        onOpenModules()
+                    }) {
+                        Text("Открыть модули")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDisabledAddModuleDialog = false }) {
+                        Text("Отмена")
+                    }
+                }
+            )
+        }
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (showCollections) {
             Row(Modifier.fillMaxWidth().height(AppCollectionRowDimensions.height).padding(start = AppSpacing.screenHorizontal, end = AppSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
