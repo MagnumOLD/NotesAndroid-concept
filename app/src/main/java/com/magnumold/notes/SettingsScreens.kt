@@ -150,17 +150,20 @@ internal fun SettingsScreen(
     var colorEditorIndex by remember { mutableStateOf<Int?>(null) }
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
+    var homePageVisible by remember { mutableStateOf(false) }
     var cardBehaviorVisible by remember { mutableStateOf(false) }
     var storageVisible by remember { mutableStateOf(false) }
     var moduleCollectionsVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
+    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || homePageVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
         if (colorEditorIndex != null || customColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
         } else if (personalizationVisible) {
             personalizationVisible = false
+        } else if (homePageVisible) {
+            homePageVisible = false
         } else if (cardBehaviorVisible) {
             cardBehaviorVisible = false
         } else if (storageVisible) {
@@ -214,6 +217,7 @@ internal fun SettingsScreen(
                     Text(
                         when {
                             personalizationVisible -> "Персонализация"
+                            homePageVisible -> "Главная страница"
                             cardBehaviorVisible -> "Поведение карточек"
                             storageVisible -> "Хранение"
                             moduleCollectionsVisible -> "Подборки по модулям"
@@ -226,7 +230,7 @@ internal fun SettingsScreen(
         }
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
-            if (personalizationVisible) {
+            if (homePageVisible) {
                 ListItem(headlineContent = { Text("Главная страница", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
                     headlineContent = { Text("Расположение кнопок") },
@@ -275,6 +279,7 @@ internal fun SettingsScreen(
                             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
+            } else if (personalizationVisible) {
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Внешний вид", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
@@ -420,6 +425,14 @@ internal fun SettingsScreen(
                     )
                 }
             } else {
+                SettingsNavigationItem(
+                    title = "Главная страница",
+                    description = "Расположение кнопок и действие кнопки «+»",
+                    icon = NoteIcon.Modules,
+                    showChevron = true,
+                    onClick = { homePageVisible = true }
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 SettingsNavigationItem(
                     title = "Персонализация",
                     description = "Темы и цвета интерфейса и заметок",
