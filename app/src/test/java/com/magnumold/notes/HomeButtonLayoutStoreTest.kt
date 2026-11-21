@@ -30,17 +30,6 @@ class HomeButtonLayoutStoreTest {
     }
 
     @Test
-    fun buttonSizeDefaultsToNormalAndPersists() {
-        val prefs = preferences()
-        val store = HomeButtonLayoutStore(prefs)
-        assertEquals(HomeButtonSize.NORMAL, store.loadSize())
-        store.saveSize(HomeButtonSize.SMALL)
-        assertEquals(HomeButtonSize.SMALL, HomeButtonLayoutStore(prefs).loadSize())
-        HomeButtonLayoutStore(prefs).saveSize(HomeButtonSize.LARGE)
-        assertEquals(HomeButtonSize.LARGE, HomeButtonLayoutStore(prefs).loadSize())
-    }
-
-    @Test
     fun formerHorizontalLayoutsMigrateToSupportedVerticalChoices() {
         val prefs = preferences()
         prefs.edit().putString("home_button_layout", "SHARED_PANEL").commit()

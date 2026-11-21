@@ -39,9 +39,6 @@ internal fun NotesApp(
             var homeButtonLayout by remember(homeButtonLayoutStore) {
                 androidx.compose.runtime.mutableStateOf(homeButtonLayoutStore.load())
             }
-            var homeButtonSize by remember(homeButtonLayoutStore) {
-                androidx.compose.runtime.mutableStateOf(homeButtonLayoutStore.loadSize())
-            }
             var collectionVisibleModules by remember(collectionVisibilityStore) {
                 androidx.compose.runtime.mutableStateOf(collectionVisibilityStore.load())
             }
@@ -266,11 +263,6 @@ internal fun NotesApp(
                             homeButtonLayout = layout
                             homeButtonLayoutStore.save(layout)
                         },
-                        homeButtonSize = homeButtonSize,
-                        onHomeButtonSizeChange = { size ->
-                            homeButtonSize = size
-                            homeButtonLayoutStore.saveSize(size)
-                        },
                         onInteractiveCardsEnabledChange = { enabled ->
                             interactiveCardsEnabled = enabled
                             cardInteractionStore.save(enabled)
@@ -358,7 +350,6 @@ internal fun NotesApp(
                             navigation.activeModule in collectionVisibleModules,
                         enabledModules = moduleConfiguration.enabledInOrder(),
                         homeButtonLayout = homeButtonLayout,
-                        homeButtonSize = homeButtonSize,
                         isMainHome = navigation.activeModule == AppModule.ALL,
                         onQuickAction = { record ->
                             val now = System.currentTimeMillis()

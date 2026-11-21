@@ -59,7 +59,6 @@ internal fun NotesHome(
     collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
     homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
-    homeButtonSize: HomeButtonSize = HomeButtonSize.NORMAL,
     isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
@@ -255,14 +254,14 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                val scale = homeButtonSize.scale
-                val modulesDiameter = 48.dp * scale
-                val addDiameter = if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
+                val buttonDiameter = if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
                     PrimaryAddButtonDimensions.diameter
                 } else {
-                    56.dp * scale
+                    56.dp
                 }
-                val buttonGap = 8.dp * scale
+                val modulesDiameter = buttonDiameter
+                val addDiameter = buttonDiameter
+                val buttonGap = 8.dp
                 val addAction: () -> Unit = {
                     enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
                 }
@@ -297,9 +296,9 @@ internal fun NotesHome(
                                 .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
                                 .clip(androidx.compose.foundation.shape.CircleShape)
                                 .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(4.dp * scale),
+                                .padding(8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp * scale)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Box(
                                 modifier = Modifier.size(modulesDiameter)
@@ -327,7 +326,7 @@ internal fun NotesHome(
                             ) {
                                 Text(
                                     "+",
-                                    fontSize = 34.sp * scale,
+                                    fontSize = 34.sp,
                                     fontWeight = FontWeight.Light,
                                     color = noteTextColor(themeColors.addButton)
                                 )
@@ -351,7 +350,7 @@ internal fun NotesHome(
                         ) {
                             Text(
                                 "+",
-                                fontSize = if (activeButtonLayout == HomeButtonLayout.SEPARATE) 34.sp else 34.sp * scale,
+                                fontSize = 34.sp,
                                 fontWeight = FontWeight.Light,
                                 color = noteTextColor(themeColors.addButton)
                             )

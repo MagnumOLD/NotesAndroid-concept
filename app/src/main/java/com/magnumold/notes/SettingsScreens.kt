@@ -142,8 +142,6 @@ internal fun SettingsScreen(
     onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
     homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
     onHomeButtonLayoutChange: (HomeButtonLayout) -> Unit = {},
-    homeButtonSize: HomeButtonSize = HomeButtonSize.NORMAL,
-    onHomeButtonSizeChange: (HomeButtonSize) -> Unit = {},
     onTrashRetentionDaysChange: (Int) -> Unit,
     onBack: () -> Unit
 ) {
@@ -248,29 +246,6 @@ internal fun SettingsScreen(
                         modifier = Modifier.clickable { onHomeButtonLayoutChange(layout) }
                             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
-                }
-                if (homeButtonLayout != HomeButtonLayout.SEPARATE) {
-                    ListItem(
-                        headlineContent = { Text("Размер кнопок") },
-                        supportingContent = { Text("Размер обеих кнопок и общей панели") }
-                    )
-                    listOf(
-                        HomeButtonSize.SMALL to "Маленький",
-                        HomeButtonSize.NORMAL to "Обычный",
-                        HomeButtonSize.LARGE to "Большой"
-                    ).forEach { (size, label) ->
-                        ListItem(
-                            headlineContent = { Text(label) },
-                            trailingContent = {
-                                RadioButton(
-                                    selected = homeButtonSize == size,
-                                    onClick = { onHomeButtonSizeChange(size) }
-                                )
-                            },
-                            modifier = Modifier.clickable { onHomeButtonSizeChange(size) }
-                                .padding(horizontal = AppSpacing.settingsListItemOuterInset)
-                        )
-                    }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Внешний вид", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
