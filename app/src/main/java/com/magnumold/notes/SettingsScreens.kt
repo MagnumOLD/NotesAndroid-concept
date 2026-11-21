@@ -231,13 +231,13 @@ internal fun SettingsScreen(
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
             if (homePageVisible) {
-                ListItem(headlineContent = { Text("Главная страница", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 ListItem(
-                    headlineContent = { Text("Расположение кнопок") },
-                    supportingContent = { Text("Выберите расположение кнопок модулей и добавления записи") }
+                    headlineContent = { Text("Расположение кнопок", style = AppTypography.emphasisBodyStyle()) },
+                    supportingContent = { Text("Выберите расположение кнопок модулей и добавления записи") },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 listOf(
-                    HomeButtonLayout.SEPARATE to "Раздельно — как сейчас",
+                    HomeButtonLayout.SEPARATE to "Раздельно (по умолчанию)",
                     HomeButtonLayout.VERTICAL to "Вертикально — отдельные кнопки",
                     HomeButtonLayout.VERTICAL_PANEL to "Вертикальная панель"
                 ).forEach { (layout, label) ->
@@ -253,8 +253,9 @@ internal fun SettingsScreen(
                             .padding(horizontal = AppSpacing.settingsListItemOuterInset)
                     )
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(
-                    headlineContent = { Text("Что создавать кнопкой «+»") },
+                    headlineContent = { Text("Что создавать кнопкой «+»", style = AppTypography.emphasisBodyStyle()) },
                     supportingContent = { Text("Выберите тип новой записи на главной странице") },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
