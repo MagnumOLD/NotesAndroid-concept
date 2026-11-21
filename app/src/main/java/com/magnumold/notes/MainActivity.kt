@@ -141,23 +141,24 @@ class MainActivity : ComponentActivity() {
         val preferences = getPreferences(Context.MODE_PRIVATE)
         val systemDark = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
             Configuration.UI_MODE_NIGHT_YES
-        val savedThemeMode = preferences.getString("theme_mode", null)
-            ?.takeIf { it in listOf("system", "light", "dark", "custom") }
-            ?: if (preferences.contains("dark_v2")) {
+        val storedThemeMode = preferences.getString("theme_mode", null)
+        val savedThemeMode = when (storedThemeMode) {
+            "system", "light", "dark" -> storedThemeMode
+            "custom" -> if (preferences.getBoolean("dark_v2", systemDark)) "dark" else "light"
+            else -> if (preferences.contains("dark_v2")) {
                 if (preferences.getBoolean("dark_v2", systemDark)) "dark" else "light"
             } else "system"
+        }
         val themeSettings = ThemeSettingsStore(getSharedPreferences("notes_settings", Context.MODE_PRIVATE))
         val initialThemeColorSets = themeSettings.loadThemeColorSets()
         val initialThemeColors = themeColorsForMode(initialThemeColorSets, savedThemeMode, systemDark)
         val initialDark = when (savedThemeMode) {
             "system" -> systemDark
             "dark" -> true
-            "custom" -> noteTextColor(initialThemeColors.background) == androidx.compose.ui.graphics.Color.White
             else -> false
         }
         window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(
-            if (savedThemeMode == "custom") initialThemeColors.background.toArgbInt()
-            else if (initialDark) android.graphics.Color.BLACK else android.graphics.Color.WHITE
+            if (initialDark) android.graphics.Color.BLACK else android.graphics.Color.WHITE
         ))
         window.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         val recordPreferences = getPreferences(Context.MODE_PRIVATE)
