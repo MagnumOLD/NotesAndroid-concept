@@ -1,6 +1,5 @@
 package com.magnumold.notes
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
@@ -79,7 +78,7 @@ internal fun PurchaseEditor(
     var childDragGrabOffsetPx by remember(note.id) { mutableFloatStateOf(0f) }
     var childDragReleaseRequested by remember(note.id) { mutableStateOf(false) }
 
-    BackHandler {
+    AppBackHandler {
         if (selectedChildIds.isNotEmpty()) selectedChildIds = emptySet() else onBack()
     }
 
