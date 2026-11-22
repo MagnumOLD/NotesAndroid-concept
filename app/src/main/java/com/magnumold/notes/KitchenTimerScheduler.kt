@@ -243,10 +243,8 @@ internal class KitchenTimerAlertService : Service() {
             return
         }
         handler.removeCallbacks(active.stopAction)
-        runCatching {
-            active.player?.stop()
-            active.player?.release()
-        }
+        runCatching { active.player?.stop() }
+        runCatching { active.player?.release() }
         getSystemService(NotificationManager::class.java)
             .cancel(kitchenTimerNotificationTag(id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
         if (activeAlerts.isEmpty()) {
@@ -346,10 +344,8 @@ internal class KitchenTimerAlertService : Service() {
     override fun onDestroy() {
         activeAlerts.values.forEach {
             handler.removeCallbacks(it.stopAction)
-            runCatching {
-                it.player?.stop()
-                it.player?.release()
-            }
+            runCatching { it.player?.stop() }
+            runCatching { it.player?.release() }
         }
         activeAlerts.clear()
         super.onDestroy()
