@@ -72,6 +72,29 @@ internal class ThemeSettingsStore(private val preferences: SharedPreferences) {
             .putString("theme_colors_v2", json.toString()).apply()
     }
 
+    fun loadTimelineDateColorSets(): TimelineDateColorSets {
+        val defaults = TimelineDateColorSets()
+        val raw = preferences.getString("timeline_date_colors_v1", null) ?: return defaults
+        return try {
+            val json = JSONObject(raw)
+            fun decode(key: String, fallback: TimelineDateColors) = json.optJSONObject(key)?.let { item ->
+                TimelineDateColors(
+                    background = parseThemeColor(item.optString("background"), fallback.background),
+                    text = parseThemeColor(item.optString("text"), fallback.text)
+                )
+            } ?: fallback
+            TimelineDateColorSets(decode("light", defaults.light), decode("dark", defaults.dark))
+        } catch (_: Exception) { defaults }
+    }
+
+    fun saveTimelineDateColorSets(sets: TimelineDateColorSets) {
+        fun encode(colors: TimelineDateColors) = JSONObject()
+            .put("background", colorToHex(colors.background))
+            .put("text", colorToHex(colors.text))
+        val json = JSONObject().put("light", encode(sets.light)).put("dark", encode(sets.dark))
+        preferences.edit().putString("timeline_date_colors_v1", json.toString()).apply()
+    }
+
     fun loadNoteColors(): List<Color> {
         val raw = preferences.getString("note_colors", null)
             ?: return defaultNoteColors
