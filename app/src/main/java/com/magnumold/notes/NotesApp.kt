@@ -65,6 +65,15 @@ internal fun NotesApp(
             val themeSettings = remember(activity) {
                 ThemeSettingsStore(activity.getSharedPreferences("notes_settings", Context.MODE_PRIVATE))
             }
+            val homeTimelineDisplayStore = remember(activity) {
+                HomeTimelineDisplayStore(activity.getSharedPreferences("notes_home_timeline", Context.MODE_PRIVATE))
+            }
+            var showTimelineDateHeaders by remember(homeTimelineDisplayStore) {
+                androidx.compose.runtime.mutableStateOf(homeTimelineDisplayStore.loadShowDateHeaders())
+            }
+            var manualHomeOrderIds by remember(homeTimelineDisplayStore) {
+                androidx.compose.runtime.mutableStateOf(homeTimelineDisplayStore.loadManualOrder())
+            }
             val backupFileStore = remember(activity, timeTrackingRepository, recoveryDataRepository) {
                 BackupFileStore(
                     contentResolver = activity.contentResolver,
@@ -133,6 +142,27 @@ internal fun NotesApp(
             val enabledSourceNotes = ModuleVisibilityOperations.visibleRecords(sourceNotes, moduleConfiguration.enabled)
             val activeNotes = enabledSourceNotes.filter {
                 navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType
+            }
+            val allHomeRecords = remember(snapshot.notes, snapshot.collections) {
+                HomeTimelineOperations.records(snapshot)
+            }
+            LaunchedEffect(showTimelineDateHeaders) {
+                homeTimelineDisplayStore.saveShowDateHeaders(showTimelineDateHeaders)
+            }
+            LaunchedEffect(manualHomeOrderIds) {
+                manualHomeOrderIds?.let(homeTimelineDisplayStore::saveManualOrder)
+            }
+            LaunchedEffect(showTimelineDateHeaders, allHomeRecords.map { it.id }, manualHomeOrderIds) {
+                val currentOrder = manualHomeOrderIds
+                if (!showTimelineDateHeaders && currentOrder != null) {
+                    val validIds = allHomeRecords.map { it.id }.toSet()
+                    val retained = currentOrder.filter { it in validIds }.distinct()
+                    val retainedSet = retained.toSet()
+                    val newIds = HomeTimelineOperations.orderedRecordsByDate(allHomeRecords)
+                        .map { it.id }.filterNot { it in retainedSet }
+                    val reconciled = newIds + retained
+                    if (reconciled != currentOrder) manualHomeOrderIds = reconciled
+                }
             }
             val autoFocusNewNote = navigation.autoFocusNewNote
             val search = navigation.search
@@ -238,6 +268,13 @@ internal fun NotesApp(
                         timelineDateColors = activeTimelineDateColors,
                         onTimelineDateColorChange = { key, color -> themeState.updateTimelineDateColor(key, color, systemDark) },
                         onResetTimelineDateColors = { themeState.resetTimelineDateColors(systemDark) },
+                        showTimelineDateHeaders = showTimelineDateHeaders,
+                        onShowTimelineDateHeadersChange = { enabled ->
+                            if (!enabled && manualHomeOrderIds == null) {
+                                manualHomeOrderIds = HomeTimelineOperations.orderedRecordsByDate(allHomeRecords).map { it.id }
+                            }
+                            showTimelineDateHeaders = enabled
+                        },
                         onNoteColorsChange = { themeState.replaceNoteColors(it) },
                         onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity, systemDark) },
                         onExport = backupActions.exportBackup,
@@ -288,6 +325,8 @@ internal fun NotesApp(
                         noteColors = displayedNoteColors,
                         themeColors = activeThemeColors,
                         timelineDateColors = activeTimelineDateColors,
+                        showTimelineDateHeaders = showTimelineDateHeaders,
+                        manualHomeOrderIds = manualHomeOrderIds,
                         collections = collections, activeCollectionId = activeCollectionId,
                         onSelectCollection = { navigation.selectCollection(it) },
                         onCreateCollection = { name ->
@@ -332,9 +371,26 @@ internal fun NotesApp(
                             if (homeTimelineMode) recordsViewModel.moveHomeRecordsToVault(ids, toTrash = true)
                             else recordsViewModel.moveActiveRecordsToVault(activeCollectionId, ids, toTrash = true)
                         },
-                        onMoveSelected = { ids, afterId ->
-                            if (homeTimelineMode) recordsViewModel.reorderHomeRecords(ids, afterId)
-                            else recordsViewModel.reorderActiveRecords(activeCollectionId, ids, afterId)
+                        onMoveSelected = { ids, afterId, freeOrderMode ->
+                            if (homeTimelineMode && freeOrderMode) {
+                                val currentVisibleOrder = HomeTimelineOperations.orderedVisibleRecordsManually(
+                                    activeNotes, manualHomeOrderIds
+                                )
+                                val reorderedVisible = NoteReorderModel.moveSelectedInCurrentOrder(
+                                    currentVisibleOrder, ids, afterId
+                                )
+                                val visibleIds = activeNotes.filter { it.showOnHome }.map { it.id }.toSet()
+                                val allIds = allHomeRecords.map { it.id }.toSet()
+                                val preservedOtherIds = (
+                                    manualHomeOrderIds.orEmpty() +
+                                        HomeTimelineOperations.orderedRecordsByDate(allHomeRecords).map { it.id }
+                                    ).distinct().filter { it in allIds && it !in visibleIds }
+                                manualHomeOrderIds = reorderedVisible.map { it.id } + preservedOtherIds
+                            } else if (homeTimelineMode) {
+                                recordsViewModel.reorderHomeRecords(ids, afterId)
+                            } else {
+                                recordsViewModel.reorderActiveRecords(activeCollectionId, ids, afterId)
+                            }
                         },
                         onTogglePinned = { ids ->
                             if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(ids)
