@@ -123,6 +123,24 @@ class HomeTimelineOperationsTest {
     }
 
     @Test
+    fun manualHomeOrderOverridesDateSortingAndKeepsNewRecordsAtTheTop() {
+        val records = listOf(
+            note(1, created = 3 * 86_400_000L),
+            note(2, created = 2 * 86_400_000L),
+            note(3, created = 1 * 86_400_000L),
+            note(4, created = 4 * 86_400_000L)
+        )
+
+        val ordered = HomeTimelineOperations.orderedVisibleRecordsManually(records, listOf(3L, 1L, 2L))
+
+        assertEquals(listOf(4L, 3L, 1L, 2L), ordered.map { it.id })
+        assertEquals(
+            listOf(4L, 3L, 1L, 2L),
+            HomeTimelineOperations.orderedVisibleRecordsManually(records, null).map { it.id }
+        )
+    }
+
+    @Test
     fun homeTimelineReorderCannotMoveRecordAcrossScheduledDays() {
         val snapshot = PersistenceSnapshot(
             notes = listOf(
