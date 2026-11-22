@@ -126,6 +126,8 @@ internal fun SettingsScreen(
     noteColors: List<Color>,
     noteColorOpacity: Float,
     timelineDateColors: TimelineDateColors,
+    showTimelineDateHeaders: Boolean,
+    onShowTimelineDateHeadersChange: (Boolean) -> Unit,
     onTimelineDateColorChange: (String, Color) -> Unit,
     onResetTimelineDateColors: () -> Unit,
     onNoteColorsChange: (List<Color>) -> Unit,
@@ -324,6 +326,16 @@ internal fun SettingsScreen(
                 )
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Оформление дат", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                ListItem(
+                    headlineContent = { Text("Заголовки дат") },
+                    supportingContent = {
+                        Text(if (showTimelineDateHeaders) "Заметки сгруппированы по датам" else "Единый список с ручной сортировкой")
+                    },
+                    trailingContent = {
+                        Switch(checked = showTimelineDateHeaders, onCheckedChange = onShowTimelineDateHeadersChange)
+                    },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
                 listOf(
                     Triple("background", "Фон плашки", timelineDateColors.background),
                     Triple("text", "Цвет текста", timelineDateColors.text)
