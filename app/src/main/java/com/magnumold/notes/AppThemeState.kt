@@ -17,7 +17,7 @@ internal class AppThemeState(
     initialColorSets: ThemeColorSets,
     initialNoteColors: List<Color>,
     initialNoteColorOpacities: NoteColorOpacities,
-    initialTimelineDateColorSets: TimelineDateColorSets
+    initialTimelineDateColorSets: TimelineDateColorSets = TimelineDateColorSets()
 ) {
     var mode by mutableStateOf(initialMode.takeIf { it in listOf("system", "light", "dark") } ?: "system")
         private set
