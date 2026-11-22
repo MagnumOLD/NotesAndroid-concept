@@ -176,4 +176,70 @@ class AdjacentReorderEffectTest {
             dragging = false
         }
     }
+
+    @Test
+    fun swapsWithinLaterDateSectionWhenEarlierSectionHeaderIsVisible() {
+        val rows = listOf(
+            DragRow(listOf(note(1)), "1"),
+            DragRow(listOf(note(2)), "2"),
+            DragRow(listOf(note(3)), "3"),
+            DragRow(listOf(note(4)), "4")
+        )
+        var session by mutableStateOf<ReorderSession?>(
+            AdjacentReorderEngine.begin(rows.map { it.key }, "3")
+        )
+        var pointerY by mutableFloatStateOf(0f)
+        var dragging by mutableStateOf(false)
+
+        composeRule.setContent {
+            val density = LocalDensity.current
+            listState = rememberLazyListState()
+            val currentRows = session?.keys?.mapNotNull { key -> rows.firstOrNull { it.key == key } }.orEmpty()
+
+            AdjacentReorderEffect(
+                isDragging = dragging,
+                orderedKeys = currentRows.map { it.key },
+                reorderSession = session,
+                pointerY = pointerY,
+                grabOffsetPx = with(density) { 44.dp.toPx() },
+                releaseRequested = false,
+                listState = listState,
+                density = density,
+                onSessionChange = { session = it },
+                onFinishDrag = { dragging = false }
+            )
+
+            LazyColumn(state = listState) {
+                item(key = "notes_reorder_viewport_anchor") { Spacer(Modifier.height(1.dp)) }
+                item(key = "date_header_first") { Spacer(Modifier.height(20.dp)) }
+                items(currentRows.take(2), key = { it.key }) { row ->
+                    Box(Modifier.fillMaxWidth().height(88.dp).animateItemPlacement(tween(220))) {
+                        Text(row.key)
+                    }
+                }
+                item(key = "date_header_second") { Spacer(Modifier.height(20.dp)) }
+                items(currentRows.drop(2), key = { it.key }) { row ->
+                    Box(Modifier.fillMaxWidth().height(88.dp).animateItemPlacement(tween(220))) {
+                        Text(row.key)
+                    }
+                }
+            }
+        }
+
+        composeRule.waitUntil(5_000) {
+            listState.layoutInfo.visibleItemsInfo.any { it.key == "3" } &&
+                listState.layoutInfo.visibleItemsInfo.any { it.key == "1" }
+        }
+        composeRule.runOnUiThread {
+            dragging = true
+            // Row 4 is in the second section. Its centre is at 349dp.
+            pointerY = with(composeRule.density) { 350.dp.toPx() }
+        }
+        composeRule.waitUntil(10_000) {
+            session?.phase == ReorderPhase.Tracking &&
+                session?.keys == listOf("1", "2", "4", "3")
+        }
+        composeRule.runOnUiThread { dragging = false }
+    }
+
 }
