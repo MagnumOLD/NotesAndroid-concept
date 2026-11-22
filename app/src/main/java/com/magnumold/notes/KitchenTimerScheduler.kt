@@ -151,8 +151,9 @@ private fun postKitchenTimerFallbackNotification(context: Context, timer: Kitche
         .setCategory(Notification.CATEGORY_ALARM)
         .setPriority(Notification.PRIORITY_MAX)
         .setAutoCancel(true)
-        .setTimeoutAfter(60_000L)
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) builder.setTimeoutAfter(durationSeconds.coerceIn(1, 3600) * 1_000L)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        builder.setTimeoutAfter(durationSeconds.coerceIn(1, 3600) * 1_000L)
+    }
     manager.notify(kitchenTimerNotificationTag(timer.id), KitchenTimerContract.ALERT_NOTIFICATION_ID, builder.build())
 }
 
@@ -165,8 +166,8 @@ internal class KitchenTimerAlertService : Service() {
         ensureForeground()
         when (intent?.action) {
             KitchenTimerContract.ACTION_START_ALERT -> intent?.let(::startAlert)
-            KitchenTimerContract.ACTION_STOP_ALERT -> {
-                val id = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
+            KitchenTimerContract.ACTION_STOP_ALERT -> intent?.let { stopIntent ->
+                val id = stopIntent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
                 if (id > 0L) stopAlert(id)
                 else finishIfIdle()
             }
@@ -213,21 +214,26 @@ internal class KitchenTimerAlertService : Service() {
         if (activeAlerts.containsKey(id)) return
         val uri = intent.getStringExtra(KitchenTimerContract.EXTRA_SOUND_URI)?.let(Uri::parse)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        val player = runCatching {
-            MediaPlayer().apply {
-                setAudioAttributes(
+        val player = uri?.let { selectedUri ->
+            val candidate = MediaPlayer()
+            val prepared = runCatching {
+                candidate.setAudioAttributes(
                     AudioAttributes.Builder()
                         .setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                         .build()
                 )
-                setWakeMode(this@KitchenTimerAlertService, PowerManager.PARTIAL_WAKE_LOCK)
-                setDataSource(this@KitchenTimerAlertService, uri)
-                isLooping = true
-                prepare()
-                start()
+                candidate.setWakeMode(this@KitchenTimerAlertService, PowerManager.PARTIAL_WAKE_LOCK)
+                candidate.setDataSource(this@KitchenTimerAlertService, selectedUri)
+                candidate.isLooping = true
+                candidate.prepare()
+                candidate.start()
+            }.isSuccess
+            if (prepared) candidate else {
+                runCatching { candidate.release() }
+                null
             }
-        }.getOrNull()
+        }
         val durationSeconds = intent.getIntExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, 30).coerceIn(1, 3600)
         val stopAction = Runnable { stopAlert(id) }
         activeAlerts[id] = ActiveAlert(player, stopAction)
