@@ -35,7 +35,6 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
 
     @Synchronized
     fun saveTimers(timers: List<KitchenTimer>) {
-        require(timers.size <= KitchenTimerOperations.MAX_TIMERS)
         val safe = timers.map { it.normalized() }.distinctBy { it.id }
         val json = JSONArray()
         safe.forEach { timer ->
@@ -82,7 +81,7 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
                     alertStartedAtMillis = if (item.isNull("alertStartedAt")) null else item.optLong("alertStartedAt")
                 ).normalized()
             }.getOrNull()
-        }.distinctBy { it.id }.take(KitchenTimerOperations.MAX_TIMERS)
+        }.distinctBy { it.id}
 
     private fun nextId(): Long {
         val current = preferences.getLong(KEY_NEXT_ID, System.currentTimeMillis().coerceAtLeast(1L))
