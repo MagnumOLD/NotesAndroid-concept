@@ -88,6 +88,7 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
+            val kitchenTimerScheduler = remember(activity) { KitchenTimerScheduler(activity) }
             val kitchenTimerRepository = remember(activity) {
                 KitchenTimerRepository(activity.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE))
             }
@@ -99,6 +100,7 @@ internal fun NotesApp(
             }
             LaunchedEffect(kitchenTimers) {
                 kitchenTimerRepository.saveTimers(kitchenTimers)
+                kitchenTimerScheduler.scheduleAll(kitchenTimers)
             }
             LaunchedEffect(kitchenTimerSettings) {
                 kitchenTimerRepository.saveSettings(kitchenTimerSettings)
@@ -359,7 +361,13 @@ internal fun NotesApp(
                         timers = kitchenTimers,
                         settings = kitchenTimerSettings,
                         topBarColor = activeThemeColors.topBar,
-                        onTimersChange = { kitchenTimers = it },
+                        onTimersChange = { updated ->
+                            kitchenTimers.filter { old ->
+                                old.alertStartedAtMillis != null &&
+                                    updated.none { it.id == old.id && it.status == KitchenTimerStatus.FINISHED }
+                            }.forEach { kitchenTimerScheduler.cancel(it.id) }
+                            kitchenTimers = updated
+                        },
                         onSettingsChange = { kitchenTimerSettings = it }
                     )
                 } else if (selected == null) {
