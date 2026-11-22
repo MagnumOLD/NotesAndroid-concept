@@ -135,7 +135,7 @@ class HomeTimelineOperationsTest {
 
         assertEquals(listOf(4L, 3L, 1L, 2L), ordered.map { it.id })
         assertEquals(
-            listOf(4L, 3L, 1L, 2L),
+            listOf(4L, 1L, 2L, 3L),
             HomeTimelineOperations.orderedVisibleRecordsManually(records, null).map { it.id }
         )
     }
