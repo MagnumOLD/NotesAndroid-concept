@@ -118,7 +118,7 @@ internal fun NotesHome(
             onMoveSelected(
                 ids,
                 NoteReorderModel.afterId(dragRows, ids),
-                freeOrderMode = timelineMode && !showTimelineDateHeaders && timelineRange != HomeTimelineRange.FAVORITES
+                timelineMode && !showTimelineDateHeaders && timelineRange != HomeTimelineRange.FAVORITES
             )
         }
         draggingIds = emptySet()
