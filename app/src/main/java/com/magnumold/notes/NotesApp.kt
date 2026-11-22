@@ -71,6 +71,9 @@ internal fun NotesApp(
             var showTimelineDateHeaders by remember(homeTimelineDisplayStore) {
                 androidx.compose.runtime.mutableStateOf(homeTimelineDisplayStore.loadShowDateHeaders())
             }
+            var dateHeaderTextSize by remember(homeTimelineDisplayStore) {
+                androidx.compose.runtime.mutableIntStateOf(homeTimelineDisplayStore.loadDateHeaderTextSize())
+            }
             var manualHomeOrderIds by remember(homeTimelineDisplayStore) {
                 androidx.compose.runtime.mutableStateOf(homeTimelineDisplayStore.loadManualOrder())
             }
@@ -148,6 +151,9 @@ internal fun NotesApp(
             }
             LaunchedEffect(showTimelineDateHeaders) {
                 homeTimelineDisplayStore.saveShowDateHeaders(showTimelineDateHeaders)
+            }
+            LaunchedEffect(dateHeaderTextSize) {
+                homeTimelineDisplayStore.saveDateHeaderTextSize(dateHeaderTextSize)
             }
             LaunchedEffect(manualHomeOrderIds) {
                 manualHomeOrderIds?.let(homeTimelineDisplayStore::saveManualOrder)
@@ -275,6 +281,8 @@ internal fun NotesApp(
                             }
                             showTimelineDateHeaders = enabled
                         },
+                        dateHeaderTextSize = dateHeaderTextSize,
+                        onDateHeaderTextSizeChange = { dateHeaderTextSize = it },
                         onNoteColorsChange = { themeState.replaceNoteColors(it) },
                         onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity, systemDark) },
                         onExport = backupActions.exportBackup,
@@ -326,6 +334,7 @@ internal fun NotesApp(
                         themeColors = activeThemeColors,
                         timelineDateColors = activeTimelineDateColors,
                         showTimelineDateHeaders = showTimelineDateHeaders,
+                        dateHeaderTextSize = dateHeaderTextSize,
                         manualHomeOrderIds = manualHomeOrderIds,
                         collections = collections, activeCollectionId = activeCollectionId,
                         onSelectCollection = { navigation.selectCollection(it) },
