@@ -74,6 +74,30 @@ class NoteReorderModelTest {
     }
 
     @Test
+    fun manualHomeOrderCanMoveAcrossDatesWithoutChangingTheSequenceByDate() {
+        val notes = listOf(
+            note(1).copy(created = 3 * 86_400_000L),
+            note(2).copy(created = 2 * 86_400_000L),
+            note(3).copy(created = 1 * 86_400_000L)
+        )
+
+        val moved = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(3L), afterId = 1L)
+
+        assertEquals(listOf(1L, 3L, 2L), moved.map { it.id })
+    }
+
+    @Test
+    fun manualHomeOrderStillKeepsPinnedAndUnpinnedCardsInSeparateDragPartitions() {
+        val notes = listOf(note(1, true), note(2), note(3))
+
+        val movedAcrossPin = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(2L), afterId = 1L)
+        val movedWithinPartition = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(3L), afterId = 2L)
+
+        assertEquals(notes, movedAcrossPin)
+        assertEquals(listOf(1L, 2L, 3L), movedWithinPartition.map { it.id })
+    }
+
+    @Test
     fun missingInsertionAnchorPlacesNoteAtEndOfItsOwnPartition() {
         val notes = listOf(note(1, true), note(2), note(3))
 
