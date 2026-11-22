@@ -361,6 +361,13 @@ private fun KitchenTimerSettingsDialog(
 ) {
     var mode by remember { mutableStateOf(settings.alertDurationMode) }
     var customMinutes by remember { mutableStateOf((settings.customAlertDurationSeconds / 60).coerceAtLeast(1).toString()) }
+    var defaultSoundUri by remember { mutableStateOf(settings.defaultSoundUri) }
+    val context = LocalContext.current
+    val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            defaultSoundUri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)?.toString()
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Настройки сигналов") },
@@ -387,13 +394,33 @@ private fun KitchenTimerSettingsDialog(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                     )
                 }
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Общий звук таймера")
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, false)
+                            defaultSoundUri?.let { putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it)) }
+                        }
+                        soundPicker.launch(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Outlined.VolumeUp, contentDescription = null)
+                    Spacer(Modifier.width(AppSpacing.sm))
+                    Text(if (defaultSoundUri == null) "Выбрать общий звук" else "Изменить общий звук")
+                }
+                if (defaultSoundUri != null) {
+                    TextButton(onClick = { defaultSoundUri = null }) { Text("Системный звук по умолчанию") }
+                }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
                     val minutes = customMinutes.toIntOrNull() ?: 1
-                    onSave(KitchenTimerSettings(mode, minutes.coerceIn(1, 60) * 60))
+                    onSave(KitchenTimerSettings(mode, minutes.coerceIn(1, 60) * 60, defaultSoundUri))
                 },
                 enabled = mode != TimerAlertDurationMode.CUSTOM || (customMinutes.toIntOrNull() ?: 0) in 1..60
             ) { Text("Сохранить") }
