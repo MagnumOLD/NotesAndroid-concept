@@ -359,8 +359,9 @@ internal fun NotesApp(
                         topBarColor = activeThemeColors.topBar,
                         onTimersChange = { updated ->
                             kitchenTimers.filter { old ->
-                                old.alertStartedAtMillis != null &&
-                                    updated.none { it.id == old.id && it.status == KitchenTimerStatus.FINISHED }
+                                updated.none { it.id == old.id } ||
+                                    (old.alertStartedAtMillis != null &&
+                                        updated.none { it.id == old.id && it.status == KitchenTimerStatus.FINISHED })
                             }.forEach { kitchenTimerScheduler.cancel(it.id) }
                             kitchenTimerRepository.saveTimers(updated)
                             kitchenTimerScheduler.scheduleAll(updated)
