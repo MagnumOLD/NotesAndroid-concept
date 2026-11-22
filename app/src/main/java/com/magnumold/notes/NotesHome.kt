@@ -40,7 +40,8 @@ import kotlin.math.abs
 internal fun NotesHome(
     notes: List<Note>, search: String, searchVisible: Boolean, noteColors: List<Color>,
     themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors,
-    showTimelineDateHeaders: Boolean = true, manualHomeOrderIds: List<Long>? = null,
+    showTimelineDateHeaders: Boolean = true, dateHeaderTextSize: Int = 14,
+    manualHomeOrderIds: List<Long>? = null,
     onSearch: (String) -> Unit,
     onToggleSearch: () -> Unit, dark: Boolean, onOpenSettings: () -> Unit,
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
@@ -710,6 +711,8 @@ internal fun NotesHome(
                                                     bottom = AppSpacing.xs
                                                 ),
                                             style = MaterialTheme.typography.labelLarge.copy(
+                                                fontSize = if (isFavoritesView) MaterialTheme.typography.labelLarge.fontSize
+                                                else dateHeaderTextSize.sp,
                                                 textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
                                                 else androidx.compose.ui.text.style.TextAlign.End
                                             ),
