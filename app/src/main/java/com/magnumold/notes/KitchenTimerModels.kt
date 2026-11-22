@@ -9,7 +9,8 @@ internal data class KitchenTimer(
     val remainingSeconds: Long? = null,
     val endsAtMillis: Long? = null,
     val soundUri: String? = null,
-    val status: KitchenTimerStatus = KitchenTimerStatus.READY
+    val status: KitchenTimerStatus = KitchenTimerStatus.READY,
+    val alertStartedAtMillis: Long? = null
 ) {
     fun normalized(): KitchenTimer {
         val duration = TimerOperations.normalizeDuration(durationSeconds)
@@ -18,7 +19,8 @@ internal data class KitchenTimer(
             durationSeconds = duration,
             remainingSeconds = remainingSeconds?.coerceIn(0L, duration),
             endsAtMillis = endsAtMillis?.takeIf { status == KitchenTimerStatus.RUNNING },
-            soundUri = soundUri?.takeIf { it.isNotBlank() }
+            soundUri = soundUri?.takeIf { it.isNotBlank() },
+            alertStartedAtMillis = alertStartedAtMillis?.takeIf { status == KitchenTimerStatus.FINISHED }
         )
     }
 }
@@ -57,7 +59,8 @@ internal object KitchenTimerOperations {
         return timer.copy(
             remainingSeconds = null,
             endsAtMillis = TimerOperations.startAt(nowMillis, remaining),
-            status = KitchenTimerStatus.RUNNING
+            status = KitchenTimerStatus.RUNNING,
+            alertStartedAtMillis = null
         )
     }
 
@@ -74,7 +77,8 @@ internal object KitchenTimerOperations {
     fun reset(timer: KitchenTimer): KitchenTimer = timer.copy(
         remainingSeconds = null,
         endsAtMillis = null,
-        status = KitchenTimerStatus.READY
+        status = KitchenTimerStatus.READY,
+        alertStartedAtMillis = null
     )
 
     fun updateDuration(timer: KitchenTimer, durationSeconds: Long): KitchenTimer {
