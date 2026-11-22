@@ -324,6 +324,7 @@ private fun KitchenTimerEditDialog(
                     Text(if (soundUri == null) "Выбрать звук" else "Изменить звук")
                 }
                 val previewUri = soundUri ?: defaultSoundUri
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.toString()
                 if (previewUri != null) {
                     TextButton(onClick = {
                         runCatching {
@@ -450,12 +451,16 @@ private fun KitchenTimerSettingsDialog(
                     Spacer(Modifier.width(AppSpacing.sm))
                     Text(if (defaultSoundUri == null) "Выбрать общий звук" else "Изменить общий звук")
                 }
-                if (defaultSoundUri != null) {
+                val previewUri = defaultSoundUri
+                    ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.toString()
+                if (previewUri != null) {
                     TextButton(onClick = {
                         runCatching {
-                            RingtoneManager.getRingtone(context, Uri.parse(defaultSoundUri))?.play()
+                            RingtoneManager.getRingtone(context, Uri.parse(previewUri))?.play()
                         }
                     }) { Text("Прослушать общий звук") }
+                }
+                if (defaultSoundUri != null) {
                     TextButton(onClick = { defaultSoundUri = null }) { Text("Системный звук по умолчанию") }
                 }
             }
