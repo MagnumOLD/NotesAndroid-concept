@@ -88,13 +88,13 @@ class NoteReorderModelTest {
 
     @Test
     fun manualHomeOrderStillKeepsPinnedAndUnpinnedCardsInSeparateDragPartitions() {
-        val notes = listOf(note(1, true), note(2), note(3))
+        val notes = listOf(note(1, true), note(3), note(2))
 
         val movedAcrossPin = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(2L), afterId = 1L)
-        val movedWithinPartition = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(3L), afterId = 2L)
+        val movedWithinPartition = NoteReorderModel.moveSelectedInCurrentOrder(notes, setOf(2L), afterId = 3L)
 
         assertEquals(notes, movedAcrossPin)
-        assertEquals(listOf(1L, 2L, 3L), movedWithinPartition.map { it.id })
+        assertEquals(listOf(1L, 3L, 2L), movedWithinPartition.map { it.id })
     }
 
     @Test
