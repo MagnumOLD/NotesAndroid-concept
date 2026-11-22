@@ -25,6 +25,25 @@ class HomeTimelineDisplayStoreTest {
     }
 
     @Test
+    fun dateHeaderTextSizeDefaultsToFourteenAndPersistsTwelve() {
+        val settings = store()
+        assertEquals(14, settings.loadDateHeaderTextSize())
+
+        settings.saveDateHeaderTextSize(12)
+        val reloaded = HomeTimelineDisplayStore(
+            RuntimeEnvironment.getApplication().getSharedPreferences("home_timeline_display_test", Context.MODE_PRIVATE)
+        )
+        assertEquals(12, reloaded.loadDateHeaderTextSize())
+    }
+
+    @Test
+    fun unsupportedDateHeaderTextSizeFallsBackToFourteen() {
+        val settings = store()
+        settings.saveDateHeaderTextSize(18)
+        assertEquals(14, settings.loadDateHeaderTextSize())
+    }
+
+    @Test
     fun headerVisibilityAndManualOrderPersistIndependently() {
         val settings = store()
         settings.saveShowDateHeaders(false)
