@@ -21,6 +21,7 @@ internal fun AppThemeEffects(
     themeColorSets: ThemeColorSets,
     noteColors: List<Color>,
     noteColorOpacities: NoteColorOpacities,
+    timelineDateColorSets: TimelineDateColorSets,
     themeSettings: ThemeSettingsStore
 ) {
     SideEffect {
@@ -53,5 +54,8 @@ internal fun AppThemeEffects(
     }
     LaunchedEffect(noteColorOpacities) {
         themeSettings.saveNoteColorOpacities(noteColorOpacities)
+    }
+    LaunchedEffect(timelineDateColorSets) {
+        themeSettings.saveTimelineDateColorSets(timelineDateColorSets)
     }
 }
