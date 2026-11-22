@@ -692,25 +692,34 @@ internal fun NotesHome(
                                     "timeline_date_header_${rowDay}"
                                 }
                                 item(key = headerKey) {
-                                    Text(
-                                        text = if (isFavoritesView) {
-                                            HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
-                                        } else homeTimelineDayLabel(rowDay, todayDay),
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .background(timelineDateColors.background)
-                                            .padding(
-                                                start = AppSpacing.screenHorizontal,
-                                                end = AppSpacing.screenHorizontal,
-                                                top = AppSpacing.sm,
-                                                bottom = AppSpacing.xs
+                                    ) {
+                                        Text(
+                                            text = if (isFavoritesView) {
+                                                HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
+                                            } else homeTimelineDayLabel(rowDay, todayDay),
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    start = AppSpacing.screenHorizontal,
+                                                    end = AppSpacing.screenHorizontal,
+                                                    top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
+                                                    bottom = AppSpacing.xs
+                                                ),
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
+                                                else androidx.compose.ui.text.style.TextAlign.End
                                             ),
-                                        style = MaterialTheme.typography.labelLarge.copy(
-                                            textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
-                                            else androidx.compose.ui.text.style.TextAlign.End
-                                        ),
-                                        color = timelineDateColors.text
-                                    )
+                                            color = timelineDateColors.text
+                                        )
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
+                                            thickness = CardDimensions.dividerThickness
+                                        )
+                                    }
                                 }
                             }
 
