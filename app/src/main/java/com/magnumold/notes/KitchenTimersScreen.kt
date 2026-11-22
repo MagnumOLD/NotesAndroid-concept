@@ -401,6 +401,20 @@ private fun KitchenTimerSettingsDialog(
         title = { Text("Настройки сигналов") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                val alarmManager = context.getSystemService(AlarmManager::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                    Text(
+                        "Для более точного срабатывания разрешите приложению точные будильники.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AppTypography.helperStyle()
+                    )
+                    TextButton(onClick = {
+                        context.startActivity(
+                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                .setData(Uri.parse("package:${context.packageName}"))
+                        )
+                    }) { Text("Разрешить точные сигналы") }
+                }
                 listOf(
                     TimerAlertDurationMode.TEN_SECONDS to "10 секунд",
                     TimerAlertDurationMode.THIRTY_SECONDS to "30 секунд",
