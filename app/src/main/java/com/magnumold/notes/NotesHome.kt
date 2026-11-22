@@ -39,14 +39,16 @@ import kotlin.math.abs
 @Composable
 internal fun NotesHome(
     notes: List<Note>, search: String, searchVisible: Boolean, noteColors: List<Color>,
-    themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors, onSearch: (String) -> Unit,
+    themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors,
+    showTimelineDateHeaders: Boolean = true, manualHomeOrderIds: List<Long>? = null,
+    onSearch: (String) -> Unit,
     onToggleSearch: () -> Unit, dark: Boolean, onOpenSettings: () -> Unit,
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
     onChangeNoteColor: (Long, Int) -> Unit, onDeleteSelected: (Set<Long>) -> Unit, onArchiveSelected: (Set<Long>) -> Unit,
     onTogglePinned: (Set<Long>) -> Unit,
     onToggleFavorite: (Set<Long>) -> Unit = {},
     onSetShowOnHome: (Set<Long>, Boolean) -> Unit = { _, _ -> },
-    onMoveSelected: (Set<Long>, Long?) -> Unit,
+    onMoveSelected: (Set<Long>, Long?, Boolean) -> Unit,
     collections: List<NoteCollection>, activeCollectionId: Long?,
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
@@ -84,8 +86,10 @@ internal fun NotesHome(
 
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val orderedNotes = if (timelineMode) {
+    val orderedNotes = if (timelineMode && showTimelineDateHeaders) {
         HomeTimelineOperations.orderedVisibleRecords(notes)
+    } else if (timelineMode) {
+        HomeTimelineOperations.orderedVisibleRecordsManually(notes, manualHomeOrderIds)
     } else notes.sortedByDescending { it.pinned }
     val todayDay = currentTimelineDayKey()
     val moduleSummary = ModuleSummaryOperations.summary(screenTitle, notes, todayDay)
@@ -111,7 +115,11 @@ internal fun NotesHome(
     fun finishDrag() {
         val ids = draggingIds
         if (ids.isNotEmpty()) {
-            onMoveSelected(ids, NoteReorderModel.afterId(dragRows, ids))
+            onMoveSelected(
+                ids,
+                NoteReorderModel.afterId(dragRows, ids),
+                freeOrderMode = timelineMode && !showTimelineDateHeaders && timelineRange != HomeTimelineRange.FAVORITES
+            )
         }
         draggingIds = emptySet()
         reorderSession = null
@@ -158,7 +166,7 @@ internal fun NotesHome(
             NoteReorderModel.canSwapRows(
                 moving = dragBaseRows[movingKey]?.notes.orEmpty(),
                 neighbour = dragBaseRows[neighbourKey]?.notes.orEmpty(),
-                timelineMode = timelineMode
+                timelineMode = timelineMode && (showTimelineDateHeaders || timelineRange == HomeTimelineRange.FAVORITES)
             )
         },
         onSessionChange = { reorderSession = it },
@@ -677,7 +685,7 @@ internal fun NotesHome(
                             // Date/module headers are independent LazyColumn items.
                             // They remain stable during dragging and do not affect the
                             // measured bounds or handle hit-test coordinates of a card.
-                            if (timelineMode && startsNewSection) {
+                            if (timelineMode && startsNewSection && (isFavoritesView || showTimelineDateHeaders)) {
                                 val headerKey = if (isFavoritesView) {
                                     "timeline_module_header_${anchorNote.type.name}"
                                 } else {
