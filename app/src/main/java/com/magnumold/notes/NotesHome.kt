@@ -83,7 +83,7 @@ internal fun NotesHome(
     var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragReleaseRequested by remember { mutableStateOf(false) }
     val measuredNoteCardHeights = remember { mutableStateMapOf<Long, Int>() }
-    var timelineRange by remember { mutableStateOf(HomeTimelineRange.ALL) }
+    var timelineRange by rememberSaveable { mutableStateOf(HomeTimelineRange.ALL) }
 
     val listState = rememberLazyListState()
     val density = LocalDensity.current
