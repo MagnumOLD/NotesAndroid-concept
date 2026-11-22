@@ -368,7 +368,13 @@ internal fun NotesApp(
                             }.forEach { kitchenTimerScheduler.cancel(it.id) }
                             kitchenTimers = updated
                         },
-                        onSettingsChange = { kitchenTimerSettings = it }
+                        onSettingsChange = { kitchenTimerSettings = it },
+                        onRefresh = {
+                            val refreshed = kitchenTimerRepository.load()
+                            kitchenTimers = refreshed.timers
+                            kitchenTimerSettings = refreshed.settings
+                            kitchenTimerScheduler.scheduleAll(refreshed.timers)
+                        }
                     )
                 } else if (selected == null) {
                     screenStateHolder.SaveableStateProvider(notesListStateKey) {
