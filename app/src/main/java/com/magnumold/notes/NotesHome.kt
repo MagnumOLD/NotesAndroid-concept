@@ -692,7 +692,7 @@ internal fun NotesHome(
                                             .padding(
                                                 start = AppSpacing.screenHorizontal,
                                                 end = AppSpacing.screenHorizontal,
-                                                top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
+                                                top = AppSpacing.sm,
                                                 bottom = AppSpacing.xs
                                             ),
                                         style = MaterialTheme.typography.labelLarge,
