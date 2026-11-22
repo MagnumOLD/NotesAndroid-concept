@@ -662,13 +662,7 @@ internal fun NotesHome(
                                 }
                             }
                         }
-                        itemsIndexed(visibleDragRows, key = { _, row -> row.key }) { index, dragRow ->
-                            // Keep placement animation attached to every keyed row,
-                            // including index 0. Toggling it off at the first position
-                            // breaks continuity when a row crosses the top boundary.
-                            val rowPlacementModifier = Modifier.animateItemPlacement(
-                                animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
-                            )
+                        visibleDragRows.forEachIndexed { index, dragRow ->
                             val anchorNoteId = dragRow.key.toLongOrNull()
                             val anchorNote = dragRow.notes.firstOrNull { it.id == anchorNoteId } ?: dragRow.notes.first()
                             val rowDay = timelineDayKey(anchorNote)
@@ -680,8 +674,17 @@ internal fun NotesHome(
                             } else {
                                 index == 0 || rowDay != previousDay
                             }
-                            Column(Modifier.fillMaxWidth()) {
-                                if (timelineMode && !isDragging && startsNewSection) {
+
+                            // Date/module headers are independent LazyColumn items.
+                            // They remain stable during dragging and do not affect the
+                            // measured bounds or handle hit-test coordinates of a card.
+                            if (timelineMode && startsNewSection) {
+                                val headerKey = if (isFavoritesView) {
+                                    "timeline_module_header_${anchorNote.type.name}"
+                                } else {
+                                    "timeline_date_header_${rowDay}"
+                                }
+                                item(key = headerKey) {
                                     Text(
                                         text = if (isFavoritesView) {
                                             HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
@@ -699,59 +702,66 @@ internal fun NotesHome(
                                         color = timelineDateColors.text
                                     )
                                 }
+                            }
+
+                            item(key = dragRow.key) {
+                                // Keep placement animation attached to every keyed row,
+                                // including index 0. Toggling it off at the first position
+                                // breaks continuity when a row crosses the top boundary.
+                                val rowPlacementModifier = Modifier.animateItemPlacement(
+                                    animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
+                                )
                                 Box(
                                     Modifier.fillMaxWidth().then(rowPlacementModifier)
                                 ) {
-                                if (dragRow.notes.size > 1) {
-                                    DraggedNotesGroup(
-                                        notes = dragRow.notes,
-                                        dark = dark,
-                                        noteColors = noteColors,
-                                        customSelectionColor = selectedNoteBackground,
-                                        anchorNoteId = anchorNote.id,
-                                        rowHeight = with(density) {
-                                            (measuredNoteCardHeights[anchorNote.id] ?: CardDimensions.rowHeight.roundToPx()).toDp()
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                } else {
-                                    val note = dragRow.notes.first()
-                                    val isSelected = note.id in selectedNoteIds
-                                    NoteRow(
-                                        note = note, dark = dark, noteColors = noteColors,
-                                        customSelectionColor = selectedNoteBackground, pinned = note.pinned, selected = isSelected,
-                                        onClick = {
-                                            if (selectionMode) selectedNoteIds = if (isSelected) selectedNoteIds - note.id else selectedNoteIds + note.id
-                                            else onOpen(note.id)
-                                        },
-                                        onLongPress = { selectedNoteIds = selectedNoteIds + note.id },
-                                        colorSwipeEnabled = !selectionMode && !isDragging,
-                                        onChangeColor = { next -> onChangeNoteColor(note.id, next) },
-                                        interactiveCards = interactiveCards,
-                                        onQuickAction = { onQuickAction(note) },
-                                        showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },
-                                        previewFields = cardPreviewFields,
-                                        onMeasuredHeight = { heightPx ->
-                                            if (measuredNoteCardHeights[note.id] != heightPx) {
-                                                measuredNoteCardHeights[note.id] = heightPx
+                                    if (dragRow.notes.size > 1) {
+                                        DraggedNotesGroup(
+                                            notes = dragRow.notes,
+                                            dark = dark,
+                                            noteColors = noteColors,
+                                            customSelectionColor = selectedNoteBackground,
+                                            anchorNoteId = anchorNote.id,
+                                            rowHeight = with(density) {
+                                                (measuredNoteCardHeights[anchorNote.id] ?: CardDimensions.rowHeight.roundToPx()).toDp()
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    } else {
+                                        val note = dragRow.notes.first()
+                                        val isSelected = note.id in selectedNoteIds
+                                        NoteRow(
+                                            note = note, dark = dark, noteColors = noteColors,
+                                            customSelectionColor = selectedNoteBackground, pinned = note.pinned, selected = isSelected,
+                                            onClick = {
+                                                if (selectionMode) selectedNoteIds = if (isSelected) selectedNoteIds - note.id else selectedNoteIds + note.id
+                                                else onOpen(note.id)
+                                            },
+                                            onLongPress = { selectedNoteIds = selectedNoteIds + note.id },
+                                            colorSwipeEnabled = !selectionMode && !isDragging,
+                                            onChangeColor = { next -> onChangeNoteColor(note.id, next) },
+                                            interactiveCards = interactiveCards,
+                                            onQuickAction = { onQuickAction(note) },
+                                            showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },
+                                            previewFields = cardPreviewFields,
+                                            onMeasuredHeight = { heightPx ->
+                                                if (measuredNoteCardHeights[note.id] != heightPx) {
+                                                    measuredNoteCardHeights[note.id] = heightPx
+                                                }
                                             }
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
 
-                                // This handle layer belongs to the stable keyed row, not to
-                                // NoteRow. It therefore survives the NoteRow -> group placeholder
-                                // replacement that happens as soon as dragging starts.
-                                if (search.isBlank()) {
-                                    Box(
-                                        Modifier.align(Alignment.TopEnd)
-                                            .padding(top = CardDimensions.handleHitTargetTopOffset, end = CardDimensions.handleHitTargetRightInset)
-                                            // Match the top control slot in the right-side card rail.
-                                            .size(CardDimensions.handleTouchTargetSize)
-                                            .zIndex(2f)
-
-                                    )
-                                }
+                                    // This handle layer belongs to the stable keyed row, not to
+                                    // NoteRow. It therefore survives the NoteRow -> group placeholder
+                                    // replacement that happens as soon as dragging starts.
+                                    if (search.isBlank()) {
+                                        Box(
+                                            Modifier.align(Alignment.TopEnd)
+                                                .padding(top = CardDimensions.handleHitTargetTopOffset, end = CardDimensions.handleHitTargetRightInset)
+                                                .size(CardDimensions.handleTouchTargetSize)
+                                                .zIndex(2f)
+                                        )
+                                    }
                                 }
                             }
                         }
