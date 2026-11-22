@@ -364,14 +364,23 @@ private fun KitchenTimerEditDialog(
             Button(
                 onClick = {
                     val now = System.currentTimeMillis()
+                    val durationChanged = duration != timer.durationSeconds
                     val changed = timer.copy(
                         title = title.trim(),
                         durationSeconds = duration,
-                        remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) duration else null,
-                        endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) TimerOperations.startAt(now, duration) else null,
-                        status = if (timer.status == KitchenTimerStatus.FINISHED) KitchenTimerStatus.READY else timer.status,
+                        remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) {
+                            if (durationChanged) duration else timer.remainingSeconds
+                        } else null,
+                        endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) {
+                            if (durationChanged) TimerOperations.startAt(now, duration) else timer.endsAtMillis
+                        } else null,
+                        status = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
+                            KitchenTimerStatus.READY
+                        } else timer.status,
                         soundUri = soundUri,
-                        alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED) null else timer.alertStartedAtMillis
+                        alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
+                            null
+                        } else timer.alertStartedAtMillis
                     )
                     onSave(changed.normalized())
                 },
