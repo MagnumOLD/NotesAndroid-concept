@@ -40,7 +40,7 @@ import kotlin.math.abs
 @Composable
 internal fun NotesHome(
     notes: List<Note>, search: String, searchVisible: Boolean, noteColors: List<Color>,
-    themeColors: CustomThemeColors, onSearch: (String) -> Unit,
+    themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors, onSearch: (String) -> Unit,
     onToggleSearch: () -> Unit, dark: Boolean, onOpenSettings: () -> Unit,
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
     onChangeNoteColor: (Long, Int) -> Unit, onDeleteSelected: (Set<Long>) -> Unit, onArchiveSelected: (Set<Long>) -> Unit,
@@ -688,7 +688,7 @@ internal fun NotesHome(
                                         } else homeTimelineDayLabel(rowDay, todayDay),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(if (dark) Color(0xFF191919) else Color(0xFFF5F5F5))
+                                            .background(timelineDateColors.background)
                                             .padding(
                                                 start = AppSpacing.screenHorizontal,
                                                 end = AppSpacing.screenHorizontal,
@@ -696,7 +696,7 @@ internal fun NotesHome(
                                                 bottom = AppSpacing.xs
                                             ),
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = if (dark) Color(0xFFB0B0B0) else Color(0xFF666666)
+                                        color = timelineDateColors.text
                                     )
                                 }
                                 Box(
