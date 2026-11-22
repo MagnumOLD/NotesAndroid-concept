@@ -686,14 +686,17 @@ internal fun NotesHome(
                                         text = if (isFavoritesView) {
                                             HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
                                         } else homeTimelineDayLabel(rowDay, todayDay),
-                                        modifier = Modifier.fillMaxWidth().padding(
-                                            start = AppSpacing.screenHorizontal,
-                                            end = AppSpacing.screenHorizontal,
-                                            top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
-                                            bottom = AppSpacing.xs
-                                        ),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(if (dark) Color(0xFF242424) else Color(0xFFF0F0F0))
+                                            .padding(
+                                                start = AppSpacing.screenHorizontal,
+                                                end = AppSpacing.screenHorizontal,
+                                                top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
+                                                bottom = AppSpacing.xs
+                                            ),
                                         style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = if (dark) Color(0xFFB0B0B0) else Color(0xFF666666)
                                     )
                                 }
                                 Box(
