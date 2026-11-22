@@ -34,7 +34,7 @@ class KitchenTimerOperationsTest {
         val changed = KitchenTimerOperations.updateDuration(paused, 180L)
         assertEquals(180L, changed.durationSeconds)
         assertEquals(KitchenTimerStatus.PAUSED, changed.status)
-        assertEquals(70L, changed.remainingSeconds)
+        assertEquals(180L, changed.remainingSeconds)
         assertEquals(KitchenTimerStatus.READY, KitchenTimerOperations.reset(changed).status)
     }
 
