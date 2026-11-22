@@ -56,6 +56,28 @@ internal object NoteReorderModel {
             movingDays.single() == neighbourDays.single()
     }
 
+    /**
+     * Reorders the current visible sequence without re-sorting it by date or
+     * pin state. Adjacent drag swaps still enforce the existing pinned boundary.
+     */
+    fun moveSelectedInCurrentOrder(
+        notes: List<Note>,
+        movingIds: Set<Long>,
+        afterId: Long?
+    ): List<Note> {
+        if (movingIds.isEmpty()) return notes
+        val moving = notes.filter { it.id in movingIds }
+        if (moving.isEmpty() || moving.map { it.pinned }.distinct().size != 1) return notes
+        val remaining = notes.filterNot { it.id in movingIds }
+        val anchorIndex = afterId?.let { id -> remaining.indexOfFirst { it.id == id } } ?: -1
+        if (afterId != null && anchorIndex < 0) return notes
+        val movingPinned = moving.first().pinned
+        if (afterId != null && remaining[anchorIndex].pinned != movingPinned) return notes
+        if (afterId == null && remaining.firstOrNull()?.pinned?.let { it != movingPinned } == true) return notes
+        val insertAt = if (anchorIndex >= 0) anchorIndex + 1 else 0
+        return remaining.toMutableList().apply { addAll(insertAt, moving) }
+    }
+
     fun afterId(rows: List<DragRow>, movingIds: Set<Long>): Long? {
         val movingIndex = rows.indexOfFirst { row -> row.notes.any { it.id in movingIds } }
         return if (movingIndex <= 0) null else rows[movingIndex - 1].notes.lastOrNull()?.id
