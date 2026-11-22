@@ -33,7 +33,7 @@ internal class HomeTimelineDisplayStore(private val preferences: SharedPreferenc
 
     fun saveManualOrder(ids: List<Long>) {
         val array = JSONArray()
-        ids.distinct().forEach(array::put)
+        ids.distinct().forEach { array.put(it) }
         preferences.edit().putString(KEY_MANUAL_ORDER, array.toString()).apply()
     }
 
