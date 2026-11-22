@@ -14,7 +14,7 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
     fun load(): KitchenTimerSnapshot {
         val raw = preferences.getString(KEY_TIMERS, null)
         val timers = if (raw == null) {
-            listOf(KitchenTimerOperations.create(nextId()))
+            listOf(KitchenTimerOperations.create(nextId())).also(::saveTimers)
         } else {
             runCatching { parseTimers(JSONArray(raw)) }.getOrElse {
                 preferences.preserveCorruptJson(KEY_TIMERS, raw, "[]")
