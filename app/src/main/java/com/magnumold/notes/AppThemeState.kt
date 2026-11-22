@@ -16,7 +16,8 @@ internal class AppThemeState(
     initialMode: String,
     initialColorSets: ThemeColorSets,
     initialNoteColors: List<Color>,
-    initialNoteColorOpacities: NoteColorOpacities
+    initialNoteColorOpacities: NoteColorOpacities,
+    initialTimelineDateColorSets: TimelineDateColorSets
 ) {
     var mode by mutableStateOf(initialMode.takeIf { it in listOf("system", "light", "dark") } ?: "system")
         private set
@@ -28,6 +29,9 @@ internal class AppThemeState(
         private set
 
     var noteColorOpacities by mutableStateOf(initialNoteColorOpacities)
+        private set
+
+    var timelineDateColorSets by mutableStateOf(initialTimelineDateColorSets)
         private set
 
     private fun activePaletteMode(systemDark: Boolean): String =
@@ -66,6 +70,28 @@ internal class AppThemeState(
             colorSets.copy(dark = defaults)
         } else {
             colorSets.copy(light = defaults)
+        }
+    }
+
+    fun activeTimelineDateColors(systemDark: Boolean): TimelineDateColors =
+        if (activePaletteMode(systemDark) == "dark") timelineDateColorSets.dark else timelineDateColorSets.light
+
+    fun updateTimelineDateColor(key: String, color: Color, systemDark: Boolean) {
+        val current = activeTimelineDateColors(systemDark)
+        val updated = if (key == "background") current.copy(background = color) else current.copy(text = color)
+        timelineDateColorSets = if (activePaletteMode(systemDark) == "dark") {
+            timelineDateColorSets.copy(dark = updated)
+        } else {
+            timelineDateColorSets.copy(light = updated)
+        }
+    }
+
+    fun resetTimelineDateColors(systemDark: Boolean) {
+        val defaults = TimelineDateColorSets()
+        timelineDateColorSets = if (activePaletteMode(systemDark) == "dark") {
+            timelineDateColorSets.copy(dark = defaults.dark)
+        } else {
+            timelineDateColorSets.copy(light = defaults.light)
         }
     }
 
