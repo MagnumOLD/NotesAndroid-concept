@@ -27,10 +27,12 @@ internal enum class TimerAlertDurationMode { TEN_SECONDS, THIRTY_SECONDS, ONE_MI
 
 internal data class KitchenTimerSettings(
     val alertDurationMode: TimerAlertDurationMode = TimerAlertDurationMode.THIRTY_SECONDS,
-    val customAlertDurationSeconds: Int = 30
+    val customAlertDurationSeconds: Int = 30,
+    val defaultSoundUri: String? = null
 ) {
     fun normalized() = copy(
-        customAlertDurationSeconds = customAlertDurationSeconds.coerceIn(1, 3600)
+        customAlertDurationSeconds = customAlertDurationSeconds.coerceIn(1, 3600),
+        defaultSoundUri = defaultSoundUri?.takeIf { it.isNotBlank() }
     )
 
     fun alertDurationSeconds(): Int = when (alertDurationMode) {
