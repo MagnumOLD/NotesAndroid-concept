@@ -386,7 +386,8 @@ private fun KitchenTimerSettingsDialog(
     onSave: (KitchenTimerSettings) -> Unit
 ) {
     var mode by remember { mutableStateOf(settings.alertDurationMode) }
-    var customMinutes by remember { mutableStateOf((settings.customAlertDurationSeconds / 60).coerceAtLeast(1).toString()) }
+    var customMinutes by remember { mutableStateOf((settings.customAlertDurationSeconds / 60).toString()) }
+    var customSeconds by remember { mutableStateOf((settings.customAlertDurationSeconds % 60).toString()) }
     var defaultSoundUri by remember { mutableStateOf(settings.defaultSoundUri) }
     val context = LocalContext.current
     val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -425,14 +426,24 @@ private fun KitchenTimerSettingsDialog(
                     }
                 }
                 if (mode == TimerAlertDurationMode.CUSTOM) {
-                    OutlinedTextField(
-                        value = customMinutes,
-                        onValueChange = { if (it.length <= 3 && it.all(Char::isDigit)) customMinutes = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text("Продолжительность, минут") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
+                        OutlinedTextField(
+                            value = customMinutes,
+                            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) customMinutes = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            label = { Text("Минуты") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                        OutlinedTextField(
+                            value = customSeconds,
+                            onValueChange = { if (it.length <= 2 && it.all(Char::isDigit)) customSeconds = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            label = { Text("Секунды") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+                    }
                 }
                 OutlinedButton(
                     onClick = {
@@ -468,10 +479,12 @@ private fun KitchenTimerSettingsDialog(
         confirmButton = {
             Button(
                 onClick = {
-                    val minutes = customMinutes.toIntOrNull() ?: 1
-                    onSave(KitchenTimerSettings(mode, minutes.coerceIn(1, 60) * 60, defaultSoundUri))
+                    val customDuration = (customMinutes.toIntOrNull() ?: 0) * 60 +
+                        (customSeconds.toIntOrNull() ?: 0)
+                    onSave(KitchenTimerSettings(mode, customDuration.coerceIn(1, 3600), defaultSoundUri))
                 },
-                enabled = mode != TimerAlertDurationMode.CUSTOM || (customMinutes.toIntOrNull() ?: 0) in 1..60
+                enabled = mode != TimerAlertDurationMode.CUSTOM ||
+                    ((customMinutes.toIntOrNull() ?: 0) * 60 + (customSeconds.toIntOrNull() ?: 0)) in 1..3600
             ) { Text("Сохранить") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
