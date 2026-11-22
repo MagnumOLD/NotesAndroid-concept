@@ -99,11 +99,7 @@ internal fun NotesApp(
                 androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.load().settings)
             }
             LaunchedEffect(kitchenTimers) {
-                kitchenTimerRepository.saveTimers(kitchenTimers)
                 kitchenTimerScheduler.scheduleAll(kitchenTimers)
-            }
-            LaunchedEffect(kitchenTimerSettings) {
-                kitchenTimerRepository.saveSettings(kitchenTimerSettings)
             }
             val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot).filter {
@@ -366,9 +362,14 @@ internal fun NotesApp(
                                 old.alertStartedAtMillis != null &&
                                     updated.none { it.id == old.id && it.status == KitchenTimerStatus.FINISHED }
                             }.forEach { kitchenTimerScheduler.cancel(it.id) }
+                            kitchenTimerRepository.saveTimers(updated)
+                            kitchenTimerScheduler.scheduleAll(updated)
                             kitchenTimers = updated
                         },
-                        onSettingsChange = { kitchenTimerSettings = it },
+                        onSettingsChange = {
+                            kitchenTimerRepository.saveSettings(it)
+                            kitchenTimerSettings = it
+                        },
                         onRefresh = {
                             val refreshed = kitchenTimerRepository.load()
                             kitchenTimers = refreshed.timers
