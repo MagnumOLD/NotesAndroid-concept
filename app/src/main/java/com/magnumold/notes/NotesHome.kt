@@ -688,7 +688,7 @@ internal fun NotesHome(
                                         } else homeTimelineDayLabel(rowDay, todayDay),
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(if (dark) Color(0xFF1C1C1C) else Color(0xFFF5F5F5))
+                                            .background(if (dark) Color(0xFF191919) else Color(0xFFF5F5F5))
                                             .padding(
                                                 start = AppSpacing.screenHorizontal,
                                                 end = AppSpacing.screenHorizontal,
