@@ -705,7 +705,10 @@ internal fun NotesHome(
                                                 top = AppSpacing.sm,
                                                 bottom = AppSpacing.xs
                                             ),
-                                        style = MaterialTheme.typography.labelLarge,
+                                        style = MaterialTheme.typography.labelLarge.copy(
+                                            textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
+                                            else androidx.compose.ui.text.style.TextAlign.End
+                                        ),
                                         color = timelineDateColors.text
                                     )
                                 }
