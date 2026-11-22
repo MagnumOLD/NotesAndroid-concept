@@ -125,6 +125,9 @@ internal fun SettingsScreen(
     onResetThemeColors: () -> Unit,
     noteColors: List<Color>,
     noteColorOpacity: Float,
+    timelineDateColors: TimelineDateColors,
+    onTimelineDateColorChange: (String, Color) -> Unit,
+    onResetTimelineDateColors: () -> Unit,
     onNoteColorsChange: (List<Color>) -> Unit,
     onNoteColorOpacityChange: (Float) -> Unit,
     onExport: () -> Unit,    onImport: () -> Unit,
@@ -149,6 +152,7 @@ internal fun SettingsScreen(
 ) {
     var colorEditorIndex by remember { mutableStateOf<Int?>(null) }
     var customColorEditorKey by remember { mutableStateOf<String?>(null) }
+    var dateColorEditorKey by remember { mutableStateOf<String?>(null) }
     var personalizationVisible by remember { mutableStateOf(false) }
     var homePageVisible by remember { mutableStateOf(false) }
     var cardBehaviorVisible by remember { mutableStateOf(false) }
@@ -156,10 +160,11 @@ internal fun SettingsScreen(
     var moduleCollectionsVisible by remember { mutableStateOf(false) }
     var retentionMenuExpanded by remember { mutableStateOf(false) }
 
-    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || personalizationVisible || homePageVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
-        if (colorEditorIndex != null || customColorEditorKey != null) {
+    AppBackHandler(enabled = colorEditorIndex != null || customColorEditorKey != null || dateColorEditorKey != null || personalizationVisible || homePageVisible || cardBehaviorVisible || storageVisible || moduleCollectionsVisible) {
+        if (colorEditorIndex != null || customColorEditorKey != null || dateColorEditorKey != null) {
             colorEditorIndex = null
             customColorEditorKey = null
+            dateColorEditorKey = null
         } else if (personalizationVisible) {
             personalizationVisible = false
         } else if (homePageVisible) {
@@ -171,6 +176,24 @@ internal fun SettingsScreen(
         } else {
             moduleCollectionsVisible = false
         }
+    }
+
+    if (dateColorEditorKey != null) {
+        val key = dateColorEditorKey!!
+        val title = if (key == "background") "Фон плашки даты" else "Цвет текста даты"
+        val currentColor = if (key == "background") timelineDateColors.background else timelineDateColors.text
+        val defaults = if (activeColorMode == "dark") TimelineDateColorSets().dark else TimelineDateColorSets().light
+        val resetColor = if (key == "background") defaults.background else defaults.text
+        ThemeColorEditorScreen(
+            title = title,
+            color = currentColor,
+            resetColor = resetColor,
+            topBarColor = themeColors.topBar,
+            onBack = { dateColorEditorKey = null },
+            onColorChange = { onTimelineDateColorChange(key, it) },
+            onReset = { onTimelineDateColorChange(key, resetColor) }
+        )
+        return
     }
 
     if (customColorEditorKey != null) {
@@ -299,6 +322,23 @@ internal fun SettingsScreen(
                     trailingContent = { RadioButton(selected = themeMode == "dark", onClick = { onThemeModeChange("dark") }) },
                     modifier = Modifier.clickable { onThemeModeChange("dark") }.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+                ListItem(headlineContent = { Text("Оформление дат", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
+                listOf(
+                    Triple("background", "Фон плашки", timelineDateColors.background),
+                    Triple("text", "Цвет текста", timelineDateColors.text)
+                ).forEach { (key, label, color) ->
+                    ListItem(
+                        headlineContent = { Text(label) },
+                        leadingContent = { Box(Modifier.size(30.dp).background(color, RoundedCornerShape(7.dp))) },
+                        trailingContent = { SettingsChevron() },
+                        modifier = Modifier.clickable { dateColorEditorKey = key }
+                            .padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                    )
+                }
+                TextButton(onClick = onResetTimelineDateColors, modifier = Modifier.padding(start = AppSpacing.screenHorizontal)) {
+                    Text("Сбросить оформление дат")
+                }
                 HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
                 ListItem(headlineContent = { Text("Настройка цветов темы", style = AppTypography.emphasisBodyStyle()) }, modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset))
                 val themeRows = listOf(
