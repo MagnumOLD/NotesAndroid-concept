@@ -46,8 +46,6 @@ internal data class KitchenTimerSettings(
 }
 
 internal object KitchenTimerOperations {
-    const val MAX_TIMERS = 50
-
     fun create(id: Long, title: String = "") = KitchenTimer(id = id, title = title)
 
     fun start(timer: KitchenTimer, nowMillis: Long): KitchenTimer {
