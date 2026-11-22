@@ -128,6 +128,8 @@ internal fun SettingsScreen(
     timelineDateColors: TimelineDateColors,
     showTimelineDateHeaders: Boolean,
     onShowTimelineDateHeadersChange: (Boolean) -> Unit,
+    dateHeaderTextSize: Int,
+    onDateHeaderTextSizeChange: (Int) -> Unit,
     onTimelineDateColorChange: (String, Color) -> Unit,
     onResetTimelineDateColors: () -> Unit,
     onNoteColorsChange: (List<Color>) -> Unit,
@@ -333,6 +335,28 @@ internal fun SettingsScreen(
                     },
                     trailingContent = {
                         Switch(checked = showTimelineDateHeaders, onCheckedChange = onShowTimelineDateHeadersChange)
+                    },
+                    modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
+                )
+                ListItem(
+                    headlineContent = { Text("Размер текста дат") },
+                    supportingContent = { Text("Выберите компактность заголовков") },
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            listOf(14, 12).forEach { size ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { onDateHeaderTextSizeChange(size) }
+                                        .padding(start = AppSpacing.xs)
+                                ) {
+                                    RadioButton(
+                                        selected = dateHeaderTextSize == size,
+                                        onClick = { onDateHeaderTextSizeChange(size) }
+                                    )
+                                    Text("${size} sp")
+                                }
+                            }
+                        }
                     },
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
