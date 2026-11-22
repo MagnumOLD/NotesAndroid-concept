@@ -163,7 +163,7 @@ internal class KitchenTimerAlertService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureForeground()
         when (intent?.action) {
-            KitchenTimerContract.ACTION_START_ALERT -> startAlert(intent)
+            KitchenTimerContract.ACTION_START_ALERT -> intent?.let(::startAlert)
             KitchenTimerContract.ACTION_STOP_ALERT -> {
                 val id = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
                 if (id > 0L) stopAlert(id)
