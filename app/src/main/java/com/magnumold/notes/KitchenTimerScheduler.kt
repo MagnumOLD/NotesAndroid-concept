@@ -23,6 +23,7 @@ internal object KitchenTimerContract {
     const val ACTION_ALARM = "com.magnumold.notes.action.KITCHEN_TIMER_ALARM"
     const val ACTION_START_ALERT = "com.magnumold.notes.action.KITCHEN_TIMER_START_ALERT"
     const val ACTION_STOP_ALERT = "com.magnumold.notes.action.KITCHEN_TIMER_STOP_ALERT"
+    const val ACTION_STATE_CHANGED = "com.magnumold.notes.action.KITCHEN_TIMER_STATE_CHANGED"
     const val EXTRA_TIMER_ID = "kitchen_timer_id"
     const val EXTRA_TITLE = "kitchen_timer_title"
     const val EXTRA_SOUND_URI = "kitchen_timer_sound_uri"
@@ -102,6 +103,9 @@ internal class KitchenTimerReceiver : BroadcastReceiver() {
 
         val fired = reconciled.copy(alertStartedAtMillis = now)
         repository.saveTimers(snapshot.timers.map { if (it.id == timerId) fired else it })
+        context.sendBroadcast(
+            Intent(KitchenTimerContract.ACTION_STATE_CHANGED).setPackage(context.packageName)
+        )
         val sound = fired.soundUri ?: snapshot.settings.defaultSoundUri
         val serviceIntent = Intent(context, KitchenTimerAlertService::class.java)
             .setAction(KitchenTimerContract.ACTION_START_ALERT)
