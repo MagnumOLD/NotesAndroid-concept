@@ -141,15 +141,12 @@ internal fun KitchenTimersScreen(
             item {
                 OutlinedButton(
                     onClick = {
-                        if (timers.size < KitchenTimerOperations.MAX_TIMERS) {
-                            val nextId = maxOf(
-                                System.currentTimeMillis().coerceAtLeast(1L),
-                                (timers.maxOfOrNull { it.id } ?: 0L) + 1L
-                            )
-                            onTimersChange(timers + KitchenTimerOperations.create(nextId))
-                        }
+                        val nextId = maxOf(
+                            System.currentTimeMillis().coerceAtLeast(1L),
+                            (timers.maxOfOrNull { it.id } ?: 0L) + 1L
+                        )
+                        onTimersChange(timers + KitchenTimerOperations.create(nextId))
                     },
-                    enabled = timers.size < KitchenTimerOperations.MAX_TIMERS,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 ) {
