@@ -26,7 +26,8 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
                 alertDurationMode = preferences.getString(KEY_ALERT_MODE, null)
                     ?.let { TimerAlertDurationMode.valueOf(it) }
                     ?: TimerAlertDurationMode.THIRTY_SECONDS,
-                customAlertDurationSeconds = preferences.getInt(KEY_CUSTOM_ALERT_SECONDS, 30)
+                customAlertDurationSeconds = preferences.getInt(KEY_CUSTOM_ALERT_SECONDS, 30),
+                defaultSoundUri = preferences.getString(KEY_DEFAULT_SOUND_URI, null)
             ).normalized()
         }.getOrDefault(KitchenTimerSettings())
         return KitchenTimerSnapshot(timers, settings)
@@ -59,6 +60,7 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
         check(preferences.edit()
             .putString(KEY_ALERT_MODE, safe.alertDurationMode.name)
             .putInt(KEY_CUSTOM_ALERT_SECONDS, safe.customAlertDurationSeconds)
+            .putString(KEY_DEFAULT_SOUND_URI, safe.defaultSoundUri)
             .commit()) { "Не удалось сохранить настройки таймеров" }
     }
 
@@ -91,5 +93,6 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
         const val KEY_ALERT_MODE = "kitchen_timer_alert_mode"
         const val KEY_CUSTOM_ALERT_SECONDS = "kitchen_timer_custom_alert_seconds"
         const val KEY_NEXT_ID = "kitchen_timer_next_id"
+        const val KEY_DEFAULT_SOUND_URI = "kitchen_timer_default_sound_uri"
     }
 }
