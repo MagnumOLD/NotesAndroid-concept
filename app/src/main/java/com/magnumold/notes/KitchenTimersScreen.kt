@@ -2,7 +2,10 @@ package com.magnumold.notes
 
 import android.app.Activity
 import android.app.AlarmManager
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
@@ -77,15 +80,32 @@ internal fun KitchenTimersScreen(
     var editingTimerId by remember { mutableStateOf<Long?>(null) }
     var settingsVisible by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    val context = LocalContext.current
+    DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) onRefresh()
         }
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == KitchenTimerContract.ACTION_STATE_CHANGED) onRefresh()
+            }
+        }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        val filter = IntentFilter(KitchenTimerContract.ACTION_STATE_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            context.registerReceiver(receiver, filter)
+        }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            runCatching { context.unregisterReceiver(receiver) }
+        }
     }
 
     LaunchedEffect(Unit) {
+        onRefresh()
         while (true) {
             nowMillis = System.currentTimeMillis()
             delay(250L)
