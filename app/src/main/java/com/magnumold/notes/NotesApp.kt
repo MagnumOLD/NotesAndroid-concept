@@ -105,7 +105,8 @@ internal fun NotesApp(
                     initialMode = savedThemeMode,
                     initialColorSets = initialThemeColorSets,
                     initialNoteColors = themeSettings.loadNoteColors(),
-                    initialNoteColorOpacities = themeSettings.loadNoteColorOpacities()
+                    initialNoteColorOpacities = themeSettings.loadNoteColorOpacities(),
+                    initialTimelineDateColorSets = themeSettings.loadTimelineDateColorSets()
                 )
             }
             val themeMode = themeState.mode
@@ -114,6 +115,7 @@ internal fun NotesApp(
             val dark = themeState.isDark(systemDark)
             val noteColors = themeState.noteColors
             val activeNoteColorOpacity = themeState.activeNoteColorOpacity(systemDark)
+            val activeTimelineDateColors = themeState.activeTimelineDateColors(systemDark)
             val displayedNoteColors = remember(noteColors, activeNoteColorOpacity) {
                 noteColors.map { it.copy(alpha = activeNoteColorOpacity) }
             }
@@ -162,6 +164,7 @@ internal fun NotesApp(
                 themeColorSets = themeColorSets,
                 noteColors = noteColors,
                 noteColorOpacities = themeState.noteColorOpacities,
+                timelineDateColorSets = themeState.timelineDateColorSets,
                 themeSettings = themeSettings
             )
 
@@ -232,6 +235,9 @@ internal fun NotesApp(
                         onResetThemeColors = { themeState.resetThemeColors(systemDark) },
                         noteColors = noteColors,
                         noteColorOpacity = activeNoteColorOpacity,
+                        timelineDateColors = activeTimelineDateColors,
+                        onTimelineDateColorChange = { key, color -> themeState.updateTimelineDateColor(key, color, systemDark) },
+                        onResetTimelineDateColors = { themeState.resetTimelineDateColors(systemDark) },
                         onNoteColorsChange = { themeState.replaceNoteColors(it) },
                         onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity, systemDark) },
                         onExport = backupActions.exportBackup,
@@ -281,6 +287,7 @@ internal fun NotesApp(
                         notes = activeNotes, search = search, searchVisible = searchVisible,
                         noteColors = displayedNoteColors,
                         themeColors = activeThemeColors,
+                        timelineDateColors = activeTimelineDateColors,
                         collections = collections, activeCollectionId = activeCollectionId,
                         onSelectCollection = { navigation.selectCollection(it) },
                         onCreateCollection = { name ->
