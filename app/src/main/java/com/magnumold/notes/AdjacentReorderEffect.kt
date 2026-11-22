@@ -116,11 +116,12 @@ internal fun AdjacentReorderEffect(
                 // LazyList indices include all non-reorder items (editor content,
                 // viewport sentinels, headers). Derive the stable offset from any
                 // currently visible reorder row instead of assuming a fixed index.
-                val indexOffset = visibleItems.firstNotNullOfOrNull { item ->
-                    val key = item.key as? String ?: return@firstNotNullOfOrNull null
-                    val relativeIndex = keys.indexOf(key)
-                    if (relativeIndex >= 0) item.index - relativeIndex else null
-                } ?: 0
+                // The list contains non-reorder items (date/module headers) between
+                // note rows. Their count is not constant across the whole viewport,
+                // so an offset derived from an arbitrary visible row is incorrect.
+                // The moving row and its allowed neighbour share the same section;
+                // derive the offset from the moving row itself.
+                val indexOffset = movingInfo.index - movingIndex
 
                 val firstVisibleItem = visibleItems.firstOrNull()
                 val firstVisibleIndex = listState.firstVisibleItemIndex
