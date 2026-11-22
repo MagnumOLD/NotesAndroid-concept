@@ -47,6 +47,7 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
                 put("endsAt", timer.endsAtMillis ?: JSONObject.NULL)
                 put("soundUri", timer.soundUri ?: JSONObject.NULL)
                 put("status", timer.status.name)
+                put("alertStartedAt", timer.alertStartedAtMillis ?: JSONObject.NULL)
             })
         }
         check(preferences.edit().putString(KEY_TIMERS, json.toString()).commit()) {
@@ -77,7 +78,8 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
                     soundUri = if (item.isNull("soundUri")) null else item.optString("soundUri"),
                     status = runCatching {
                         KitchenTimerStatus.valueOf(item.optString("status", KitchenTimerStatus.READY.name))
-                    }.getOrDefault(KitchenTimerStatus.READY)
+                    }.getOrDefault(KitchenTimerStatus.READY),
+                    alertStartedAtMillis = if (item.isNull("alertStartedAt")) null else item.optLong("alertStartedAt")
                 ).normalized()
             }.getOrNull()
         }.distinctBy { it.id }.take(KitchenTimerOperations.MAX_TIMERS)
