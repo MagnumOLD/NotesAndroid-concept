@@ -424,6 +424,11 @@ private fun KitchenTimerSettingsDialog(
                     Text(if (defaultSoundUri == null) "Выбрать общий звук" else "Изменить общий звук")
                 }
                 if (defaultSoundUri != null) {
+                    TextButton(onClick = {
+                        runCatching {
+                            RingtoneManager.getRingtone(context, Uri.parse(defaultSoundUri))?.play()
+                        }
+                    }) { Text("Прослушать общий звук") }
                     TextButton(onClick = { defaultSoundUri = null }) { Text("Системный звук по умолчанию") }
                 }
             }
