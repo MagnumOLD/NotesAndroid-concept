@@ -11,6 +11,16 @@ import org.json.JSONArray
 internal class HomeTimelineDisplayStore(private val preferences: SharedPreferences) {
     fun loadShowDateHeaders(): Boolean = preferences.getBoolean(KEY_SHOW_DATE_HEADERS, true)
 
+    fun loadDateHeaderTextSize(): Int =
+        preferences.getInt(KEY_DATE_HEADER_TEXT_SIZE, DEFAULT_DATE_HEADER_TEXT_SIZE)
+            .takeIf { it == 12 || it == 14 } ?: DEFAULT_DATE_HEADER_TEXT_SIZE
+
+    fun saveDateHeaderTextSize(sizeSp: Int) {
+        preferences.edit()
+            .putInt(KEY_DATE_HEADER_TEXT_SIZE, if (sizeSp == 12) 12 else DEFAULT_DATE_HEADER_TEXT_SIZE)
+            .apply()
+    }
+
     fun saveShowDateHeaders(enabled: Boolean) {
         preferences.edit().putBoolean(KEY_SHOW_DATE_HEADERS, enabled).apply()
     }
@@ -39,6 +49,8 @@ internal class HomeTimelineDisplayStore(private val preferences: SharedPreferenc
 
     private companion object {
         const val KEY_SHOW_DATE_HEADERS = "show_date_headers"
+        const val KEY_DATE_HEADER_TEXT_SIZE = "date_header_text_size"
+        const val DEFAULT_DATE_HEADER_TEXT_SIZE = 14
         const val KEY_MANUAL_ORDER = "manual_order_ids"
     }
 }
