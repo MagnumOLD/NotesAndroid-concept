@@ -39,12 +39,32 @@ internal object HomeTimelineOperations {
     fun records(snapshot: PersistenceSnapshot): List<Note> =
         snapshot.notes + snapshot.collections.flatMap { it.notes }
 
-    fun orderedVisibleRecords(notes: List<Note>): List<Note> =
-        notes.filter { it.showOnHome }.sortedWith(
+    fun orderedRecordsByDate(notes: List<Note>): List<Note> =
+        notes.sortedWith(
             compareByDescending<Note> { timelineDayKey(it) }
                 .thenByDescending { it.pinned }
                 .thenByDescending { it.homeOrder }
         )
+
+    fun orderedVisibleRecords(notes: List<Note>): List<Note> =
+        orderedRecordsByDate(notes.filter { it.showOnHome })
+
+    /**
+     * Uses a separately persisted manual order when date grouping is hidden.
+     * New records without an order entry are placed first, in normal timeline
+     * order, while existing records retain their exact manual sequence.
+     */
+    fun orderedVisibleRecordsManually(notes: List<Note>, orderIds: List<Long>?): List<Note> {
+        val visible = notes.filter { it.showOnHome }
+        if (orderIds == null) return orderedRecordsByDate(visible)
+        val positions = orderIds.withIndex().associate { it.value to it.index }
+        return visible.sortedWith(
+            compareBy<Note> { positions[it.id] ?: -1 }
+                .thenByDescending { timelineDayKey(it) }
+                .thenByDescending { it.pinned }
+                .thenByDescending { it.homeOrder }
+        )
+    }
 
     fun orderedFavoritesByModule(notes: List<Note>): List<Note> =
         notes.filter { it.favorite }.sortedWith(
