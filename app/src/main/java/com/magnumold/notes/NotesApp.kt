@@ -381,11 +381,15 @@ internal fun NotesApp(
                                 )
                                 val visibleIds = activeNotes.filter { it.showOnHome }.map { it.id }.toSet()
                                 val allIds = allHomeRecords.map { it.id }.toSet()
-                                val preservedOtherIds = (
+                                val fullOrder = (
                                     manualHomeOrderIds.orEmpty() +
                                         HomeTimelineOperations.orderedRecordsByDate(allHomeRecords).map { it.id }
-                                    ).distinct().filter { it in allIds && it !in visibleIds }
-                                manualHomeOrderIds = reorderedVisible.map { it.id } + preservedOtherIds
+                                    ).distinct().filter { it in allIds }
+                                val reorderedIds = reorderedVisible.map { it.id }
+                                val reorderedIterator = reorderedIds.iterator()
+                                manualHomeOrderIds = fullOrder.map { id ->
+                                    if (id in visibleIds && reorderedIterator.hasNext()) reorderedIterator.next() else id
+                                }
                             } else if (homeTimelineMode) {
                                 recordsViewModel.reorderHomeRecords(ids, afterId)
                             } else {
