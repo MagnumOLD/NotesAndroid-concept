@@ -148,6 +148,7 @@ internal fun KitchenTimersScreen(
     if (editingTimer != null) {
         KitchenTimerEditDialog(
             timer = editingTimer,
+            defaultSoundUri = settings.defaultSoundUri,
             onDismiss = { editingTimerId = null },
             onSave = { updated ->
                 onTimersChange(timers.map { if (it.id == updated.id) updated else it })
@@ -255,6 +256,7 @@ private fun KitchenTimerCard(
 @Composable
 private fun KitchenTimerEditDialog(
     timer: KitchenTimer,
+    defaultSoundUri: String?,
     onDismiss: () -> Unit,
     onSave: (KitchenTimer) -> Unit
 ) {
@@ -308,6 +310,14 @@ private fun KitchenTimerEditDialog(
                     Spacer(Modifier.width(AppSpacing.sm))
                     Text(if (soundUri == null) "Выбрать звук" else "Изменить звук")
                 }
+                val previewUri = soundUri ?: defaultSoundUri
+                if (previewUri != null) {
+                    TextButton(onClick = {
+                        runCatching {
+                            RingtoneManager.getRingtone(context, Uri.parse(previewUri))?.play()
+                        }
+                    }) { Text("Прослушать звук") }
+                }
                 if (soundUri != null) {
                     TextButton(onClick = { soundUri = null }) { Text("Использовать общий звук") }
                 }
@@ -325,7 +335,9 @@ private fun KitchenTimerEditDialog(
                         durationSeconds = duration,
                         remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) duration else null,
                         endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) TimerOperations.startAt(now, duration) else null,
-                        soundUri = soundUri
+                        status = if (timer.status == KitchenTimerStatus.FINISHED) KitchenTimerStatus.READY else timer.status,
+                        soundUri = soundUri,
+                        alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED) null else timer.alertStartedAtMillis
                     )
                     onSave(changed.normalized())
                 },
