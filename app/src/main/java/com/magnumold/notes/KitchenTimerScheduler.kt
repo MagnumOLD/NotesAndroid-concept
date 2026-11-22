@@ -112,7 +112,7 @@ internal class KitchenTimerReceiver : BroadcastReceiver() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
             else context.startService(serviceIntent)
         } catch (_: RuntimeException) {
-            postKitchenTimerFallbackNotification(context, fired, sound)
+            postKitchenTimerFallbackNotification(context, fired, sound, snapshot.settings.alertDurationSeconds())
         }
     }
 }
@@ -127,7 +127,7 @@ internal class KitchenTimerBootReceiver : BroadcastReceiver() {
     }
 }
 
-private fun postKitchenTimerFallbackNotification(context: Context, timer: KitchenTimer, sound: String?) {
+private fun postKitchenTimerFallbackNotification(context: Context, timer: KitchenTimer, sound: String?, durationSeconds: Int) {
     val manager = context.getSystemService(NotificationManager::class.java)
     val soundUri = sound?.let(Uri::parse) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
     val channelId = "kitchen_timer_fallback_${soundUri?.toString()?.hashCode() ?: 0}"
@@ -151,6 +151,7 @@ private fun postKitchenTimerFallbackNotification(context: Context, timer: Kitche
         .setPriority(Notification.PRIORITY_MAX)
         .setAutoCancel(true)
         .setTimeoutAfter(60_000L)
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) builder.setTimeoutAfter(durationSeconds.coerceIn(1, 3600) * 1_000L)
     manager.notify(kitchenTimerNotificationTag(timer.id), KitchenTimerContract.ALERT_NOTIFICATION_ID, builder.build())
 }
 
@@ -166,7 +167,9 @@ internal class KitchenTimerAlertService : Service() {
             KitchenTimerContract.ACTION_STOP_ALERT -> {
                 val id = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
                 if (id > 0L) stopAlert(id)
+                else finishIfIdle()
             }
+            else -> finishIfIdle()
         }
         return START_NOT_STICKY
     }
@@ -196,7 +199,11 @@ internal class KitchenTimerAlertService : Service() {
     }
 
     private fun stopAlert(id: Long) {
-        val active = activeAlerts.remove(id) ?: return
+        val active = activeAlerts.remove(id)
+        if (active == null) {
+            finishIfIdle()
+            return
+        }
         handler.removeCallbacks(active.stopAction)
         runCatching { active.ringtone?.stop() }
         getSystemService(NotificationManager::class.java)
@@ -209,6 +216,16 @@ internal class KitchenTimerAlertService : Service() {
             }
             stopSelf()
         } else updateForegroundNotification()
+    }
+
+    private fun finishIfIdle() {
+        if (activeAlerts.isNotEmpty()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) stopForeground(STOP_FOREGROUND_REMOVE)
+        else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        stopSelf()
     }
 
     private fun ensureForeground() {
