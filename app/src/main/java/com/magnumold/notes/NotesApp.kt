@@ -7,6 +7,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
@@ -135,6 +136,13 @@ internal fun NotesApp(
             val collections = snapshot.collections
             val navigation = remember { AppNavigationState() }
             val activeCollectionId = navigation.activeCollectionId
+            val screenStateHolder = rememberSaveableStateHolder()
+            val notesListStateKey = when {
+                activeCollectionId != null ->
+                    "notes_list:${navigation.activeModule.name}:collection:$activeCollectionId"
+                navigation.activeModule == AppModule.ALL -> "notes_list:home"
+                else -> "notes_list:module:${navigation.activeModule.name}"
+            }
             val selectedId = navigation.selectedId
             val homeTimelineMode = navigation.activeModule == AppModule.ALL && activeCollectionId == null
             val sourceNotes = when {
@@ -328,6 +336,7 @@ internal fun NotesApp(
                         onBack = { navigation.closeSettings() }
                     )
                 } else if (selected == null) {
+                    screenStateHolder.SaveableStateProvider(notesListStateKey) {
                     NotesHome(
                         notes = activeNotes, search = search, searchVisible = searchVisible,
                         noteColors = displayedNoteColors,
@@ -457,6 +466,7 @@ internal fun NotesApp(
                             navigation.openNewRecord(id)
                         }
                     )
+                    }
                 } else if (selected.type == RecordType.WORKOUT) {
                     WorkoutRecordEditor(
                         note = selected,
