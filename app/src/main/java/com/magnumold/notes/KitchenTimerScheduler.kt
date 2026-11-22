@@ -169,14 +169,47 @@ internal class KitchenTimerAlertService : Service() {
                 if (id > 0L) stopAlert(id)
                 else finishIfIdle()
             }
+            null -> restoreActiveAlerts()
             else -> finishIfIdle()
         }
-        return START_NOT_STICKY
+        return START_STICKY
+    }
+
+    private fun restoreActiveAlerts() {
+        val snapshot = KitchenTimerRepository(
+            getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
+        ).load()
+        val now = System.currentTimeMillis()
+        snapshot.timers.filter { it.status == KitchenTimerStatus.FINISHED && it.alertStartedAtMillis != null }
+            .forEach { timer ->
+                val startedAt = timer.alertStartedAtMillis ?: return@forEach
+                val elapsed = (now - startedAt).coerceAtLeast(0L) / 1_000L
+                val remainingAlertSeconds = snapshot.settings.alertDurationSeconds() - elapsed
+                if (remainingAlertSeconds > 0L) {
+                    startAlert(
+                        Intent().putExtra(KitchenTimerContract.EXTRA_TIMER_ID, timer.id)
+                            .putExtra(KitchenTimerContract.EXTRA_TITLE, timer.title)
+                            .putExtra(
+                                KitchenTimerContract.EXTRA_SOUND_URI,
+                                timer.soundUri ?: snapshot.settings.defaultSoundUri
+                            )
+                            .putExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, remainingAlertSeconds.toInt())
+                    )
+                } else {
+                    getSystemService(NotificationManager::class.java)
+                        .cancel(kitchenTimerNotificationTag(timer.id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
+                }
+            }
+        if (activeAlerts.isEmpty()) finishIfIdle()
     }
 
     private fun startAlert(intent: Intent) {
         val id = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
-        if (id <= 0L || activeAlerts.containsKey(id)) return
+        if (id <= 0L) {
+            finishIfIdle()
+            return
+        }
+        if (activeAlerts.containsKey(id)) return
         val uri = intent.getStringExtra(KitchenTimerContract.EXTRA_SOUND_URI)?.let(Uri::parse)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
         val ringtone = runCatching { RingtoneManager.getRingtone(this, uri) }.getOrNull()
