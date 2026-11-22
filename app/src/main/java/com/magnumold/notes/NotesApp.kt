@@ -88,6 +88,21 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
+            val kitchenTimerRepository = remember(activity) {
+                KitchenTimerRepository(activity.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE))
+            }
+            var kitchenTimers by remember(kitchenTimerRepository) {
+                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.load().timers)
+            }
+            var kitchenTimerSettings by remember(kitchenTimerRepository) {
+                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.load().settings)
+            }
+            LaunchedEffect(kitchenTimers) {
+                kitchenTimerRepository.saveTimers(kitchenTimers)
+            }
+            LaunchedEffect(kitchenTimerSettings) {
+                kitchenTimerRepository.saveSettings(kitchenTimerSettings)
+            }
             val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot).filter {
                     it.type == RecordType.TIMER && it.timerEndsAtMillis != null
@@ -334,6 +349,18 @@ internal fun NotesApp(
                             trashRetentionStore.saveDays(days)
                         },
                         onBack = { navigation.closeSettings() }
+                    )
+                } else if (
+                    navigation.activeModule == AppModule.TIMERS &&
+                    activeCollectionId == null &&
+                    selected == null
+                ) {
+                    KitchenTimersScreen(
+                        timers = kitchenTimers,
+                        settings = kitchenTimerSettings,
+                        topBarColor = activeThemeColors.topBar,
+                        onTimersChange = { kitchenTimers = it },
+                        onSettingsChange = { kitchenTimerSettings = it }
                     )
                 } else if (selected == null) {
                     screenStateHolder.SaveableStateProvider(notesListStateKey) {
