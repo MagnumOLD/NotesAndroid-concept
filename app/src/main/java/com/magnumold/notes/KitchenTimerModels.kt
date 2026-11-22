@@ -81,14 +81,15 @@ internal object KitchenTimerOperations {
 
     fun updateDuration(timer: KitchenTimer, durationSeconds: Long): KitchenTimer {
         val duration = TimerOperations.normalizeDuration(durationSeconds)
-        val remaining = timer.remainingSeconds
+        val now = System.currentTimeMillis()
         return timer.copy(
             durationSeconds = duration,
-            remainingSeconds = remaining?.coerceAtMost(duration),
+            remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) duration else null,
             endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) {
-                TimerOperations.startAt(System.currentTimeMillis(), duration)
+                TimerOperations.startAt(now, duration)
             } else null,
-            status = if (timer.status == KitchenTimerStatus.RUNNING) KitchenTimerStatus.RUNNING else timer.status
+            status = if (timer.status == KitchenTimerStatus.FINISHED) KitchenTimerStatus.READY else timer.status,
+            alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED) null else timer.alertStartedAtMillis
         )
     }
 
