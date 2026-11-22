@@ -1,7 +1,8 @@
 package com.magnumold.notes
 
 import android.content.Context
-import androidx.test.core.app.ApplicationProvider
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.annotation.Config
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Test
@@ -9,9 +10,10 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
 class KitchenTimerRepositoryTest {
     @Test fun firstLoadCreatesAndPersistsOneDefaultTimer() {
-        val preferences = ApplicationProvider.getApplicationContext<Context>()
+        val preferences = RuntimeEnvironment.getApplication()
             .getSharedPreferences("kitchen-timers-test-default", Context.MODE_PRIVATE)
         preferences.edit().clear().commit()
         val repository = KitchenTimerRepository(preferences)
@@ -24,7 +26,7 @@ class KitchenTimerRepositoryTest {
     }
 
     @Test fun timersAndSettingsSurviveRepositoryRecreation() {
-        val preferences = ApplicationProvider.getApplicationContext<Context>()
+        val preferences = RuntimeEnvironment.getApplication()
             .getSharedPreferences("kitchen-timers-test-persist", Context.MODE_PRIVATE)
         preferences.edit().clear().commit()
         val repository = KitchenTimerRepository(preferences)
