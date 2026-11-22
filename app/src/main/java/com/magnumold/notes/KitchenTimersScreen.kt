@@ -1,9 +1,12 @@
 package com.magnumold.notes
 
 import android.app.Activity
+import android.app.AlarmManager
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -43,6 +46,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -54,6 +58,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -63,11 +70,20 @@ internal fun KitchenTimersScreen(
     settings: KitchenTimerSettings,
     topBarColor: androidx.compose.ui.graphics.Color,
     onTimersChange: (List<KitchenTimer>) -> Unit,
-    onSettingsChange: (KitchenTimerSettings) -> Unit
+    onSettingsChange: (KitchenTimerSettings) -> Unit,
+    onRefresh: () -> Unit
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var editingTimerId by remember { mutableStateOf<Long?>(null) }
     var settingsVisible by remember { mutableStateOf(false) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) onRefresh()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
