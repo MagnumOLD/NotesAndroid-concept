@@ -10,13 +10,14 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
-import android.media.Ringtone
+import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 
 internal object KitchenTimerContract {
     const val ACTION_ALARM = "com.magnumold.notes.action.KITCHEN_TIMER_ALARM"
@@ -156,7 +157,7 @@ private fun postKitchenTimerFallbackNotification(context: Context, timer: Kitche
 }
 
 internal class KitchenTimerAlertService : Service() {
-    private data class ActiveAlert(val ringtone: Ringtone?, val stopAction: Runnable)
+    private data class ActiveAlert(val player: MediaPlayer?, val stopAction: Runnable)
     private val handler = Handler(Looper.getMainLooper())
     private val activeAlerts = linkedMapOf<Long, ActiveAlert>()
 
@@ -212,20 +213,24 @@ internal class KitchenTimerAlertService : Service() {
         if (activeAlerts.containsKey(id)) return
         val uri = intent.getStringExtra(KitchenTimerContract.EXTRA_SOUND_URI)?.let(Uri::parse)
             ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
-        val ringtone = runCatching { RingtoneManager.getRingtone(this, uri) }.getOrNull()
-        ringtone?.let {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-                it.audioAttributes = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
+        val player = runCatching {
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ALARM)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                setWakeMode(this@KitchenTimerAlertService, PowerManager.PARTIAL_WAKE_LOCK)
+                setDataSource(this@KitchenTimerAlertService, uri)
+                isLooping = true
+                prepare()
+                start()
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) it.isLooping = true
-            runCatching { it.play() }
-        }
+        }.getOrNull()
         val durationSeconds = intent.getIntExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, 30).coerceIn(1, 3600)
         val stopAction = Runnable { stopAlert(id) }
-        activeAlerts[id] = ActiveAlert(ringtone, stopAction)
+        activeAlerts[id] = ActiveAlert(player, stopAction)
         handler.postDelayed(stopAction, durationSeconds * 1_000L)
         postAlertNotification(id, intent.getStringExtra(KitchenTimerContract.EXTRA_TITLE).orEmpty())
         updateForegroundNotification()
@@ -238,7 +243,10 @@ internal class KitchenTimerAlertService : Service() {
             return
         }
         handler.removeCallbacks(active.stopAction)
-        runCatching { active.ringtone?.stop() }
+        runCatching {
+            active.player?.stop()
+            active.player?.release()
+        }
         getSystemService(NotificationManager::class.java)
             .cancel(kitchenTimerNotificationTag(id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
         if (activeAlerts.isEmpty()) {
@@ -338,7 +346,10 @@ internal class KitchenTimerAlertService : Service() {
     override fun onDestroy() {
         activeAlerts.values.forEach {
             handler.removeCallbacks(it.stopAction)
-            runCatching { it.ringtone?.stop() }
+            runCatching {
+                it.player?.stop()
+                it.player?.release()
+            }
         }
         activeAlerts.clear()
         super.onDestroy()
