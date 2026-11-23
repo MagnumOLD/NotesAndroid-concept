@@ -50,7 +50,7 @@ internal class HomeTimelineDisplayStore(private val preferences: SharedPreferenc
     private companion object {
         const val KEY_SHOW_DATE_HEADERS = "show_date_headers"
         const val KEY_DATE_HEADER_TEXT_SIZE = "date_header_text_size"
-        const val DEFAULT_DATE_HEADER_TEXT_SIZE = 14
+        const val DEFAULT_DATE_HEADER_TEXT_SIZE = 12
         const val KEY_MANUAL_ORDER = "manual_order_ids"
     }
 }
