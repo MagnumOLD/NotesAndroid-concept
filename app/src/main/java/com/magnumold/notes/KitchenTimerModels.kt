@@ -34,13 +34,13 @@ internal fun KitchenTimer.toRecord(existing: Note? = null): Note {
         KitchenTimerStatus.PAUSED -> RecordStatus.PAUSED
         KitchenTimerStatus.FINISHED -> RecordStatus.COMPLETED
     }
-    val timestamp = endsAtMillis ?: alertStartedAtMillis ?: existing?.updated ?: id
+    val timestamp = endsAtMillis ?: alertStartedAtMillis ?: System.currentTimeMillis()
     return Note(
         id = id,
         title = "",
         blocks = existing?.blocks ?: listOf(NoteBlock()),
         updated = timestamp,
-        created = existing?.created ?: id,
+        created = existing?.created ?: System.currentTimeMillis(),
         type = RecordType.TIMER,
         colorIndex = colorIndex,
         pinned = existing?.pinned ?: false,
@@ -49,7 +49,7 @@ internal fun KitchenTimer.toRecord(existing: Note? = null): Note {
         titleText = title,
         showOnHome = existing?.showOnHome ?: true,
         favorite = existing?.favorite ?: false,
-        homeOrder = existing?.homeOrder ?: id,
+        homeOrder = existing?.homeOrder ?: existing?.created ?: System.currentTimeMillis(),
         timerDurationSeconds = durationSeconds,
         timerEndsAtMillis = endsAtMillis,
         timerRemainingSeconds = remainingSeconds,
