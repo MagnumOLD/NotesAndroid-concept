@@ -82,7 +82,9 @@ internal fun KitchenTimersScreen(
     addButtonColor: androidx.compose.ui.graphics.Color,
     onTimersChange: (List<KitchenTimer>) -> Unit,
     onSettingsChange: (KitchenTimerSettings) -> Unit,
-    onRefresh: () -> Unit
+    onRefresh: () -> Unit,
+    initialEditingTimerId: Long? = null,
+    onInitialEditConsumed: () -> Unit = {}
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var editingTimer by remember { mutableStateOf<KitchenTimer?>(null) }
@@ -119,6 +121,13 @@ internal fun KitchenTimersScreen(
             nowMillis = System.currentTimeMillis()
             delay(250L)
         }
+    }
+
+    LaunchedEffect(initialEditingTimerId) {
+        val requestedId = initialEditingTimerId ?: return@LaunchedEffect
+        editingTimer = timers.firstOrNull { it.id == requestedId }
+        editingIsNew = false
+        onInitialEditConsumed()
     }
 
     if (editingTimer != null) {
