@@ -80,6 +80,8 @@ internal fun KitchenTimersScreen(
     settings: KitchenTimerSettings,
     topBarColor: androidx.compose.ui.graphics.Color,
     addButtonColor: androidx.compose.ui.graphics.Color,
+    noteColors: List<androidx.compose.ui.graphics.Color>,
+    dark: Boolean,
     onTimersChange: (List<KitchenTimer>) -> Unit,
     onSettingsChange: (KitchenTimerSettings) -> Unit,
     onRefresh: () -> Unit,
@@ -199,6 +201,13 @@ internal fun KitchenTimersScreen(
             items(timers, key = { it.id }) { timer ->
                 KitchenTimerCard(
                     timer = timer,
+                    noteColors = noteColors,
+                    dark = dark,
+                    onChangeColor = { colorIndex ->
+                        onTimersChange(timers.map {
+                            if (it.id == timer.id) it.copy(colorIndex = colorIndex) else it
+                        })
+                    },
                     onStart = {
                         onTimersChange(timers.map {
                             if (it.id == timer.id) KitchenTimerOperations.start(it, nowMillis) else it
@@ -227,29 +236,31 @@ internal fun KitchenTimersScreen(
 @Composable
 private fun KitchenTimerCard(
     timer: KitchenTimer,
+    noteColors: List<androidx.compose.ui.graphics.Color>,
+    dark: Boolean,
+    onChangeColor: (Int) -> Unit,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onReset: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val record = timer.toRecord()
-    RecordCardSurface(
-        background = MaterialTheme.colorScheme.background,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        TimerRecordCardContent(
-            note = record,
-            textColor = MaterialTheme.colorScheme.onSurface,
-            pinned = timer.pinned,
-            onClick = onEdit,
-            onLongPress = {},
-            onQuickAction = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart,
-            onResetAction = onReset,
-            onDeleteRequest = onDelete,
-            showDragHandle = false
-        )
-    }
+    NoteRow(
+        note = timer.toRecord(),
+        dark = dark,
+        noteColors = noteColors,
+        pinned = timer.pinned,
+        selected = false,
+        onClick = onEdit,
+        onLongPress = {},
+        colorSwipeEnabled = true,
+        onChangeColor = onChangeColor,
+        interactiveCards = true,
+        onQuickAction = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart,
+        onResetAction = onReset,
+        onDeleteRequest = onDelete,
+        showTimerDragHandle = false
+    )
 }
 
 @Composable
