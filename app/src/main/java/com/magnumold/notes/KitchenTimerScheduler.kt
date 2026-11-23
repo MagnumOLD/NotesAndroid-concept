@@ -32,55 +32,6 @@ internal object KitchenTimerContract {
     const val ALERT_NOTIFICATION_ID = 7441
 }
 
-internal class KitchenTimerScheduler(private val context: Context) {
-    private val alarmManager = context.getSystemService(AlarmManager::class.java)
-
-    fun sync(timer: KitchenTimer) {
-        val pendingIntent = pendingIntent(timer.id)
-        val triggerAt = when {
-            timer.status == KitchenTimerStatus.RUNNING -> timer.endsAtMillis
-            timer.status == KitchenTimerStatus.FINISHED && timer.alertStartedAtMillis == null ->
-                System.currentTimeMillis() + 1_000L
-            else -> null
-        }
-        if (triggerAt == null) {
-            alarmManager.cancel(pendingIntent)
-            return
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-        } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pendingIntent)
-        }
-    }
-
-    fun scheduleAll(timers: List<KitchenTimer>) {
-        timers.forEach(::sync)
-    }
-
-    fun cancel(timerId: Long) {
-        alarmManager.cancel(pendingIntent(timerId))
-        context.getSystemService(NotificationManager::class.java)
-            .cancel(kitchenTimerNotificationTag(timerId), KitchenTimerContract.ALERT_NOTIFICATION_ID)
-        val stop = Intent(context, KitchenTimerAlertService::class.java)
-            .setAction(KitchenTimerContract.ACTION_STOP_ALERT)
-            .putExtra(KitchenTimerContract.EXTRA_TIMER_ID, timerId)
-        context.startService(stop)
-    }
-
-    private fun pendingIntent(timerId: Long): PendingIntent {
-        val intent = Intent(context, KitchenTimerReceiver::class.java)
-            .setAction(KitchenTimerContract.ACTION_ALARM)
-            .setData(Uri.parse("notesandroid://kitchen-timer/$timerId"))
-            .putExtra(KitchenTimerContract.EXTRA_TIMER_ID, timerId)
-        val requestCode = (timerId xor (timerId ushr 32)).toInt()
-        return PendingIntent.getBroadcast(
-            context, requestCode, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-}
-
 internal fun kitchenTimerNotificationTag(timerId: Long) = "kitchen-timer-alert:$timerId"
 
 internal class KitchenTimerReceiver : BroadcastReceiver() {
