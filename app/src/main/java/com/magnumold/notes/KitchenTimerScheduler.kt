@@ -90,7 +90,10 @@ internal class KitchenTimerAlertService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         ensureForeground()
         when (intent?.action) {
-            KitchenTimerContract.ACTION_START_ALERT -> intent?.let(::startAlert)
+            KitchenTimerContract.ACTION_START_ALERT -> {
+                restoreActiveAlerts(finishWhenEmpty = false)
+                intent?.let(::startAlert)
+            }
             KitchenTimerContract.ACTION_STOP_ALERT -> intent?.let { stopIntent ->
                 val id = stopIntent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
                 if (id > 0L) stopAlert(id)
@@ -102,7 +105,7 @@ internal class KitchenTimerAlertService : Service() {
         return START_STICKY
     }
 
-    private fun restoreActiveAlerts() {
+    private fun restoreActiveAlerts(finishWhenEmpty: Boolean = true) {
         val repository = NotesRepository(
             getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
@@ -130,7 +133,7 @@ internal class KitchenTimerAlertService : Service() {
                     .cancel(kitchenTimerNotificationTag(record.id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
             }
         }
-        if (activeAlerts.isEmpty()) finishIfIdle()
+        if (activeAlerts.isEmpty() && finishWhenEmpty) finishIfIdle()
     }
 
     private fun clearPersistedAlert(recordId: Long) {
