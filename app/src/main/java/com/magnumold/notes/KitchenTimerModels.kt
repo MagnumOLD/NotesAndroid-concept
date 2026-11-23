@@ -104,68 +104,25 @@ internal data class KitchenTimerSettings(
 internal object KitchenTimerOperations {
     fun create(id: Long, title: String = "") = KitchenTimer(id = id, title = title)
 
-    fun start(timer: KitchenTimer, nowMillis: Long): KitchenTimer {
-        val remaining = when (timer.status) {
-            KitchenTimerStatus.PAUSED -> timer.remainingSeconds ?: timer.durationSeconds
-            KitchenTimerStatus.RUNNING -> TimerOperations.remainingSeconds(timer.endsAtMillis ?: nowMillis, nowMillis)
-            KitchenTimerStatus.READY, KitchenTimerStatus.FINISHED -> timer.durationSeconds
-        }.coerceAtLeast(1L)
-        return timer.copy(
-            remainingSeconds = null,
-            endsAtMillis = TimerOperations.startAt(nowMillis, remaining),
-            status = KitchenTimerStatus.RUNNING,
-            alertStartedAtMillis = null
-        )
-    }
+    // KitchenTimer is a presentation/legacy adapter only. All state transitions
+    // are performed by RecordTimerOperations on the canonical Note record.
+    fun start(timer: KitchenTimer, nowMillis: Long): KitchenTimer =
+        RecordTimerOperations.start(timer.toRecord(), nowMillis).toKitchenTimer()
 
-    fun pause(timer: KitchenTimer, nowMillis: Long): KitchenTimer {
-        if (timer.status != KitchenTimerStatus.RUNNING) return timer
-        val remaining = TimerOperations.remainingSeconds(timer.endsAtMillis ?: nowMillis, nowMillis)
-        return timer.copy(
-            remainingSeconds = remaining,
-            endsAtMillis = null,
-            status = if (remaining == 0L) KitchenTimerStatus.FINISHED else KitchenTimerStatus.PAUSED,
-            alertStartedAtMillis = if (remaining == 0L) nowMillis else null
-        )
-    }
+    fun pause(timer: KitchenTimer, nowMillis: Long): KitchenTimer =
+        RecordTimerOperations.pause(timer.toRecord(), nowMillis).toKitchenTimer()
 
-    fun reset(timer: KitchenTimer): KitchenTimer = timer.copy(
-        remainingSeconds = null,
-        endsAtMillis = null,
-        status = KitchenTimerStatus.READY,
-        alertStartedAtMillis = null
-    )
+    fun reset(timer: KitchenTimer): KitchenTimer =
+        RecordTimerOperations.reset(timer.toRecord()).toKitchenTimer()
 
-    fun updateDuration(timer: KitchenTimer, durationSeconds: Long): KitchenTimer {
-        val duration = TimerOperations.normalizeDuration(durationSeconds)
-        val now = System.currentTimeMillis()
-        return timer.copy(
-            durationSeconds = duration,
-            remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) duration else null,
-            endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) {
-                TimerOperations.startAt(now, duration)
-            } else null,
-            status = if (timer.status == KitchenTimerStatus.FINISHED) KitchenTimerStatus.READY else timer.status,
-            alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED) null else timer.alertStartedAtMillis
-        )
-    }
+    fun updateDuration(timer: KitchenTimer, durationSeconds: Long): KitchenTimer =
+        RecordTimerOperations.updateDuration(timer.toRecord(), durationSeconds).toKitchenTimer()
 
-    fun remainingSeconds(timer: KitchenTimer, nowMillis: Long): Long = when (timer.status) {
-        KitchenTimerStatus.RUNNING -> TimerOperations.remainingSeconds(timer.endsAtMillis ?: nowMillis, nowMillis)
-        KitchenTimerStatus.PAUSED -> timer.remainingSeconds ?: 0L
-        KitchenTimerStatus.READY -> timer.durationSeconds
-        KitchenTimerStatus.FINISHED -> 0L
-    }
+    fun remainingSeconds(timer: KitchenTimer, nowMillis: Long): Long =
+        RecordTimerOperations.remainingSeconds(timer.toRecord(), nowMillis)
 
-    fun reconcile(timer: KitchenTimer, nowMillis: Long): KitchenTimer {
-        if (timer.status != KitchenTimerStatus.RUNNING) return timer
-        if (remainingSeconds(timer, nowMillis) > 0L) return timer
-        return timer.copy(
-            remainingSeconds = 0L,
-            endsAtMillis = null,
-            status = KitchenTimerStatus.FINISHED
-        )
-    }
+    fun reconcile(timer: KitchenTimer, nowMillis: Long): KitchenTimer =
+        RecordTimerOperations.reconcile(timer.toRecord(), nowMillis).toKitchenTimer()
 
     fun format(seconds: Long): String = TimerOperations.format(seconds)
 }
