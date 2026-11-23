@@ -46,16 +46,11 @@ internal fun WorkoutRecordEditor(
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Surface(color = topBarColor, contentColor = noteTextColor(topBarColor)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Тренировка", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
-                }
-            }
+            AppEditorTopBar(
+                title = "Тренировка",
+                backgroundColor = topBarColor,
+                actions = {}
+            )
         }
     ) { padding ->
         Column(
