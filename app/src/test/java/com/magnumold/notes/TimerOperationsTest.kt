@@ -60,6 +60,45 @@ class TimerOperationsTest {
     }
 
     @Test
+    fun canonicalRecordTimerStartPauseAndResumePreserveRemainingTime() {
+        val ready = Note(
+            id = 31L, title = "", blocks = listOf(NoteBlock()), updated = 0L,
+            type = RecordType.TIMER, timerDurationSeconds = 120L
+        )
+        val started = RecordTimerOperations.start(ready, 10_000L)
+        assertEquals(130_000L, started.timerEndsAtMillis)
+        assertEquals(RecordStatus.IN_PROGRESS, started.status)
+
+        val paused = RecordTimerOperations.pause(started, 40_000L)
+        assertEquals(90L, paused.timerRemainingSeconds)
+        assertEquals(null, paused.timerEndsAtMillis)
+        assertEquals(RecordStatus.PAUSED, paused.status)
+
+        val resumed = RecordTimerOperations.start(paused, 50_000L)
+        assertEquals(140_000L, resumed.timerEndsAtMillis)
+        assertEquals(null, resumed.timerAlertStartedAtMillis)
+    }
+
+    @Test
+    fun canonicalRecordTimerMarksExpiryAndResetClearsAlertState() {
+        val running = Note(
+            id = 32L, title = "", blocks = listOf(NoteBlock()), updated = 0L,
+            type = RecordType.TIMER, status = RecordStatus.IN_PROGRESS,
+            timerDurationSeconds = 60L, timerEndsAtMillis = 10_000L
+        )
+        val finished = RecordTimerOperations.reconcile(running, 10_000L)
+        assertEquals(RecordStatus.COMPLETED, finished.status)
+        assertEquals(0L, finished.timerRemainingSeconds)
+        assertEquals(10_000L, finished.timerAlertStartedAtMillis)
+
+        val reset = RecordTimerOperations.reset(finished, 20_000L)
+        assertEquals(RecordStatus.WAITING, reset.status)
+        assertEquals(null, reset.timerEndsAtMillis)
+        assertEquals(null, reset.timerRemainingSeconds)
+        assertEquals(null, reset.timerAlertStartedAtMillis)
+    }
+
+    @Test
     fun formattingUsesHoursOnlyWhenNeeded() {
         assertEquals("04:09", TimerOperations.format(249L))
         assertEquals("1:01:01", TimerOperations.format(3_661L))
