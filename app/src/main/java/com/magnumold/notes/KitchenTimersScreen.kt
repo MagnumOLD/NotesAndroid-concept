@@ -212,16 +212,6 @@ internal fun KitchenTimersScreen(
         }
     }
 
-    if (settingsVisible) {
-        KitchenTimerSettingsDialog(
-            settings = settings,
-            onDismiss = { settingsVisible = false },
-            onSave = {
-                onSettingsChange(it)
-                settingsVisible = false
-            }
-        )
-    }
 }
 
 @Composable
