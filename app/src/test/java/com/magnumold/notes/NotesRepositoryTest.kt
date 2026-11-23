@@ -33,8 +33,24 @@ class NotesRepositoryTest {
             status = KitchenTimerStatus.PAUSED,
             colorIndex = 3
         )
+        val runningTimer = KitchenTimer(
+            id = legacyTimer.id + 1L,
+            title = "Чай",
+            durationSeconds = 120L,
+            endsAtMillis = 1_700_000_060_123L,
+            soundUri = null,
+            status = KitchenTimerStatus.RUNNING
+        )
+        val finishedTimer = KitchenTimer(
+            id = legacyTimer.id + 2L,
+            title = "Кофе",
+            durationSeconds = 60L,
+            remainingSeconds = 0L,
+            status = KitchenTimerStatus.FINISHED,
+            alertStartedAtMillis = 1_700_000_000_500L
+        )
         val legacyRepository = KitchenTimerRepository(legacyPreferences)
-        legacyRepository.saveTimers(listOf(legacyTimer))
+        legacyRepository.saveTimers(listOf(legacyTimer, runningTimer, finishedTimer))
         val settings = KitchenTimerSettings(
             TimerAlertDurationMode.TEN_SECONDS,
             customAlertDurationSeconds = 47,
@@ -45,8 +61,9 @@ class NotesRepositoryTest {
         val repository = NotesRepository(recordPreferences)
         repository.migrateLegacyKitchenTimers(legacyPreferences)
 
-        val migrated = HomeTimelineOperations.records(repository.loadSnapshot())
-            .single { it.type == RecordType.TIMER }
+        val migratedTimers = HomeTimelineOperations.records(repository.loadSnapshot())
+            .filter { it.type == RecordType.TIMER }
+        val migrated = migratedTimers.first { it.titleText == "Гречка" }
         assertEquals(legacyTimer.id, migrated.id)
         assertEquals(legacyTimer.id, migrated.created)
         assertEquals("Гречка", migrated.titleText)
@@ -56,11 +73,17 @@ class NotesRepositoryTest {
         assertEquals(3, migrated.colorIndex)
         assertEquals(settings, repository.loadSnapshot().timerSettings)
         assertTrue(repository.loadSnapshot().hasUniqueRecordIds())
+        val migratedRunning = migratedTimers.first { it.titleText == "Чай" }
+        assertEquals(RecordStatus.IN_PROGRESS, migratedRunning.status)
+        assertEquals(runningTimer.endsAtMillis, migratedRunning.timerEndsAtMillis)
+        val migratedFinished = migratedTimers.first { it.titleText == "Кофе" }
+        assertEquals(RecordStatus.COMPLETED, migratedFinished.status)
+        assertEquals(finishedTimer.alertStartedAtMillis, migratedFinished.timerAlertStartedAtMillis)
         assertTrue(!legacyPreferences.contains("kitchen_timers_v1"))
 
         repository.migrateLegacyKitchenTimers(legacyPreferences)
         assertEquals(
-            1,
+            3,
             HomeTimelineOperations.records(repository.loadSnapshot()).count { it.type == RecordType.TIMER }
         )
     }
