@@ -25,6 +25,32 @@ internal data class KitchenTimer(
     }
 }
 
+internal fun KitchenTimer.toHomeRecord(): Note {
+    val recordStatus = when (status) {
+        KitchenTimerStatus.READY -> RecordStatus.WAITING
+        KitchenTimerStatus.RUNNING -> RecordStatus.IN_PROGRESS
+        KitchenTimerStatus.PAUSED -> RecordStatus.PAUSED
+        KitchenTimerStatus.FINISHED -> RecordStatus.COMPLETED
+    }
+    val timestamp = endsAtMillis ?: alertStartedAtMillis ?: id
+    return Note(
+        id = -id,
+        title = "",
+        blocks = listOf(NoteBlock()),
+        updated = timestamp,
+        created = id,
+        type = RecordType.TIMER,
+        status = recordStatus,
+        titleEnabled = true,
+        titleText = title.ifBlank { "Таймер" },
+        timerDurationSeconds = durationSeconds,
+        timerEndsAtMillis = endsAtMillis,
+        timerRemainingSeconds = remainingSeconds,
+        showOnHome = true,
+        homeOrder = id
+    )
+}
+
 internal enum class TimerAlertDurationMode { TEN_SECONDS, THIRTY_SECONDS, ONE_MINUTE, CUSTOM }
 
 internal data class KitchenTimerSettings(
