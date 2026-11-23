@@ -91,7 +91,6 @@ internal fun KitchenTimersScreen(
     onSettingsChange: (KitchenTimerSettings) -> Unit,
     onRefresh: () -> Unit,
     initialEditingTimerId: Long? = null,
-    initialEditingTimerId: Long? = null,
     onEditorExit: () -> Unit = {}
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
