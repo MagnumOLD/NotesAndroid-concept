@@ -21,17 +21,19 @@ internal class KitchenTimerRepository(private val preferences: SharedPreferences
                 emptyList()
             }
         }
-        val settings = runCatching {
-            KitchenTimerSettings(
-                alertDurationMode = preferences.getString(KEY_ALERT_MODE, null)
-                    ?.let { TimerAlertDurationMode.valueOf(it) }
-                    ?: TimerAlertDurationMode.THIRTY_SECONDS,
-                customAlertDurationSeconds = preferences.getInt(KEY_CUSTOM_ALERT_SECONDS, 30),
-                defaultSoundUri = preferences.getString(KEY_DEFAULT_SOUND_URI, null)
-            ).normalized()
-        }.getOrDefault(KitchenTimerSettings())
-        return KitchenTimerSnapshot(timers, settings)
+        return KitchenTimerSnapshot(timers, loadSettings())
     }
+
+    @Synchronized
+    fun loadSettings(): KitchenTimerSettings = runCatching {
+        KitchenTimerSettings(
+            alertDurationMode = preferences.getString(KEY_ALERT_MODE, null)
+                ?.let { TimerAlertDurationMode.valueOf(it) }
+                ?: TimerAlertDurationMode.THIRTY_SECONDS,
+            customAlertDurationSeconds = preferences.getInt(KEY_CUSTOM_ALERT_SECONDS, 30),
+            defaultSoundUri = preferences.getString(KEY_DEFAULT_SOUND_URI, null)
+        ).normalized()
+    }.getOrDefault(KitchenTimerSettings())
 
     @Synchronized
     fun saveTimers(timers: List<KitchenTimer>) {
