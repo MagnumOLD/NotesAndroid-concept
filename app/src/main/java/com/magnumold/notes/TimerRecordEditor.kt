@@ -64,11 +64,12 @@ internal fun TimerRecordEditor(
                 latestOnChange(latestNote.copy(
                     timerEndsAtMillis = null,
                     timerRemainingSeconds = 0L,
+                    timerAlertStartedAtMillis = System.currentTimeMillis(),
                     status = RecordStatus.COMPLETED
                 ))
                 break
             }
-            delay(250L)
+            delay(1_000L)
         }
     }
 
@@ -170,6 +171,7 @@ internal fun TimerRecordEditor(
                             timerDurationSeconds = duration,
                             timerRemainingSeconds = null,
                             timerEndsAtMillis = TimerOperations.startAt(start, left),
+                            timerAlertStartedAtMillis = null,
                             status = RecordStatus.IN_PROGRESS
                         ))
                         now = start
@@ -180,15 +182,26 @@ internal fun TimerRecordEditor(
                     Button(
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            val left = TimerOperations.remainingSeconds(note.timerEndsAtMillis!!, System.currentTimeMillis())
-                            onChange(note.copy(timerEndsAtMillis = null, timerRemainingSeconds = left, status = RecordStatus.PAUSED))
+                            val now = System.currentTimeMillis()
+                            val left = TimerOperations.remainingSeconds(note.timerEndsAtMillis!!, now)
+                            onChange(note.copy(
+                                timerEndsAtMillis = null,
+                                timerRemainingSeconds = left,
+                                timerAlertStartedAtMillis = if (left == 0L) now else null,
+                                status = if (left == 0L) RecordStatus.COMPLETED else RecordStatus.PAUSED
+                            ))
                         }
                     ) { Text("Пауза") }
                 } else {
                     TextButton(
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            onChange(note.copy(timerEndsAtMillis = null, timerRemainingSeconds = null, status = RecordStatus.WAITING))
+                            onChange(note.copy(
+                                timerEndsAtMillis = null,
+                                timerRemainingSeconds = null,
+                                timerAlertStartedAtMillis = null,
+                                status = RecordStatus.WAITING
+                            ))
                             durationInput = note.timerDurationSeconds.toString()
                         }
                     ) { Text("Сбросить") }
