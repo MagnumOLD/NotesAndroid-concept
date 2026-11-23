@@ -201,7 +201,7 @@ internal fun ModulesScreen(
                     modifier = Modifier.fillMaxWidth()
                         .windowInsetsPadding(WindowInsets.statusBars)
                         .height(AppPageLayout.toolbarHeight)
-                        .padding(horizontal = AppSpacing.screenHorizontal),
+                        .padding(start = AppSpacing.screenHorizontal, end = AppSpacing.toolbarControlInset),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
