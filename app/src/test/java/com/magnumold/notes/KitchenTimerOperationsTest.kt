@@ -38,6 +38,37 @@ class KitchenTimerOperationsTest {
         assertEquals(KitchenTimerStatus.READY, KitchenTimerOperations.reset(changed).status)
     }
 
+    @Test fun kitchenTimersProjectToStableHomeTimerRecords() {
+        val ready = KitchenTimer(
+            id = 1_700_000_000_000L,
+            title = "Гречка",
+            durationSeconds = 900L
+        ).toHomeRecord()
+        assertEquals(-1_700_000_000_000L, ready.id)
+        assertEquals(RecordType.TIMER, ready.type)
+        assertEquals("Гречка", ready.titleText)
+        assertEquals(RecordStatus.WAITING, ready.status)
+        assertEquals(900L, ready.timerDurationSeconds)
+
+        val paused = KitchenTimer(
+            id = 1_700_000_000_001L,
+            durationSeconds = 900L,
+            remainingSeconds = 420L,
+            status = KitchenTimerStatus.PAUSED
+        ).toHomeRecord()
+        assertEquals(RecordStatus.PAUSED, paused.status)
+        assertEquals(420L, paused.timerRemainingSeconds)
+
+        val running = KitchenTimer(
+            id = 1_700_000_000_002L,
+            durationSeconds = 900L,
+            endsAtMillis = 1_700_000_000_900L,
+            status = KitchenTimerStatus.RUNNING
+        ).toHomeRecord()
+        assertEquals(RecordStatus.IN_PROGRESS, running.status)
+        assertEquals(1_700_000_000_900L, running.timerEndsAtMillis)
+    }
+
     @Test fun alertDurationHasOnlyTheApprovedPresetsAndCustomValue() {
         assertEquals(10, KitchenTimerSettings(TimerAlertDurationMode.TEN_SECONDS).alertDurationSeconds())
         assertEquals(30, KitchenTimerSettings(TimerAlertDurationMode.THIRTY_SECONDS).alertDurationSeconds())
