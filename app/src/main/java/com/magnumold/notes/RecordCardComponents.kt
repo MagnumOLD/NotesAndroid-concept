@@ -638,7 +638,7 @@ internal fun NoteRow(
 }
 
 @Composable
-private fun TimerRecordCardContent(
+internal fun TimerRecordCardContent(
     note: Note,
     textColor: Color,
     pinned: Boolean,
