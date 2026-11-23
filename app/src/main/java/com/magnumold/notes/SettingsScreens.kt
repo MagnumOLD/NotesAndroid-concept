@@ -146,7 +146,7 @@ internal fun SettingsScreen(
     onCollectionVisibilityChange: (AppModule, Boolean) -> Unit = { _, _ -> },
     homeCollectionVisible: Boolean = true,
     onHomeCollectionVisibilityChange: (Boolean) -> Unit = {},
-    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.VERTICAL_PANEL,
     onHomeButtonLayoutChange: (HomeButtonLayout) -> Unit = {},
     homeAddRecordType: RecordType = RecordType.NOTE,
     enabledModules: Set<AppModule> = ModuleConfiguration().enabled,
@@ -264,9 +264,9 @@ internal fun SettingsScreen(
                     modifier = Modifier.padding(horizontal = AppSpacing.settingsListItemOuterInset)
                 )
                 listOf(
-                    HomeButtonLayout.SEPARATE to "Раздельно (по умолчанию)",
+                    HomeButtonLayout.SEPARATE to "Раздельно",
                     HomeButtonLayout.VERTICAL to "Вертикально — отдельные кнопки",
-                    HomeButtonLayout.VERTICAL_PANEL to "Вертикальная панель"
+                    HomeButtonLayout.VERTICAL_PANEL to "Вертикальная панель (по умолчанию)"
                 ).forEach { (layout, label) ->
                     ListItem(
                         headlineContent = { Text(label) },
