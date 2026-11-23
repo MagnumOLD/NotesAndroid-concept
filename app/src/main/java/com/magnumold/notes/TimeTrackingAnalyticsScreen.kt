@@ -59,7 +59,6 @@ internal fun TimeTrackingAnalyticsScreen(
         topBar = {
             AppPageTopBar(
                 backgroundColor = MaterialTheme.colorScheme.surface,
-                navigationIcon = { androidx.compose.material3.IconButton(onClick = onBack) { AppIcon(NoteIcon.Back, "Назад") } },
                 title = { Text("Учёт времени", style = AppTypography.screenTitleStyle()) }
             )
         }
@@ -327,7 +326,7 @@ private fun ColumnScope.TimeTrackingStatisticsContent(state: TimeTrackingState) 
         state, previousRange.first, previousRange.second, now
     )
     val delta = stats.totalMillis - previous.totalMillis
-    val dailyTotals = TimeTrackingEngine.dailyTotals(state, now)
+    val dailyTotals = TimeTrackingEngine.dailyTotals(state, now, range.first, range.second)
     val barColor = MaterialTheme.colorScheme.primary
 
     Column(

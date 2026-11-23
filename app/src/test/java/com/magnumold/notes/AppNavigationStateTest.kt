@@ -62,4 +62,142 @@ class AppNavigationStateTest {
         assertFalse(state.settingsVisible)
         assertEquals(5L, state.selectedId)
     }
+
+    @Test
+    fun moduleManagementOpensAboveModuleListAndBackReturnsToList() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.openModuleManagement()
+
+        assertTrue(state.modulesVisible)
+        assertTrue(state.moduleManagementVisible)
+
+        state.closeModuleManagement()
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+    }
+
+    @Test
+    fun returningFromModuleOpenedOnModulesPageRestoresModulesPage() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+
+        assertFalse(state.modulesVisible)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+        assertFalse(state.canReturnToModules)
+    }
+
+    @Test
+    fun closingModulesShortcutFromInsideModulePreservesItsBackDestination() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+
+        state.openModules()
+        state.closeModules()
+
+        assertEquals(AppModule.TASKS, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+    }
+
+    @Test
+    fun closingModulesAfterReturningFromModuleGoesBackToHome() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.NUTRITION)
+        state.returnFromModuleToModules()
+        state.closeModules()
+
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+        assertEquals(AppModule.ALL, state.activeModule)
+    }
+
+    @Test
+    fun topLevelBackClosesNestedDestinationsBeforeTheirParents() {
+        val state = AppNavigationState()
+
+        state.openSettings()
+        state.openVault("archive")
+        assertTrue(state.hasTopLevelBackAction)
+        state.handleTopLevelBack()
+        assertNull(state.vaultScreen)
+        assertTrue(state.settingsVisible)
+        state.handleTopLevelBack()
+        assertFalse(state.settingsVisible)
+
+        state.openModules()
+        state.openModuleManagement()
+        state.handleTopLevelBack()
+        assertTrue(state.modulesVisible)
+        assertFalse(state.moduleManagementVisible)
+        state.handleTopLevelBack()
+        assertFalse(state.modulesVisible)
+
+        state.openModules()
+        state.selectModule(AppModule.TASKS)
+        assertTrue(state.hasTopLevelBackAction)
+        state.handleTopLevelBack()
+        assertTrue(state.modulesVisible)
+        assertEquals(AppModule.ALL, state.activeModule)
+        state.handleTopLevelBack()
+        assertFalse(state.modulesVisible)
+    }
+
+    @Test
+    fun disablingCurrentModuleFallsBackHomeWithoutClosingModuleManagement() {
+        val state = AppNavigationState()
+        state.selectModule(AppModule.TASKS)
+        state.openModules()
+        state.openModuleManagement()
+
+        state.returnToHomeKeepingModuleScreens()
+
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertTrue(state.modulesVisible)
+        assertTrue(state.moduleManagementVisible)
+    }
+
+    @Test
+    fun timerEditorOpenedFromHomeReturnsDirectlyHomeOnExit() {
+        val state = AppNavigationState()
+        state.openTimerEditorFromHome()
+
+        assertEquals(AppModule.TIMERS, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+
+        assertTrue(state.returnFromTimerEditor())
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+        assertFalse(state.returnFromTimerEditor())
+    }
+
+    @Test
+    fun timerEditorOpenedFromModulesKeepsTimerListAsBackDestination() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TIMERS)
+
+        assertFalse(state.returnFromTimerEditor())
+        assertEquals(AppModule.TIMERS, state.activeModule)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+        assertTrue(state.modulesVisible)
+        assertEquals(AppModule.ALL, state.activeModule)
+    }
 }

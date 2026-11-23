@@ -72,6 +72,48 @@ internal class ThemeSettingsStore(private val preferences: SharedPreferences) {
             .putString("theme_colors_v2", json.toString()).apply()
     }
 
+    fun loadTimelineDateColorSets(): TimelineDateColorSets {
+        val defaults = TimelineDateColorSets()
+        val raw = preferences.getString("timeline_date_colors_v1", null) ?: return defaults
+        return try {
+            val json = JSONObject(raw)
+            fun decode(key: String, fallback: TimelineDateColors) = json.optJSONObject(key)?.let { item ->
+                TimelineDateColors(
+                    background = parseThemeColor(item.optString("background"), fallback.background),
+                    text = parseThemeColor(item.optString("text"), fallback.text)
+                )
+            } ?: fallback
+            fun migrateUnchangedDefaults(
+                colors: TimelineDateColors,
+                oldBackground: Color,
+                oldText: Color,
+                defaultsForMode: TimelineDateColors
+            ) = colors.copy(
+                background = if (colors.background == oldBackground) defaultsForMode.background else colors.background,
+                // Date text was not part of the approved background change; keep its original defaults.
+                text = if (colors.text == oldText) defaultsForMode.text else colors.text
+            )
+            TimelineDateColorSets(
+                light = migrateUnchangedDefaults(
+                    decode("light", defaults.light),
+                    Color(0xFFF5F5F5), Color(0xFF666666), defaults.light
+                ),
+                dark = migrateUnchangedDefaults(
+                    decode("dark", defaults.dark),
+                    Color(0xFF191919), Color(0xFFB0B0B0), defaults.dark
+                )
+            )
+        } catch (_: Exception) { defaults }
+    }
+
+    fun saveTimelineDateColorSets(sets: TimelineDateColorSets) {
+        fun encode(colors: TimelineDateColors) = JSONObject()
+            .put("background", colorToHex(colors.background))
+            .put("text", colorToHex(colors.text))
+        val json = JSONObject().put("light", encode(sets.light)).put("dark", encode(sets.dark))
+        preferences.edit().putString("timeline_date_colors_v1", json.toString()).apply()
+    }
+
     fun loadNoteColors(): List<Color> {
         val raw = preferences.getString("note_colors", null)
             ?: return defaultNoteColors

@@ -28,13 +28,20 @@ internal object RecordStatusRules {
         status: RecordStatus,
         dateMode: RecordDateMode?,
         dateAt: Long?,
-        now: Long
+        now: Long,
+        timeZone: java.util.TimeZone = java.util.TimeZone.getDefault()
     ): RecordStatus {
         if (status == RecordStatus.COMPLETED || status == RecordStatus.PAUSED ||
             status == RecordStatus.CANCELLED || status == RecordStatus.MISSED
         ) return status
         if (dateMode != RecordDateMode.DEADLINE || dateAt == null) return status
-        return if (now >= dateAt + 86_400_000L) RecordStatus.MISSED else status
+
+        // DatePicker dates are UTC-midnight calendar dates, while "now" is an
+        // instant. Compare calendar-day keys in the device timezone instead
+        // of adding 24 hours (which breaks around timezone and DST changes).
+        val deadlineDay = timelineDayKey(dateAt, isDateOnly = true)
+        val currentDay = timelineDayKey(now, isDateOnly = false, timeZone = timeZone)
+        return if (currentDay > deadlineDay) RecordStatus.MISSED else status
     }
 }
 
@@ -56,11 +63,14 @@ internal data class Note(
     val timerDurationSeconds: Long = 300L,
     val timerEndsAtMillis: Long? = null,
     val timerRemainingSeconds: Long? = null,
+    val timerSoundUri: String? = null,
+    val timerAlertStartedAtMillis: Long? = null,
     val nutritionGrams: Double = 0.0,
     val nutritionCalories: Double = 0.0,
     val nutritionProtein: Double = 0.0,
     val nutritionFat: Double = 0.0,
     val nutritionCarbs: Double = 0.0,
+    val nutritionItems: List<NutritionMealItem> = emptyList(),
     val purchaseQuantity: Double = 1.0,
     val purchaseUnitPrice: Double = 0.0,
     val workoutSets: Int = 3,
@@ -68,12 +78,25 @@ internal data class Note(
     val workoutWeightKg: Double = 0.0
 )
 
+internal data class NutritionProduct(
+    val id: Long, val name: String, val caloriesPer100g: Double,
+    val proteinPer100g: Double, val fatPer100g: Double, val carbsPer100g: Double
+)
+internal data class NutritionMealItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val productId: Long, val productName: String, val grams: Double,
+    val caloriesPer100g: Double, val proteinPer100g: Double,
+    val fatPer100g: Double, val carbsPer100g: Double,
+    val calories: Double, val protein: Double, val fat: Double, val carbs: Double
+)
 internal data class NoteCollection(val id: Long, val name: String, val notes: List<Note> = emptyList())
 internal data class PersistenceSnapshot(
     val notes: List<Note>,
     val collections: List<NoteCollection>,
     val archived: List<VaultNote>,
-    val trash: List<VaultNote>
+    val trash: List<VaultNote>,
+    val nutritionProducts: List<NutritionProduct> = emptyList(),
+    val timerSettings: KitchenTimerSettings = KitchenTimerSettings()
 )
 internal data class VaultNote(
     val note: Note,
@@ -83,6 +106,27 @@ internal data class VaultNote(
     val previousRecordId: Long? = null,
     val nextRecordId: Long? = null
 )
+
+/** Record IDs are global across active records, nested tasks and both vaults. */
+internal fun PersistenceSnapshot.hasUniqueRecordIds(): Boolean {
+    val ids = HashSet<Long>()
+    fun collect(note: Note): Boolean {
+        if (!ids.add(note.id)) return false
+        return note.children.all(::collect)
+    }
+    fun collectAll(notes: List<Note>): Boolean = notes.all(::collect)
+
+    if (!collectAll(notes)) return false
+    if (!collections.all { collectAll(it.notes) }) return false
+    if (!archived.all { collect(it.note) }) return false
+    if (!trash.all { collect(it.note) }) return false
+    return true
+}
+
+internal fun PersistenceSnapshot.hasValidIdentifiers(): Boolean =
+    hasUniqueRecordIds() &&
+        collections.map { it.id }.toSet().size == collections.size &&
+        nutritionProducts.map { it.id }.toSet().size == nutritionProducts.size
 
 internal fun List<NoteBlock>.toPlainText(): String = joinToString("\n\n") { block ->
     (if (block.isChecklist) (if (block.checked) "☑ " else "☐ ") else "") + block.text
@@ -161,11 +205,12 @@ internal fun Note.matchesSearch(query: String): Boolean =
     blocks.any { it.text.contains(query, ignoreCase = true) } ||
         titleText.contains(query, ignoreCase = true) ||
         descriptionText.contains(query, ignoreCase = true) ||
+        nutritionItems.any { it.productName.contains(query, ignoreCase = true) } ||
         children.any { it.matchesSearch(query) }
 
 internal fun Note.hasContent(): Boolean =
     (type == RecordType.TIMER) ||
-        (type == RecordType.NUTRITION && (titleText.isNotBlank() || nutritionGrams > 0.0 || nutritionCalories > 0.0 || nutritionProtein > 0.0 || nutritionFat > 0.0 || nutritionCarbs > 0.0)) ||
+        (type == RecordType.NUTRITION && (titleText.isNotBlank() || nutritionItems.isNotEmpty() || nutritionGrams > 0.0 || nutritionCalories > 0.0 || nutritionProtein > 0.0 || nutritionFat > 0.0 || nutritionCarbs > 0.0)) ||
         (type == RecordType.PURCHASE && (purchaseQuantity != 1.0 || purchaseUnitPrice > 0.0)) ||
         (type == RecordType.WORKOUT && (workoutSets != 3 || workoutReps != 10 || workoutWeightKg > 0.0)) ||
         blocks.any { it.text.isNotBlank() } ||

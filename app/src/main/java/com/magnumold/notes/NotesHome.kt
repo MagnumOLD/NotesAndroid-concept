@@ -5,13 +5,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalDensity
@@ -39,25 +40,36 @@ import kotlin.math.abs
 @Composable
 internal fun NotesHome(
     notes: List<Note>, search: String, searchVisible: Boolean, noteColors: List<Color>,
-    themeColors: CustomThemeColors, onSearch: (String) -> Unit,
+    themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors,
+    showTimelineDateHeaders: Boolean = true, dateHeaderTextSize: Int = 12,
+    manualHomeOrderIds: List<Long>? = null,
+    onSearch: (String) -> Unit,
     onToggleSearch: () -> Unit, dark: Boolean, onOpenSettings: () -> Unit,
     onOpen: (Long) -> Unit, onCreate: (RecordType) -> Unit,
     onChangeNoteColor: (Long, Int) -> Unit, onDeleteSelected: (Set<Long>) -> Unit, onArchiveSelected: (Set<Long>) -> Unit,
     onTogglePinned: (Set<Long>) -> Unit,
-    onMoveSelected: (Set<Long>, Long?) -> Unit,
+    onToggleFavorite: (Set<Long>) -> Unit = {},
+    onSetShowOnHome: (Set<Long>, Boolean) -> Unit = { _, _ -> },
+    onMoveSelected: (Set<Long>, Long?, Boolean) -> Unit,
     collections: List<NoteCollection>, activeCollectionId: Long?,
     onSelectCollection: (Long?) -> Unit, onCreateCollection: (String) -> Unit,
     onRenameCollection: (Long, String) -> Unit, onDeleteCollection: (Long) -> Unit,
     onMoveCollection: (Long, Int) -> Unit, onTransferSelected: (Set<Long>, Long?) -> Unit,
     screenTitle: String = "Заметки", onOpenModules: () -> Unit = {}, timelineMode: Boolean = false,
     interactiveCards: Boolean = false, onQuickAction: (Note) -> Unit = {},
+    onResetTimer: (Note) -> Unit = {},
     cardPreviewFields: Set<String> = CardPreviewField.defaults,
      showCollections: Boolean = true,
-    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL }
+    collectionsAvailable: Boolean = true,
+    enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.VERTICAL_PANEL,
+    homeAddRecordType: RecordType = RecordType.NOTE,
+    isMainHome: Boolean = timelineMode
 ) {
     var selectedNoteIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var showMoveMenu by remember { mutableStateOf(false) }
+    var showSelectionActionsMenu by remember { mutableStateOf(false) }
     var collectionMenuId by remember { mutableStateOf<Long?>(null) }
     var showNewCollectionDialog by remember { mutableStateOf(false) }
     var newCollectionName by remember { mutableStateOf("") }
@@ -65,6 +77,7 @@ internal fun NotesHome(
     var renameCollectionName by remember { mutableStateOf("") }
     var deleteCollectionId by remember { mutableStateOf<Long?>(null) }
     var createMenuExpanded by remember { mutableStateOf(false) }
+    var showDisabledAddModuleDialog by remember { mutableStateOf(false) }
     var draggingIds by remember { mutableStateOf<Set<Long>>(emptySet()) }
     var dragBaseRows by remember { mutableStateOf<Map<String, DragRow>>(emptyMap()) }
     var reorderSession by remember { mutableStateOf<ReorderSession?>(null) }
@@ -72,12 +85,14 @@ internal fun NotesHome(
     var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragReleaseRequested by remember { mutableStateOf(false) }
     val measuredNoteCardHeights = remember { mutableStateMapOf<Long, Int>() }
-    var timelineRange by remember { mutableStateOf(HomeTimelineRange.ALL) }
+    var timelineRange by rememberSaveable { mutableStateOf(HomeTimelineRange.ALL) }
 
     val listState = rememberLazyListState()
     val density = LocalDensity.current
-    val orderedNotes = if (timelineMode) {
+    val orderedNotes = if (timelineMode && showTimelineDateHeaders) {
         HomeTimelineOperations.orderedVisibleRecords(notes)
+    } else if (timelineMode) {
+        HomeTimelineOperations.orderedVisibleRecordsManually(notes, manualHomeOrderIds)
     } else notes.sortedByDescending { it.pinned }
     val todayDay = currentTimelineDayKey()
     val moduleSummary = ModuleSummaryOperations.summary(screenTitle, notes, todayDay)
@@ -91,6 +106,7 @@ internal fun NotesHome(
     } else rangeNotes
     val filtered = displayNotes.filter { it.matchesSearch(search) }
     val selectionMode = selectedNoteIds.isNotEmpty()
+    val activeButtonLayout = if (isMainHome) homeButtonLayout else HomeButtonLayout.SEPARATE
     val homeBarColor = themeColors.topBar
     val homeContentColor = noteTextColor(homeBarColor)
     val selectedNoteBackground = themeColors.selection
@@ -102,7 +118,11 @@ internal fun NotesHome(
     fun finishDrag() {
         val ids = draggingIds
         if (ids.isNotEmpty()) {
-            onMoveSelected(ids, NoteReorderModel.afterId(dragRows, ids))
+            onMoveSelected(
+                ids,
+                NoteReorderModel.afterId(dragRows, ids),
+                timelineMode && !showTimelineDateHeaders && timelineRange != HomeTimelineRange.FAVORITES
+            )
         }
         draggingIds = emptySet()
         reorderSession = null
@@ -146,15 +166,11 @@ internal fun NotesHome(
         listState = listState,
         density = density,
         canSwap = { movingKey, neighbourKey ->
-            val movingNotes = dragBaseRows[movingKey]?.notes.orEmpty()
-            val neighbourNotes = dragBaseRows[neighbourKey]?.notes.orEmpty()
-            val movingPinStates = movingNotes.map { it.pinned }.distinct()
-            val neighbourPinStates = neighbourNotes.map { it.pinned }.distinct()
-            val movingDay = movingNotes.firstOrNull()?.let { timelineDayKey(it) }
-            val neighbourDay = neighbourNotes.firstOrNull()?.let { timelineDayKey(it) }
-            movingPinStates.size == 1 && neighbourPinStates.size == 1 &&
-                movingPinStates.single() == neighbourPinStates.single() &&
-                movingDay == neighbourDay
+            NoteReorderModel.canSwapRows(
+                moving = dragBaseRows[movingKey]?.notes.orEmpty(),
+                neighbour = dragBaseRows[neighbourKey]?.notes.orEmpty(),
+                timelineMode = timelineMode && (showTimelineDateHeaders || timelineRange == HomeTimelineRange.FAVORITES)
+            )
         },
         onSessionChange = { reorderSession = it },
         onFinishDrag = { finishDrag() }
@@ -173,12 +189,46 @@ internal fun NotesHome(
                     if (selectionMode) {
                         Text("${selectedNoteIds.size} выбрано", style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        val allSelectedPinned = notes.filter { it.id in selectedNoteIds }.all { it.pinned }
-                        IconButton(onClick = { onTogglePinned(selectedNoteIds) }) {
-                            AppIcon(NoteIcon.Pin, contentDescription = if (allSelectedPinned) "Открепить заметки" else "Закрепить заметки")
+                        val selectedRecords = notes.filter { it.id in selectedNoteIds }
+                        val allSelectedPinned = selectedRecords.isNotEmpty() && selectedRecords.all { it.pinned }
+                        val allSelectedFavorite = selectedRecords.isNotEmpty() && selectedRecords.all { it.favorite }
+                        val allSelectedShownOnHome = selectedRecords.isNotEmpty() && selectedRecords.all { it.showOnHome }
+                        Box {
+                            IconButton(onClick = { showSelectionActionsMenu = true }) {
+                                AppIcon(NoteIcon.More, contentDescription = "Дополнительные действия")
+                            }
+                            DropdownMenu(
+                                expanded = showSelectionActionsMenu,
+                                onDismissRequest = { showSelectionActionsMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedPinned) "Открепить" else "Закрепить") },
+                                    onClick = {
+                                        onTogglePinned(selectedNoteIds)
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedFavorite) "Убрать из избранного" else "В избранное") },
+                                    onClick = {
+                                        onToggleFavorite(selectedNoteIds)
+                                        if (allSelectedFavorite) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (allSelectedShownOnHome) "Скрыть с главной" else "Показывать на главной") },
+                                    onClick = {
+                                        val show = !allSelectedShownOnHome
+                                        onSetShowOnHome(selectedNoteIds, show)
+                                        if (!show) selectedNoteIds = emptySet()
+                                        showSelectionActionsMenu = false
+                                    }
+                                )
+                            }
                         }
                         IconButton(onClick = { onArchiveSelected(selectedNoteIds); selectedNoteIds = emptySet() }) { AppIcon(NoteIcon.Archive, contentDescription = "В архив") }
-                        IconButton(onClick = { showMoveMenu = true }, enabled = showCollections) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
+                        IconButton(onClick = { showMoveMenu = true }, enabled = collectionsAvailable) { AppIcon(NoteIcon.Folder, contentDescription = "Переместить заметки") }
                         DropdownMenu(expanded = showMoveMenu, onDismissRequest = { showMoveMenu = false }) {
                             if (activeCollectionId != null) DropdownMenuItem(text = { Text("В основной блокнот") }, onClick = {
                                 onTransferSelected(selectedNoteIds, null); selectedNoteIds = emptySet(); showMoveMenu = false
@@ -199,8 +249,10 @@ internal fun NotesHome(
                     } else {
                         Text(screenTitle, style = AppTypography.screenTitleStyle())
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = onOpenModules) {
-                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        if (activeButtonLayout == HomeButtonLayout.SEPARATE) {
+                            IconButton(onClick = onOpenModules) {
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
                         }
                         IconButton(onClick = onToggleSearch) {
                             AppIcon(if (searchVisible) NoteIcon.Close else NoteIcon.Search, contentDescription = "Поиск")
@@ -214,31 +266,102 @@ internal fun NotesHome(
         },
         floatingActionButton = {
             if (!selectionMode && !isDragging) {
-                Box {
-                    Box(
-                        modifier = Modifier
-                            .offset(y = PrimaryAddButtonDimensions.verticalOffset)
-                            .size(PrimaryAddButtonDimensions.diameter)
-                            .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(themeColors.addButton)
-                            .combinedClickable(
-                                role = Role.Button,
-                                onClick = {
-                                    enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
-                                },
-                                onLongClick = {
-                                    if (enabledModules.isEmpty()) onOpenModules()
-                                    else createMenuExpanded = true
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            "+",
-                            fontSize = 34.sp,
-                            fontWeight = FontWeight.Light,
-                            color = noteTextColor(themeColors.addButton)
+                val buttonDiameter = when (activeButtonLayout) {
+                    HomeButtonLayout.SEPARATE -> PrimaryAddButtonDimensions.diameter
+                    HomeButtonLayout.VERTICAL_PANEL -> 52.dp
+                    else -> 56.dp
+                }
+                val modulesDiameter = buttonDiameter
+                val addDiameter = buttonDiameter
+                val buttonGap = 8.dp
+                val selectedAddModule = AppModule.entries.firstOrNull { it.recordType == homeAddRecordType }
+                val addAction: () -> Unit = {
+                    if (isMainHome) {
+                        if (selectedAddModule == null || selectedAddModule !in enabledModules) {
+                            showDisabledAddModuleDialog = true
+                        } else {
+                            onCreate(homeAddRecordType)
+                        }
+                    } else {
+                        enabledModules.firstOrNull()?.recordType?.let(onCreate) ?: onOpenModules()
+                    }
+                }
+                val addLongAction: () -> Unit = {
+                    if (enabledModules.isEmpty()) onOpenModules()
+                    else createMenuExpanded = true
+                }
+
+                Column(
+                    modifier = Modifier.offset(y = PrimaryAddButtonDimensions.verticalOffset),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(buttonGap)
+                ) {
+                    if (activeButtonLayout == HomeButtonLayout.VERTICAL) {
+                        Box(
+                            modifier = Modifier.size(modulesDiameter)
+                                .shadow(3.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .combinedClickable(
+                                    role = Role.Button,
+                                    onClick = onOpenModules,
+                                    onLongClick = {}
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                        }
+                    } else if (activeButtonLayout == HomeButtonLayout.VERTICAL_PANEL) {
+                        Column(
+                            modifier = Modifier
+                                .width(56.dp)
+                                .shadow(4.dp, androidx.compose.foundation.shape.CircleShape)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(2.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.size(modulesDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = onOpenModules,
+                                        onLongClick = {}
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AppIcon(NoteIcon.Modules, contentDescription = "Модули")
+                            }
+                            Box(
+                                modifier = Modifier.size(addDiameter)
+                                    .clip(androidx.compose.foundation.shape.CircleShape)
+                                    .background(themeColors.addButton)
+                                    .combinedClickable(
+                                        role = Role.Button,
+                                        onClick = addAction,
+                                        onLongClick = addLongAction
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    "+",
+                                    fontSize = 34.sp,
+                                    fontWeight = FontWeight.Light,
+                                    color = noteTextColor(themeColors.addButton)
+                                )
+                            }
+                        }
+                    }
+
+                    if (activeButtonLayout != HomeButtonLayout.VERTICAL_PANEL) {
+                        PrimaryAddButton(
+                            color = themeColors.addButton,
+                            onClick = addAction,
+                            onLongClick = addLongAction,
+                            modifier = Modifier.size(addDiameter)
                         )
                     }
                     DropdownMenu(
@@ -258,6 +381,28 @@ internal fun NotesHome(
             }
         }
     ) { padding ->
+        if (showDisabledAddModuleDialog) {
+            AlertDialog(
+                onDismissRequest = { showDisabledAddModuleDialog = false },
+                title = { Text("Модуль отключён") },
+                text = {
+                    Text("Выбранный тип записи недоступен, потому что соответствующий модуль отключён. Включите модуль или выберите другой тип в персонализации.")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showDisabledAddModuleDialog = false
+                        onOpenModules()
+                    }) {
+                        Text("Открыть модули")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDisabledAddModuleDialog = false }) {
+                        Text("Отмена")
+                    }
+                }
+            )
+        }
         Column(Modifier.fillMaxSize().padding(padding)) {
             if (showCollections) {
             Row(Modifier.fillMaxWidth().height(AppCollectionRowDimensions.height).padding(start = AppSpacing.screenHorizontal, end = AppSpacing.xs), verticalAlignment = Alignment.CenterVertically) {
@@ -302,9 +447,10 @@ internal fun NotesHome(
             if (timelineMode) {
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.xs),
-                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
+                        .height(AppCollectionRowDimensions.height)
+                        .padding(horizontal = AppSpacing.screenHorizontal)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.lg),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     val ranges = listOf(
@@ -313,17 +459,23 @@ internal fun NotesHome(
                         HomeTimelineRange.TOMORROW to "Завтра",
                         HomeTimelineRange.WEEK to "Неделя",
                         HomeTimelineRange.MONTH to "Месяц",
-                        HomeTimelineRange.HISTORY to "История",
                         HomeTimelineRange.FAVORITES to "Избранное"
                     )
                     ranges.forEach { (range, label) ->
-                        FilterChip(
-                            selected = timelineRange == range,
-                            onClick = {
-                                timelineRange = range
-                                selectedNoteIds = emptySet()
+                        Text(
+                            text = label,
+                            color = if (timelineRange == range) {
+                                themeColors.collectionText
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
                             },
-                            label = { Text(label) }
+                            style = AppTypography.collectionLabelStyle(selected = timelineRange == range),
+                            modifier = Modifier.pointerInput(range, timelineRange) {
+                                detectTapGestures(onTap = {
+                                    timelineRange = range
+                                    selectedNoteIds = emptySet()
+                                })
+                            }
                         )
                     }
                 }
@@ -334,7 +486,14 @@ internal fun NotesHome(
 
             if (filtered.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(if (search.isNotBlank()) "Ничего не найдено" else "Пока нет заметок")
+                    Text(
+                        if (timelineMode) {
+                            HomeTimelineOperations.emptyStateMessage(
+                                timelineRange,
+                                searching = search.isNotBlank()
+                            )
+                        } else if (search.isNotBlank()) "Ничего не найдено" else "Пока нет записей"
+                    )
                 }
             } else {
                 Box(
@@ -499,13 +658,7 @@ internal fun NotesHome(
                                 }
                             }
                         }
-                        itemsIndexed(visibleDragRows, key = { _, row -> row.key }) { index, dragRow ->
-                            // Keep placement animation attached to every keyed row,
-                            // including index 0. Toggling it off at the first position
-                            // breaks continuity when a row crosses the top boundary.
-                            val rowPlacementModifier = Modifier.animateItemPlacement(
-                                animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
-                            )
+                        visibleDragRows.forEachIndexed { index, dragRow ->
                             val anchorNoteId = dragRow.key.toLongOrNull()
                             val anchorNote = dragRow.notes.firstOrNull { it.id == anchorNoteId } ?: dragRow.notes.first()
                             val rowDay = timelineDayKey(anchorNote)
@@ -517,75 +670,123 @@ internal fun NotesHome(
                             } else {
                                 index == 0 || rowDay != previousDay
                             }
-                            Column(Modifier.fillMaxWidth()) {
-                                if (timelineMode && !isDragging && startsNewSection) {
-                                    Text(
-                                        text = if (isFavoritesView) {
-                                            HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
-                                        } else homeTimelineDayLabel(rowDay, todayDay),
-                                        modifier = Modifier.fillMaxWidth().padding(
-                                            start = AppSpacing.screenHorizontal,
-                                            end = AppSpacing.screenHorizontal,
-                                            top = if (index == 0) AppSpacing.sm else AppSpacing.lg,
-                                            bottom = AppSpacing.xs
-                                        ),
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+
+                            // Date/module headers are independent LazyColumn items.
+                            // They remain stable during dragging and do not affect the
+                            // measured bounds or handle hit-test coordinates of a card.
+                            if (timelineMode && startsNewSection && (isFavoritesView || showTimelineDateHeaders)) {
+                                val headerKey = if (isFavoritesView) {
+                                    "timeline_module_header_${anchorNote.type.name}"
+                                } else {
+                                    "timeline_date_header_${rowDay}"
                                 }
+                                item(key = headerKey) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(
+                                                if (isFavoritesView) Modifier.background(timelineDateColors.background)
+                                                else Modifier
+                                            )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(
+                                                    start = AppSpacing.screenHorizontal,
+                                                    end = AppSpacing.screenHorizontal,
+                                                    top = if (index == 0) AppSpacing.sm else AppSpacing.xl,
+                                                    bottom = AppSpacing.xs
+                                                ),
+                                            horizontalArrangement = if (isFavoritesView) Arrangement.Start else Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isFavoritesView) {
+                                                    HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
+                                                } else homeTimelineDayLabel(rowDay, todayDay),
+                                                modifier = if (isFavoritesView) Modifier else Modifier
+                                                    .background(timelineDateColors.background, RoundedCornerShape(7.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontSize = dateHeaderTextSize.sp,
+                                                    textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
+                                                    else androidx.compose.ui.text.style.TextAlign.End
+                                                ),
+                                                color = timelineDateColors.text
+                                            )
+                                        }
+                                        HorizontalDivider(
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
+                                            thickness = CardDimensions.dividerThickness
+                                        )
+                                    }
+                                }
+                            }
+
+                            item(key = dragRow.key) {
+                                // Keep placement animation attached to every keyed row,
+                                // including index 0. Toggling it off at the first position
+                                // breaks continuity when a row crosses the top boundary.
+                                val rowPlacementModifier = Modifier.animateItemPlacement(
+                                    animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
+                                )
                                 Box(
                                     Modifier.fillMaxWidth().then(rowPlacementModifier)
                                 ) {
-                                if (dragRow.notes.size > 1) {
-                                    DraggedNotesGroup(
-                                        notes = dragRow.notes,
-                                        dark = dark,
-                                        noteColors = noteColors,
-                                        customSelectionColor = selectedNoteBackground,
-                                        anchorNoteId = anchorNote.id,
-                                        rowHeight = with(density) {
-                                            (measuredNoteCardHeights[anchorNote.id] ?: CardDimensions.rowHeight.roundToPx()).toDp()
-                                        },
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                } else {
-                                    val note = dragRow.notes.first()
-                                    val isSelected = note.id in selectedNoteIds
-                                    NoteRow(
-                                        note = note, dark = dark, noteColors = noteColors,
-                                        customSelectionColor = selectedNoteBackground, pinned = note.pinned, selected = isSelected,
-                                        onClick = {
-                                            if (selectionMode) selectedNoteIds = if (isSelected) selectedNoteIds - note.id else selectedNoteIds + note.id
-                                            else onOpen(note.id)
-                                        },
-                                        onLongPress = { selectedNoteIds = selectedNoteIds + note.id },
-                                        colorSwipeEnabled = !selectionMode && !isDragging,
-                                        onChangeColor = { next -> onChangeNoteColor(note.id, next) },
-                                        interactiveCards = interactiveCards,
-                                        onQuickAction = { onQuickAction(note) },
-                                        showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },
-                                        previewFields = cardPreviewFields,
-                                        onMeasuredHeight = { heightPx ->
-                                            if (measuredNoteCardHeights[note.id] != heightPx) {
-                                                measuredNoteCardHeights[note.id] = heightPx
+                                    if (dragRow.notes.size > 1) {
+                                        DraggedNotesGroup(
+                                            notes = dragRow.notes,
+                                            dark = dark,
+                                            noteColors = noteColors,
+                                            customSelectionColor = selectedNoteBackground,
+                                            anchorNoteId = anchorNote.id,
+                                            rowHeight = with(density) {
+                                                (measuredNoteCardHeights[anchorNote.id] ?: CardDimensions.rowHeight.roundToPx()).toDp()
+                                            },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    } else {
+                                        val note = dragRow.notes.first()
+                                        val isSelected = note.id in selectedNoteIds
+                                        NoteRow(
+                                            note = note, dark = dark, noteColors = noteColors,
+                                            customSelectionColor = selectedNoteBackground, pinned = note.pinned, selected = isSelected,
+                                            onClick = {
+                                                if (selectionMode) selectedNoteIds = if (isSelected) selectedNoteIds - note.id else selectedNoteIds + note.id
+                                                else onOpen(note.id)
+                                            },
+                                            onLongPress = { selectedNoteIds = selectedNoteIds + note.id },
+                                            colorSwipeEnabled = !selectionMode && !isDragging,
+                                            onChangeColor = { next -> onChangeNoteColor(note.id, next) },
+                                            interactiveCards = interactiveCards,
+                                            onQuickAction = { onQuickAction(note) },
+                                            onResetAction = { onResetTimer(note) },
+                                            onDeleteRequest = {
+                                                selectedNoteIds = setOf(note.id)
+                                                showDeleteConfirmation = true
+                                            },
+                                            showSecondaryPreview = CardPreviewField.forModule(AppModule.entries.firstOrNull { it.recordType == note.type } ?: AppModule.ALL).any { it.key in cardPreviewFields },
+                                            previewFields = cardPreviewFields,
+                                            onMeasuredHeight = { heightPx ->
+                                                if (measuredNoteCardHeights[note.id] != heightPx) {
+                                                    measuredNoteCardHeights[note.id] = heightPx
+                                                }
                                             }
-                                        }
-                                    )
-                                }
+                                        )
+                                    }
 
-                                // This handle layer belongs to the stable keyed row, not to
-                                // NoteRow. It therefore survives the NoteRow -> group placeholder
-                                // replacement that happens as soon as dragging starts.
-                                if (search.isBlank()) {
-                                    Box(
-                                        Modifier.align(Alignment.TopEnd)
-                                            .padding(top = CardDimensions.handleHitTargetTopOffset, end = CardDimensions.handleHitTargetRightInset)
-                                            // Match the top control slot in the right-side card rail.
-                                            .size(CardDimensions.handleTouchTargetSize)
-                                            .zIndex(2f)
-
-                                    )
-                                }
+                                    // This handle layer belongs to the stable keyed row, not to
+                                    // NoteRow. It therefore survives the NoteRow -> group placeholder
+                                    // replacement that happens as soon as dragging starts.
+                                    if (search.isBlank()) {
+                                        Box(
+                                            Modifier.align(Alignment.TopEnd)
+                                                .padding(top = CardDimensions.handleHitTargetTopOffset, end = CardDimensions.handleHitTargetRightInset)
+                                                .size(CardDimensions.handleTouchTargetSize)
+                                                .zIndex(2f)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -597,8 +798,8 @@ internal fun NotesHome(
     }
 
     if (showDeleteConfirmation) {
-        AlertDialog(onDismissRequest = { showDeleteConfirmation = false }, title = { Text("Удалить заметки?") },
-            text = { Text("Будет удалено заметок: ${selectedNoteIds.size}.") },
+        AlertDialog(onDismissRequest = { showDeleteConfirmation = false }, title = { Text("Удалить выбранное?") },
+            text = { Text("Будет удалено элементов: ${selectedNoteIds.size}.") },
             confirmButton = { TextButton(onClick = { onDeleteSelected(selectedNoteIds); selectedNoteIds = emptySet(); showDeleteConfirmation = false }) { Text("Удалить") } },
             dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Отмена") } })
     }
@@ -641,5 +842,35 @@ private fun homeTimelineDayLabel(day: Long, todayDay: Long): String {
             timeZone = java.util.TimeZone.getTimeZone("UTC")
         }.format(java.util.Date(day * 86_400_000L))
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+    }
+}
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PrimaryAddButton(
+    color: Color,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(color)
+            .combinedClickable(
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "+",
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Light,
+            color = noteTextColor(color)
+        )
     }
 }

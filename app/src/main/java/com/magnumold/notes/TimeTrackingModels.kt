@@ -27,11 +27,14 @@ internal data class WorkSession(
         require(taskTitle.isNotBlank())
         require(endedAtMillis >= startedAtMillis)
         require(durationMillis >= 0L)
-        require(durationMillis == endedAtMillis - startedAtMillis)
+        require(durationMillis == elapsedMillisSaturated(startedAtMillis, endedAtMillis))
     }
 
     fun withDuration(newDurationMillis: Long): WorkSession {
         require(newDurationMillis >= 0L)
+        require(startedAtMillis <= Long.MAX_VALUE - newDurationMillis) {
+            "The edited session end timestamp exceeds the supported range."
+        }
         return copy(
             endedAtMillis = startedAtMillis + newDurationMillis,
             durationMillis = newDurationMillis
@@ -43,7 +46,7 @@ internal data class WorkSession(
         return copy(
             startedAtMillis = newStartMillis,
             endedAtMillis = newEndMillis,
-            durationMillis = newEndMillis - newStartMillis
+            durationMillis = elapsedMillisSaturated(newStartMillis, newEndMillis)
         )
     }
 }
@@ -55,14 +58,22 @@ internal data class ActiveWorkSession(
     val taskTitle: String,
     val subtaskTitle: String?,
     val startedAtMillis: Long
-)
+) {
+    init {
+        require(id.isNotBlank())
+        require(taskTitle.isNotBlank())
+    }
+}
 
 internal data class TimeTrackingState(
     val sessions: List<WorkSession> = emptyList(),
     val activeSessions: Map<Long, ActiveWorkSession> = emptyMap(),
     val protectionTimer: ProtectionTimer? = null,
     val soundUri: String? = null,
-    val soundEnabled: Boolean = true
+    val soundEnabled: Boolean = true,
+    val firedProtectionAlert: ProtectionTimer? = null,
+    /** Durable outbox entry: apply STOP_AND_PAUSE to the task after timer completion. */
+    val pendingProtectionTaskPauseId: Long? = null
 )
 
 internal enum class ProtectionEndMode {
@@ -93,3 +104,14 @@ internal data class TimeTrackingPeriodStats(
     val taskTotalsMillis: Map<Long, Long>,
     val sessionCount: Int
 )
+
+
+/** Returns a non-negative elapsed duration, saturating intervals wider than Long.MAX_VALUE. */
+internal fun elapsedMillisSaturated(start: Long, end: Long): Long {
+    if (end <= start) return 0L
+    return if (start < 0L && end > Long.MAX_VALUE + start) {
+        Long.MAX_VALUE
+    } else {
+        end - start
+    }
+}

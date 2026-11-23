@@ -19,6 +19,10 @@ internal object TimeTrackingEngine {
     ): TimeTrackingState {
         require(taskId !in state.activeSessions) { "A work session is already active for this task." }
         require(taskTitle.isNotBlank())
+        require(sessionId.isNotBlank()) { "A work session ID must not be blank." }
+        require(state.sessions.none { it.id == sessionId } &&
+            state.activeSessions.values.none { it.id == sessionId }
+        ) { "A work session ID must be unique." }
         val active = ActiveWorkSession(
             id = sessionId,
             taskId = taskId,
@@ -46,7 +50,7 @@ internal object TimeTrackingEngine {
             subtaskTitle = active.subtaskTitle,
             startedAtMillis = active.startedAtMillis,
             endedAtMillis = end,
-            durationMillis = end - active.startedAtMillis,
+            durationMillis = elapsedMillisSaturated(active.startedAtMillis, end),
             endReason = reason
         )
         return state.copy(
@@ -81,7 +85,7 @@ internal object TimeTrackingEngine {
             var current = mutableListOf(sorted.first())
             sorted.drop(1).forEach { next ->
                 val previous = current.last()
-                val gap = next.startedAtMillis - previous.endedAtMillis
+                val gap = elapsedMillisSaturated(previous.endedAtMillis, next.startedAtMillis)
                 if (gap <= mergeGapMillis) {
                     current.add(next)
                 } else {
@@ -97,11 +101,11 @@ internal object TimeTrackingEngine {
     fun taskDurationMillis(state: TimeTrackingState, taskId: Long, nowMillis: Long): Long {
         val saved = state.sessions.asSequence()
             .filter { it.taskId == taskId }
-            .sumOf { it.durationMillis }
+            .fold(0L) { total, session -> saturatingAdd(total, session.durationMillis) }
         val active = state.activeSessions[taskId]?.let {
-            (nowMillis - it.startedAtMillis).coerceAtLeast(0L)
+            elapsedMillisSaturated(it.startedAtMillis, nowMillis)
         } ?: 0L
-        return saved + active
+        return saturatingAdd(saved, active)
     }
 
     /**
@@ -137,12 +141,12 @@ internal object TimeTrackingEngine {
             if (start <= mergedEnd) {
                 mergedEnd = maxOf(mergedEnd, end)
             } else {
-                total += mergedEnd - mergedStart
+                total = saturatingAdd(total, elapsedMillisSaturated(mergedStart, mergedEnd))
                 mergedStart = start
                 mergedEnd = end
             }
         }
-        return total + (mergedEnd - mergedStart)
+        return saturatingAdd(total, elapsedMillisSaturated(mergedStart, mergedEnd))
     }
 
     fun replaceSession(state: TimeTrackingState, edited: WorkSession): TimeTrackingState {
@@ -170,9 +174,11 @@ internal object TimeTrackingEngine {
         val totals = linkedMapOf<Long, Long>()
         var count = 0
         fun include(taskId: Long, start: Long, end: Long) {
-            val overlap = (minOf(end, endExclusive) - maxOf(start, startInclusive)).coerceAtLeast(0L)
+            val overlapStart = maxOf(start, startInclusive)
+            val overlapEnd = minOf(end, endExclusive)
+            val overlap = elapsedMillisSaturated(overlapStart, overlapEnd)
             if (overlap > 0L) {
-                totals[taskId] = (totals[taskId] ?: 0L) + overlap
+                totals[taskId] = saturatingAdd(totals[taskId] ?: 0L, overlap)
             }
             if (start >= startInclusive && start < endExclusive) count++
         }
@@ -180,18 +186,30 @@ internal object TimeTrackingEngine {
         state.activeSessions.values.forEach {
             include(it.taskId, it.startedAtMillis, nowMillis.coerceAtLeast(it.startedAtMillis))
         }
-        return TimeTrackingPeriodStats(totals.values.sum(), totals, count)
+        val total = totals.values.fold(0L, ::saturatingAdd)
+        return TimeTrackingPeriodStats(total, totals, count)
     }
 
     /**
      * Splits sessions at local midnight so daily statistics attribute overnight work
      * to the correct calendar days. Overlapping sessions remain independent.
      */
-    fun dailyTotals(state: TimeTrackingState, nowMillis: Long): Map<String, Long> {
+    fun dailyTotals(
+        state: TimeTrackingState,
+        nowMillis: Long,
+        startInclusive: Long,
+        endExclusive: Long
+    ): Map<String, Long> {
+        require(endExclusive >= startInclusive)
         val totals = linkedMapOf<String, Long>()
-        state.sessions.forEach { addSessionByDay(totals, it.startedAtMillis, it.endedAtMillis) }
+        fun addClipped(start: Long, end: Long) {
+            val clippedStart = maxOf(start, startInclusive)
+            val clippedEnd = minOf(end, endExclusive)
+            if (clippedEnd > clippedStart) addSessionByDay(totals, clippedStart, clippedEnd)
+        }
+        state.sessions.forEach { addClipped(it.startedAtMillis, it.endedAtMillis) }
         state.activeSessions.values.forEach {
-            addSessionByDay(totals, it.startedAtMillis, nowMillis.coerceAtLeast(it.startedAtMillis))
+            addClipped(it.startedAtMillis, nowMillis.coerceAtLeast(it.startedAtMillis))
         }
         return totals
     }
@@ -220,12 +238,19 @@ internal object TimeTrackingEngine {
             val nextDayCalendar = dayStart.clone() as Calendar
             nextDayCalendar.add(Calendar.DAY_OF_MONTH, 1)
             val nextDay = nextDayCalendar.timeInMillis
-            val segmentEnd = minOf(end, nextDay)
+            // Calendar arithmetic at the edge of the Long timestamp range can
+            // wrap. Consume the remaining clipped interval instead of looping.
+            val segmentEnd = if (nextDay <= cursor) end else minOf(end, nextDay)
             val key = dayKey(cursor)
-            totals[key] = (totals[key] ?: 0L) + (segmentEnd - cursor)
+            totals[key] = saturatingAdd(totals[key] ?: 0L, elapsedMillisSaturated(cursor, segmentEnd))
             cursor = segmentEnd
         }
     }
+
+    private fun saturatingAdd(first: Long, second: Long): Long =
+        if (second > 0L && first > Long.MAX_VALUE - second) Long.MAX_VALUE
+        else if (second < 0L && first < Long.MIN_VALUE - second) Long.MIN_VALUE
+        else first + second
 
     private fun dayKey(timestamp: Long): String {
         val c = Calendar.getInstance().apply { timeInMillis = timestamp }
@@ -252,6 +277,9 @@ internal object ProtectionTimerEngine {
     ): ProtectionTimer {
         require(current == null) { "Only one protection timer can run at a time." }
         require(durationMillis > 0L)
+        require(nowMillis <= Long.MAX_VALUE - durationMillis) {
+            "Protection timer end timestamp exceeds the supported range."
+        }
         return ProtectionTimer(
             taskId = taskId,
             taskTitle = taskTitle,
@@ -265,8 +293,12 @@ internal object ProtectionTimerEngine {
         )
     }
 
-    fun remainingMillis(timer: ProtectionTimer, nowMillis: Long): Long =
-        (timer.endsAtMillis - nowMillis).coerceAtLeast(0L)
+    fun remainingMillis(timer: ProtectionTimer, nowMillis: Long): Long {
+        if (timer.endsAtMillis <= nowMillis) return 0L
+        return if (
+            nowMillis < 0L && timer.endsAtMillis > Long.MAX_VALUE + nowMillis
+        ) Long.MAX_VALUE else timer.endsAtMillis - nowMillis
+    }
 
     fun isFinished(timer: ProtectionTimer, nowMillis: Long): Boolean =
         nowMillis >= timer.endsAtMillis

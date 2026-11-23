@@ -13,29 +13,30 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.PlaylistAdd
+import androidx.compose.material.icons.automirrored.outlined.Redo
+import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
-import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.FileUpload
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.PauseCircleOutline
-import androidx.compose.material.icons.outlined.PlaylistAdd
 import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Redo
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
-import androidx.compose.material.icons.outlined.Undo
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -52,6 +53,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun MainCardHeader(
@@ -298,7 +300,7 @@ internal fun recordCardPrimaryText(note: Note): String {
     val text = note.titleText.trim()
     return when (note.type) {
         RecordType.TIMER -> text.ifBlank { "Таймер" }
-        RecordType.NUTRITION -> text.ifBlank { "Запись КБЖУ" }
+        RecordType.NUTRITION -> note.nutritionItems.joinToString("\n") { it.productName }.ifBlank { text.ifBlank { "Запись КБЖУ" } }
         RecordType.WORKOUT -> text.ifBlank { "Тренировка" }
         else -> if ((note.type == RecordType.TASK || note.type == RecordType.PURCHASE || note.titleEnabled) && text.isNotBlank()) {
             text
@@ -312,20 +314,20 @@ internal fun recordCardPrimaryText(note: Note): String {
 
 
 internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.currentTimeMillis(), enabledFields: Set<String> = CardPreviewField.defaults): String? {
-    fun amount(value: Double) = if (value % 1.0 == 0.0) value.toLong().toString() else "%.1f".format(java.util.Locale.getDefault(), value)
+    fun amount(value: Double) = PurchaseOperations.formatAmount(value)
     fun on(field: CardPreviewField) = field.key in enabledFields
     val parts = when (note.type) {
         RecordType.TASK -> buildList {
             if (on(CardPreviewField.TASK_STATUS)) add(recordStatusCompactText(note.recordStatus()))
             if (on(CardPreviewField.TASK_PROGRESS) && note.children.isNotEmpty()) add("${note.children.count { it.recordStatus() == RecordStatus.COMPLETED }}/${note.children.size}")
             if (on(CardPreviewField.TASK_DATE)) note.dateAt?.let { ts ->
-                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru")).format(java.util.Date(ts)))
+                add((if (note.dateMode == RecordDateMode.DEADLINE) "до " else "на ") + formatRecordShortDate(ts))
             }
         }
         RecordType.NUTRITION -> if (note.nutritionCalories == 0.0 && note.nutritionProtein == 0.0 &&
             note.nutritionFat == 0.0 && note.nutritionCarbs == 0.0 && note.nutritionGrams == 0.0
         ) emptyList() else buildList {
-            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${amount(note.nutritionCalories)} ккал")
+            if (on(CardPreviewField.NUTRITION_CALORIES)) add("${NutritionOperations.formatCalories(note.nutritionCalories)} ккал")
             if (on(CardPreviewField.NUTRITION_PROTEIN)) add("Б ${amount(note.nutritionProtein)}")
             if (on(CardPreviewField.NUTRITION_FAT)) add("Ж ${amount(note.nutritionFat)}")
             if (on(CardPreviewField.NUTRITION_CARBS)) add("У ${amount(note.nutritionCarbs)}")
@@ -333,7 +335,7 @@ internal fun recordCardSecondaryText(note: Note, nowMillis: Long = System.curren
         }
         RecordType.PURCHASE -> buildList {
             if (on(CardPreviewField.PURCHASE_PRICE) && (note.purchaseUnitPrice > 0 || note.purchaseQuantity != 1.0)) {
-                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${amount(note.purchaseUnitPrice * note.purchaseQuantity)}")
+                add("${amount(note.purchaseQuantity)} × ${amount(note.purchaseUnitPrice)} = ${PurchaseOperations.formatAmount(PurchaseOperations.totalCost(note.purchaseQuantity, note.purchaseUnitPrice))}")
             } else if (on(CardPreviewField.PURCHASE_QUANTITY)) add("Кол-во: ${amount(note.purchaseQuantity)}")
             if (on(CardPreviewField.PURCHASE_STATUS)) add(if (note.status == RecordStatus.COMPLETED) "Куплено" else "В списке")
         }
@@ -430,6 +432,9 @@ internal fun NoteRow(
     colorSwipeEnabled: Boolean, onChangeColor: (Int) -> Unit,
     interactiveCards: Boolean = false,
     onQuickAction: () -> Unit = {},
+    onResetAction: () -> Unit = {},
+    onDeleteRequest: () -> Unit = {},
+    showTimerDragHandle: Boolean = true,
     showSecondaryPreview: Boolean = true,
     previewFields: Set<String> = CardPreviewField.defaults,
     onMeasuredHeight: (Int) -> Unit = {}
@@ -465,22 +470,11 @@ internal fun NoteRow(
         dark = dark,
         selectionColor = customSelectionColor
     )
-    var showCreationDate by remember(note.id) { mutableStateOf(false) }
-    val compactCreationDate = remember(note.id, note.created) {
-        java.text.SimpleDateFormat("dd.MM", java.util.Locale("ru"))
-            .format(java.util.Date(note.created))
-    }
-
     RecordCardSurface(
         background = selectedBackground,
         modifier = Modifier.fillMaxWidth()
             .onSizeChanged { onMeasuredHeight(it.height) }
-    ) {
-        Row(
-            Modifier.fillMaxWidth()
-                .heightIn(min = CardDimensions.contentHeight)
-                .height(IntrinsicSize.Min)
-                .pointerInput(note.id, note.colorIndex, colorSwipeEnabled) {
+            .pointerInput(note.id, note.colorIndex, colorSwipeEnabled) {
                     if (colorSwipeEnabled) {
                         var horizontalDistance = 0f
                         var colorSwipeStarted = false
@@ -540,6 +534,25 @@ internal fun NoteRow(
                         )
                     }
                 }
+    ) {
+        if (note.type == RecordType.TIMER && interactiveCards) {
+            TimerRecordCardContent(
+                note = note,
+                textColor = rowTextColor,
+                pinned = pinned,
+                onClick = onClick,
+                onLongPress = onLongPress,
+                onQuickAction = onQuickAction,
+                onResetAction = onResetAction,
+                onDeleteRequest = onDeleteRequest,
+                showDragHandle = showTimerDragHandle
+            )
+        } else {
+        Row(
+            Modifier.fillMaxWidth()
+                .heightIn(min = CardDimensions.contentHeight)
+                .height(IntrinsicSize.Min)
+                
         ) {
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight()
@@ -620,36 +633,142 @@ internal fun NoteRow(
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .size(width = CardDimensions.sideRailWidth, height = CardDimensions.sideRailControlSize)
-                        .clickable { showCreationDate = !showCreationDate },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (showCreationDate) {
-                        Text(
-                            text = compactCreationDate,
-                            style = AppTypography.cardMetadataStyle(),
-                            color = rowTextColor.copy(alpha = 0.82f),
-                            maxLines = 1,
-                            softWrap = false
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Outlined.CalendarToday,
-                            contentDescription = "Показать дату создания",
-                            tint = rowTextColor.copy(alpha = 0.72f),
-                            modifier = Modifier.size(16.dp)
-                        )
+            }
+        }
+        }
+    }
+}
+
+@Composable
+internal fun TimerRecordCardContent(
+    note: Note,
+    textColor: Color,
+    pinned: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    onQuickAction: () -> Unit,
+    onResetAction: () -> Unit,
+    onDeleteRequest: () -> Unit,
+    showDragHandle: Boolean = true
+) {
+    var nowMillis by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
+    var menuExpanded by remember(note.id) { mutableStateOf(false) }
+    LaunchedEffect(note.id, note.timerEndsAtMillis) {
+        if (note.timerEndsAtMillis != null) {
+            while (true) {
+                nowMillis = System.currentTimeMillis()
+                delay(1_000L)
+            }
+        }
+    }
+    val remaining = RecordTimerOperations.remainingSeconds(note, nowMillis)
+    val statusText = when {
+        note.timerEndsAtMillis != null -> "Работает"
+        note.status == RecordStatus.PAUSED -> "На паузе"
+        note.status == RecordStatus.COMPLETED -> "Время вышло"
+        else -> "Готов к запуску"
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .heightIn(min = CardDimensions.contentHeight)
+            .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+                .pointerInput(note.id) {
+                    detectTapGestures(onTap = { onClick() }, onLongPress = { onLongPress() })
+                },
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Text(
+                text = recordCardPrimaryText(note),
+                style = AppTypography.sectionHeadingStyle(),
+                fontWeight = FontWeight.Medium,
+                color = textColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = statusText,
+                style = AppTypography.helperStyle(),
+                color = if (note.status == RecordStatus.COMPLETED) MaterialTheme.colorScheme.error else textColor.copy(alpha = 0.72f),
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+        Text(
+            text = TimerOperations.format(remaining),
+            style = MaterialTheme.typography.titleMedium,
+            color = if (note.status == RecordStatus.COMPLETED) MaterialTheme.colorScheme.error else textColor,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false
+        )
+        Box(
+            modifier = Modifier.size(40.dp).clickable(onClick = onQuickAction),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (note.timerEndsAtMillis != null) Icons.Outlined.PauseCircleOutline else Icons.Outlined.PlayCircleOutline,
+                contentDescription = if (note.timerEndsAtMillis != null) "Пауза таймера" else "Запустить таймер",
+                tint = textColor
+            )
+        }
+        Box(
+            modifier = Modifier.size(40.dp).clickable(onClick = onResetAction),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер", tint = textColor)
+        }
+        Box {
+            Box(
+                modifier = Modifier.size(40.dp).clickable { menuExpanded = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.MoreVert, contentDescription = "Дополнительные действия", tint = textColor)
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Редактировать") },
+                    onClick = { menuExpanded = false; onClick() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Удалить") },
+                    onClick = { menuExpanded = false; onDeleteRequest() }
+                )
+            }
+        }
+        if (showDragHandle || pinned) {
+            Column(
+                modifier = Modifier.padding(start = 2.dp, end = CardDimensions.sideRailEndInset),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (showDragHandle) {
+                    Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                        DragHandleIcon(color = textColor)
                     }
                 }
+                if (pinned) AppIcon(
+                    NoteIcon.Pin,
+                    contentDescription = "Закреплено",
+                    tint = textColor.copy(alpha = 0.8f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
         }
     }
 }
+
 internal enum class NoteIcon {
     Back, Add, AddBlock, Search, Close, More, Palette, Archive, Trash,
-    Upload, Download, Pin, Folder, Undo, Redo, Share, Modules
+    Upload, Download, Pin, Folder, Undo, Redo, Share, Modules, Home
 }
 
 /**
@@ -667,7 +786,7 @@ internal fun AppIcon(
     val imageVector = when (icon) {
         NoteIcon.Back -> Icons.AutoMirrored.Outlined.ArrowBack
         NoteIcon.Add -> Icons.Outlined.Add
-        NoteIcon.AddBlock -> Icons.Outlined.PlaylistAdd
+        NoteIcon.AddBlock -> Icons.AutoMirrored.Outlined.PlaylistAdd
         NoteIcon.Search -> Icons.Outlined.Search
         NoteIcon.Close -> Icons.Outlined.Close
         NoteIcon.More -> Icons.Outlined.MoreVert
@@ -678,10 +797,11 @@ internal fun AppIcon(
         NoteIcon.Download -> Icons.Outlined.FileDownload
         NoteIcon.Pin -> Icons.Outlined.PushPin
         NoteIcon.Folder -> Icons.Outlined.Folder
-        NoteIcon.Undo -> Icons.Outlined.Undo
-        NoteIcon.Redo -> Icons.Outlined.Redo
+        NoteIcon.Undo -> Icons.AutoMirrored.Outlined.Undo
+        NoteIcon.Redo -> Icons.AutoMirrored.Outlined.Redo
         NoteIcon.Share -> Icons.Outlined.Share
         NoteIcon.Modules -> Icons.Outlined.Apps
+        NoteIcon.Home -> Icons.Outlined.Home
     }
 
     Icon(

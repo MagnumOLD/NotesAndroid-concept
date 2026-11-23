@@ -51,6 +51,11 @@ internal fun formatRecordDate(timestamp: Long): String =
         timeZone = java.util.TimeZone.getTimeZone("UTC")
     }.format(java.util.Date(timestamp))
 
+internal fun formatRecordShortDate(timestamp: Long): String =
+    java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault()).apply {
+        timeZone = java.util.TimeZone.getTimeZone("UTC")
+    }.format(java.util.Date(timestamp))
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

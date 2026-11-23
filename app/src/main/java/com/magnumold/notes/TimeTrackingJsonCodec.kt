@@ -21,15 +21,16 @@ internal fun timeTrackingToJson(state: TimeTrackingState): JSONObject {
             .put("taskTitle", s.taskTitle).put("subtaskTitle", s.subtaskTitle ?: JSONObject.NULL)
             .put("startedAt", s.startedAtMillis))
     }
-    val timer = state.protectionTimer?.let { t ->
-        JSONObject()
-            .put("taskId", t.taskId).put("parentTaskId", t.parentTaskId ?: JSONObject.NULL).put("taskTitle", t.taskTitle)
-            .put("subtaskTitle", t.subtaskTitle ?: JSONObject.NULL)
-            .put("startedAt", t.startedAtMillis).put("endsAt", t.endsAtMillis)
-            .put("endMode", t.endMode.name).put("soundUri", t.soundUri ?: JSONObject.NULL)
-            .put("soundEnabled", t.soundEnabled)
-    } ?: JSONObject.NULL
+    fun timerToJson(t: ProtectionTimer) = JSONObject()
+        .put("taskId", t.taskId).put("parentTaskId", t.parentTaskId ?: JSONObject.NULL).put("taskTitle", t.taskTitle)
+        .put("subtaskTitle", t.subtaskTitle ?: JSONObject.NULL).put("startedAt", t.startedAtMillis)
+        .put("endsAt", t.endsAtMillis).put("endMode", t.endMode.name)
+        .put("soundUri", t.soundUri ?: JSONObject.NULL).put("soundEnabled", t.soundEnabled)
+    val timer = state.protectionTimer?.let(::timerToJson) ?: JSONObject.NULL
+    val firedAlert = state.firedProtectionAlert?.let(::timerToJson) ?: JSONObject.NULL
     return JSONObject().put("sessions", sessions).put("activeSessions", active).put("protectionTimer", timer)
+        .put("firedProtectionAlert", firedAlert)
+        .put("pendingProtectionTaskPauseId", state.pendingProtectionTaskPauseId ?: JSONObject.NULL)
         .put("soundUri", state.soundUri ?: JSONObject.NULL).put("soundEnabled", state.soundEnabled)
 }
 
@@ -53,8 +54,13 @@ internal fun parseTimeTrackingJson(json: JSONObject?): TimeTrackingState {
             endReason = WorkSessionEndReason.valueOf(o.getString("endReason"))
         )
     }
+    val savedSessionIds = sessions.mapTo(mutableSetOf()) { it.id }
+    require(savedSessionIds.size == sessions.size) {
+        "Duplicate saved time-tracking session ID"
+    }
     val activeArray = arrayOrEmpty("activeSessions")
     val active = linkedMapOf<Long, ActiveWorkSession>()
+    val usedSessionIds = savedSessionIds.toMutableSet()
     (0 until activeArray.length()).forEach { index ->
         val o = activeArray.getJSONObject(index)
         val item = ActiveWorkSession(
@@ -65,26 +71,31 @@ internal fun parseTimeTrackingJson(json: JSONObject?): TimeTrackingState {
             subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
             startedAtMillis = o.getLong("startedAt")
         )
+        require(usedSessionIds.add(item.id)) {
+            "Duplicate time-tracking session ID: ${item.id}"
+        }
         require(active.put(item.taskId, item) == null) {
             "Duplicate active time-tracking task: ${item.taskId}"
         }
     }
-    val timer = if (!json.has("protectionTimer") || json.isNull("protectionTimer")) {
-        null
-    } else {
-        val o = json.getJSONObject("protectionTimer")
-        ProtectionTimer(
-            taskId = o.getLong("taskId"),
-            taskTitle = o.getString("taskTitle"),
+    fun parseTimer(key: String): ProtectionTimer? {
+        if (!json.has(key) || json.isNull(key)) return null
+        val o = json.getJSONObject(key)
+        return ProtectionTimer(
+            taskId = o.getLong("taskId"), taskTitle = o.getString("taskTitle"),
             subtaskTitle = if (o.isNull("subtaskTitle")) null else o.getString("subtaskTitle"),
-            startedAtMillis = o.getLong("startedAt"),
-            endsAtMillis = o.getLong("endsAt"),
+            startedAtMillis = o.getLong("startedAt"), endsAtMillis = o.getLong("endsAt"),
             endMode = ProtectionEndMode.valueOf(o.getString("endMode")),
             soundUri = if (o.isNull("soundUri")) null else o.getString("soundUri"),
             soundEnabled = o.optBoolean("soundEnabled", true),
             parentTaskId = if (o.isNull("parentTaskId")) null else o.getLong("parentTaskId")
         )
     }
+    val timer = parseTimer("protectionTimer")
+    val firedAlert = parseTimer("firedProtectionAlert")
     val soundUri = if (json.isNull("soundUri")) null else json.optString("soundUri").takeIf { it.isNotBlank() }
-    return TimeTrackingState(sessions, active, timer, soundUri, json.optBoolean("soundEnabled", true))
+    val pendingPauseId = if (json.has("pendingProtectionTaskPauseId") && !json.isNull("pendingProtectionTaskPauseId")) {
+        json.getLong("pendingProtectionTaskPauseId")
+    } else null
+    return TimeTrackingState(sessions, active, timer, soundUri, json.optBoolean("soundEnabled", true), firedAlert, pendingPauseId)
 }

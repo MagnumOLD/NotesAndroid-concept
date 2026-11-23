@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -38,6 +39,41 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun timerSoundAlertStateAndGlobalSettingsSurviveBackupRoundTrip() {
+        val timer = Note(
+            id = 901L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 1_800_000_000_000L,
+            created = 1_800_000_000_000L,
+            type = RecordType.TIMER,
+            status = RecordStatus.COMPLETED,
+            titleEnabled = true,
+            titleText = "Чай",
+            timerDurationSeconds = 240L,
+            timerRemainingSeconds = 0L,
+            timerSoundUri = "content://alarm/custom",
+            timerAlertStartedAtMillis = 1_800_000_000_000L
+        )
+        val settings = KitchenTimerSettings(
+            TimerAlertDurationMode.CUSTOM,
+            customAlertDurationSeconds = 75,
+            defaultSoundUri = "content://alarm/default"
+        )
+
+        val decoded = parseBackupJson(
+            createBackupJson(
+                listOf(timer), emptyList(), emptyList(), emptyList(),
+                timerSettings = settings
+            )
+        )
+
+        assertEquals("content://alarm/custom", decoded.notes.single().timerSoundUri)
+        assertEquals(1_800_000_000_000L, decoded.notes.single().timerAlertStartedAtMillis)
+        assertEquals(settings, decoded.timerSettings)
+    }
+
+    @Test
     fun importedRecordCountIncludesNestedTasksInEveryStorageArea() {
         fun record(id: Long, children: List<Note> = emptyList()) = Note(
             id = id,
@@ -68,6 +104,156 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun backupWithDuplicateNestedRecordIdsIsRejectedBeforeImport() {
+        val malformed = """{"format":"notes_backup","version":12,"notes":[{"id":1,"blocks":[{"text":"Parent"}],"children":[{"id":1,"blocks":[{"text":"Child"}]}]}],"collections":[],"archive":[],"trash":[]}"""
+        try {
+            parseBackupJson(malformed)
+            fail("Duplicate IDs make tracking references ambiguous and must reject the backup")
+        } catch (_: IllegalArgumentException) {
+            // Expected: a malformed backup must not be partially imported.
+        }
+    }
+
+
+    @Test
+    fun backupNormalizesNonFiniteAndOutOfRangeModuleNumbers() {
+        val raw = """{"format":"notes_backup","version":12,"notes":[
+            {"id":1,"type":"NUTRITION","titleText":"Food","nutritionCalories":"Infinity","nutritionProtein":-4,"nutritionFat":99999999999,"blocks":[]},
+            {"id":2,"type":"PURCHASE","titleText":"Item","purchaseQuantity":"Infinity","purchaseUnitPrice":-8,"blocks":[]},
+            {"id":3,"type":"WORKOUT","titleText":"Exercise","workoutWeightKg":"Infinity","blocks":[]}
+        ],"collections":[],"archive":[],"trash":[]}"""
+
+        val notes = parseBackupJson(raw).notes
+        assertEquals(0.0, notes[0].nutritionCalories, 0.0)
+        assertEquals(0.0, notes[0].nutritionProtein, 0.0)
+        assertEquals(9_999_999_999.0, notes[0].nutritionFat, 0.0)
+        assertEquals(1.0, notes[1].purchaseQuantity, 0.0)
+        assertEquals(0.0, notes[1].purchaseUnitPrice, 0.0)
+        assertEquals(0.0, notes[2].workoutWeightKg, 0.0)
+        assertTrue(notes.all { values ->
+            listOf(values.nutritionCalories, values.nutritionProtein, values.nutritionFat,
+                values.purchaseQuantity, values.purchaseUnitPrice, values.workoutWeightKg)
+                .all { it.isFinite() }
+        })
+    }
+
+    @Test
+    fun backupRejectsRecordIdCollisionsAcrossCollectionsAndVault() {
+        val malformedBackups = listOf(
+            """{"format":"notes_backup","version":12,"notes":[{"id":42,"blocks":[{"text":"Root"}]}],"collections":[{"id":7,"name":"Work","notes":[{"id":42,"blocks":[{"text":"Collection copy"}]}]}],"archive":[],"trash":[]}""",
+            """{"format":"notes_backup","version":12,"notes":[{"id":42,"blocks":[{"text":"Root"}]}],"collections":[],"archive":[{"note":{"id":42,"blocks":[{"text":"Archived copy"}]}}],"trash":[]}""",
+            """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"Work","notes":[{"id":42,"blocks":[{"text":"Collection copy"}]}]}],"archive":[],"trash":[{"note":{"id":42,"blocks":[{"text":"Trash copy"}]}}]}"""
+        )
+
+        malformedBackups.forEach { malformed ->
+            try {
+                parseBackupJson(malformed)
+                fail("Record IDs must be unique across active, collection, archive and trash storage")
+            } catch (_: IllegalArgumentException) {
+                // Expected: the importer must reject ambiguous tracking references.
+            }
+        }
+    }
+
+    @Test
+    fun collectionIdCollisionAtLongMaxDoesNotOverflowDuringImport() {
+        val existing = listOf(NoteCollection(Long.MAX_VALUE, "Local", emptyList()))
+        val imported = listOf(NoteCollection(Long.MAX_VALUE, "Imported", emptyList()))
+
+        val merged = mergeImportedCollectionsWithIdMap(existing, imported)
+
+        assertEquals(listOf(Long.MAX_VALUE, 0L), merged.collections.map { it.id })
+        assertEquals(0L, merged.importedIdMap.getValue(Long.MAX_VALUE))
+    }
+
+    @Test
+    fun backupWithDuplicateCollectionIdsIsRejected() {
+        val malformed = """{"format":"notes_backup","version":12,"notes":[],"collections":[{"id":7,"name":"A","notes":[]},{"id":7,"name":"B","notes":[]}],"archive":[],"trash":[]}"""
+        try {
+            parseBackupJson(malformed)
+            fail("Duplicate collection IDs must reject the backup")
+        } catch (_: IllegalArgumentException) {
+            // Expected.
+        }
+    }
+
+    @Test
+    fun importingNestedRecordsRekeysIdsThatCollideAnywhereInTheTree() {
+        val existing = Note(
+            id = 1L,
+            title = "",
+            blocks = listOf(NoteBlock("Existing parent")),
+            updated = 1L,
+            children = listOf(
+                Note(2L, "", listOf(NoteBlock("Existing child")), 2L)
+            )
+        )
+        val imported = Note(
+            id = 3L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported parent")),
+            updated = 3L,
+            children = listOf(
+                Note(
+                    2L,
+                    "",
+                    listOf(NoteBlock("Imported child")),
+                    4L,
+                    children = listOf(Note(3L, "", listOf(NoteBlock("Grandchild")), 5L))
+                )
+            )
+        )
+
+        val merged = mergeImportedNotes(listOf(existing), listOf(imported))
+        val ids = mutableListOf<Long>()
+        fun collect(notes: List<Note>) {
+            notes.forEach { note ->
+                ids += note.id
+                collect(note.children)
+            }
+        }
+        collect(merged)
+
+        assertEquals(5, ids.size)
+        assertEquals(5, ids.toSet().size)
+        assertEquals("Imported child", merged.last().children.single().blocks.single().text)
+        assertEquals("Grandchild", merged.last().children.single().children.single().blocks.single().text)
+        assertNotEquals(2L, merged.last().children.single().id)
+        assertNotEquals(3L, merged.last().children.single().children.single().id)
+    }
+
+    @Test
+    fun importingRecordsWithDifferentEditorVisibilityOrParentRestoreStateDoesNotMergeThem() {
+        val base = Note(
+            id = 501L,
+            title = "",
+            blocks = listOf(NoteBlock("Same text")),
+            updated = 1_800_000_000_000L,
+            created = 1_800_000_000_000L,
+            type = RecordType.TASK,
+            titleEnabled = false,
+            titleText = "Heading",
+            descriptionEnabled = false,
+            descriptionText = "Details",
+            status = RecordStatus.COMPLETED,
+            statusBeforeAutoCompletion = RecordStatus.IN_PROGRESS
+        )
+        val differentTitleVisibility = base.copy(id = 502L, titleEnabled = true)
+        val differentDescriptionVisibility = base.copy(id = 503L, descriptionEnabled = true)
+        val differentRestoreState = base.copy(id = 504L, statusBeforeAutoCompletion = RecordStatus.WAITING)
+
+        val merged = mergeImportedNotes(
+            listOf(base),
+            listOf(differentTitleVisibility, differentDescriptionVisibility, differentRestoreState)
+        )
+
+        assertEquals(
+            listOf(501L, 502L, 503L, 504L),
+            merged.map { it.id }
+        )
+    }
+
+    @Test
     fun importingDifferentShoppingQuantitiesDoesNotMergeThem() {
         val base = Note(10, "", listOf(NoteBlock()), 100L, type = RecordType.PURCHASE,
             titleText = "Кофе", purchaseQuantity = 1.0, purchaseUnitPrice = 5.0)
@@ -76,6 +262,193 @@ class ModuleRecordBackupTest {
         val merged = mergeImportedNotes(listOf(base), listOf(otherQuantity))
 
         assertEquals(2, merged.size)
+    }
+
+    @Test
+    fun importingTaskDoesNotReuseIdFromOrphanedLocalTimeTracking() {
+        val currentTracking = TimeTrackingState(
+            activeSessions = mapOf(
+                77L to ActiveWorkSession(
+                    id = "local-active",
+                    taskId = 77L,
+                    parentTaskId = null,
+                    taskTitle = "Previously deleted task",
+                    subtaskTitle = null,
+                    startedAtMillis = 100L
+                )
+            )
+        )
+        val importedTask = Note(
+            id = 77L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported task")),
+            updated = 200L,
+            type = RecordType.TASK
+        )
+        val importedTracking = TimeTrackingState(
+            sessions = listOf(
+                WorkSession(
+                    id = "imported-session",
+                    taskId = 77L,
+                    parentTaskId = null,
+                    taskTitle = "Imported task",
+                    subtaskTitle = null,
+                    startedAtMillis = 200L,
+                    endedAtMillis = 300L,
+                    durationMillis = 100L,
+                    endReason = WorkSessionEndReason.STOP
+                )
+            )
+        )
+        val imported = BackupData(
+            notes = listOf(importedTask),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList(),
+            timeTracking = importedTracking
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(emptyList(), emptyList(), emptyList(), emptyList()),
+            imported,
+            currentTracking
+        )
+        val importedRecord = merged.snapshot.notes.single()
+        val remappedTracking = remapTimeTrackingTaskIds(
+            importedTracking,
+            merged.importedNoteIdMap
+        )
+
+        assertNotEquals(77L, importedRecord.id)
+        assertEquals(importedRecord.id, remappedTracking.sessions.single().taskId)
+        assertEquals(77L, currentTracking.activeSessions.keys.single())
+        assertEquals("Previously deleted task", currentTracking.activeSessions[77L]?.taskTitle)
+    }
+
+    @Test
+    fun importingTasksDoesNotReuseIdsHeldByFiredAlertsOrPendingPauseActions() {
+        val currentTracking = TimeTrackingState(
+            firedProtectionAlert = ProtectionTimer(
+                taskId = 77L,
+                taskTitle = "Deleted task alert",
+                subtaskTitle = null,
+                startedAtMillis = 100L,
+                endsAtMillis = 200L,
+                endMode = ProtectionEndMode.STOP_AND_PAUSE
+            ),
+            pendingProtectionTaskPauseId = 88L
+        )
+        val imported = BackupData(
+            notes = listOf(
+                Note(77L, "", listOf(NoteBlock("New task A")), 300L, type = RecordType.TASK),
+                Note(88L, "", listOf(NoteBlock("New task B")), 400L, type = RecordType.TASK)
+            ),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(emptyList(), emptyList(), emptyList(), emptyList()),
+            imported,
+            currentTracking
+        )
+
+        val importedIds = merged.snapshot.notes.map { it.id }
+        assertEquals(2, importedIds.toSet().size)
+        assertNotEquals(77L, importedIds[0])
+        assertNotEquals(88L, importedIds[1])
+        assertEquals(merged.snapshot.notes[0].id, merged.importedNoteIdMap.getValue(77L))
+        assertEquals(merged.snapshot.notes[1].id, merged.importedNoteIdMap.getValue(88L))
+    }
+
+    @Test
+    fun importedVaultNeighborLinksFollowRekeyedActiveRecordIds() {
+        val currentRecord = Note(
+            id = 200L,
+            title = "",
+            blocks = listOf(NoteBlock("Local record")),
+            updated = 100L
+        )
+        val importedNeighbor = Note(
+            id = 200L,
+            title = "",
+            blocks = listOf(NoteBlock("Imported neighbor")),
+            updated = 200L
+        )
+        val importedArchived = Note(
+            id = 300L,
+            title = "",
+            blocks = listOf(NoteBlock("Archived record")),
+            updated = 300L
+        )
+        val imported = BackupData(
+            notes = listOf(importedNeighbor),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = importedArchived,
+                    collectionId = null,
+                    position = 1,
+                    movedAt = 400L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(
+            PersistenceSnapshot(
+                notes = listOf(currentRecord),
+                collections = emptyList(),
+                archived = emptyList(),
+                trash = emptyList()
+            ),
+            imported
+        )
+
+        val importedNeighborId = merged.importedNoteIdMap.getValue(200L)
+        assertNotEquals(currentRecord.id, importedNeighborId)
+        assertEquals(importedNeighborId, merged.snapshot.archived.single().previousRecordId)
+    }
+
+    @Test
+    fun repeatedVaultImportDoesNotRewriteExistingNeighborLinks() {
+        val localNeighbor = Note(200L, "", listOf(NoteBlock("Local")), 100L)
+        val archivedNote = Note(300L, "", listOf(NoteBlock("Archived")), 300L)
+        val current = PersistenceSnapshot(
+            notes = listOf(localNeighbor),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = archivedNote,
+                    collectionId = null,
+                    position = 0,
+                    movedAt = 400L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+        val imported = BackupData(
+            notes = listOf(Note(200L, "", listOf(NoteBlock("Imported")), 200L)),
+            collections = emptyList(),
+            archived = listOf(
+                VaultNote(
+                    note = archivedNote.copy(id = 400L),
+                    collectionId = null,
+                    position = 0,
+                    movedAt = 500L,
+                    previousRecordId = 200L
+                )
+            ),
+            trash = emptyList()
+        )
+
+        val merged = RecordOperations.mergeBackupWithIdMap(current, imported)
+
+        assertEquals(1, merged.snapshot.archived.size)
+        assertEquals(200L, merged.snapshot.archived.single().previousRecordId)
     }
 
     @Test
@@ -116,8 +489,7 @@ class ModuleRecordBackupTest {
             status = RecordStatus.IN_PROGRESS,
             dateMode = RecordDateMode.DEADLINE,
             dateAt = java.util.Calendar.getInstance().apply {
-                clear()
-                set(2026, java.util.Calendar.NOVEMBER, 20)
+                add(java.util.Calendar.DAY_OF_YEAR, 30)
             }.timeInMillis,
             children = listOf(
                 Note(31L, "", listOf(NoteBlock("Done")), 100L, type = RecordType.TASK, status = RecordStatus.COMPLETED),
@@ -125,7 +497,9 @@ class ModuleRecordBackupTest {
             )
         )
 
-        assertEquals("Выполняется · 1/2 · до 20.11", recordCardSecondaryText(task))
+        val expectedDeadline = java.text.SimpleDateFormat("dd.MM", java.util.Locale.getDefault())
+            .format(task.dateAt)
+        assertEquals("Выполняется · 1/2 · до $expectedDeadline", recordCardSecondaryText(task))
     }
 
 

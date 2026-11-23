@@ -3,7 +3,6 @@ package com.magnumold.notes
 import android.content.Intent
 import android.media.RingtoneManager
 import android.net.Uri
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -12,7 +11,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -273,7 +272,7 @@ internal fun NoteEditor(
     val latestEditorBlocks = rememberUpdatedState(editorBlocks)
     val latestFieldValue = rememberUpdatedState(fieldValue)
     val keyboardController = LocalSoftwareKeyboardController.current
-    val listState = rememberLazyListState()
+    val listState = remember(note.id) { LazyListState() }
     val latestTaskNote = rememberUpdatedState(note)
     val latestTaskChildren = rememberUpdatedState(note.children)
     val latestTaskOnChange = rememberUpdatedState(onChange)
@@ -283,7 +282,7 @@ internal fun NoteEditor(
     var childDragGrabOffsetPx by remember(note.id) { mutableFloatStateOf(0f) }
     var childDragReleaseRequested by remember(note.id) { mutableStateOf(false) }
 
-    BackHandler {
+    AppBackHandler {
         if (selectedChildIds.isNotEmpty()) selectedChildIds = emptySet() else onBack()
     }
 
@@ -522,39 +521,6 @@ internal fun NoteEditor(
                 AppEditorTopBar(
                     title = if (isTaskListItem) "Подзадача" else "Заметка",
                     actions = {
-                        if (isTaskListItem) {
-                            Box {
-                                IconButton(onClick = { subtaskMenuExpanded = true }) {
-                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Действия")
-                                }
-                                DropdownMenu(
-                                    expanded = subtaskMenuExpanded,
-                                    onDismissRequest = { subtaskMenuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text(if (taskDetailsExpanded) "Скрыть дату и статус" else "Показать дату и статус") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            taskDetailsExpanded = !taskDetailsExpanded
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Добавить сессию") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            manualSessionDialogVisible = true
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("История и статистика") },
-                                        onClick = {
-                                            subtaskMenuExpanded = false
-                                            timeAnalyticsVisible = true
-                                        }
-                                    )
-                                }
-                            }
-                        }
                         if (!isTaskListItem && note.type != RecordType.NOTE) {
                             IconButton(onClick = { onChange(note.copy(descriptionEnabled = !note.descriptionEnabled)) }) {
                                 Icon(
@@ -564,6 +530,28 @@ internal fun NoteEditor(
                                 )
                             }
                         }
+                        IconButton(
+                            onClick = {
+                                if (historyIndex > 0) {
+                                    undoGroupingState = UndoGroupingState()
+                                    historyIndex--
+                                    publish(history[historyIndex])
+                                }
+                            },
+                            enabled = historyIndex > 0
+                        ) { AppIcon(NoteIcon.Undo, "Отменить") }
+                        IconButton(
+                            onClick = {
+                                if (historyIndex < history.lastIndex) {
+                                    undoGroupingState = UndoGroupingState()
+                                    historyIndex++
+                                    publish(history[historyIndex])
+                                }
+                            },
+                            enabled = historyIndex < history.lastIndex
+                        ) { AppIcon(NoteIcon.Redo, "Повторить") }
+                        IconButton(onClick = { onDelete(false) }) { AppIcon(NoteIcon.Trash, "Удалить") }
+                        if (!isTaskListItem) IconButton(onClick = onShare) { AppIcon(NoteIcon.Share, "Поделиться") }
                         if (!isTaskListItem) {
                             Box {
                                 IconButton(onClick = { homeDateMenuExpanded = true }) {
@@ -608,28 +596,39 @@ internal fun NoteEditor(
                                 }
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                if (historyIndex > 0) {
-                                    undoGroupingState = UndoGroupingState()
-                                    historyIndex--
-                                    publish(history[historyIndex])
+                        if (isTaskListItem) {
+                            Box {
+                                IconButton(onClick = { subtaskMenuExpanded = true }) {
+                                    Icon(Icons.Outlined.MoreVert, contentDescription = "Действия")
                                 }
-                            },
-                            enabled = historyIndex > 0
-                        ) { AppIcon(NoteIcon.Undo, "Отменить") }
-                        IconButton(
-                            onClick = {
-                                if (historyIndex < history.lastIndex) {
-                                    undoGroupingState = UndoGroupingState()
-                                    historyIndex++
-                                    publish(history[historyIndex])
+                                DropdownMenu(
+                                    expanded = subtaskMenuExpanded,
+                                    onDismissRequest = { subtaskMenuExpanded = false }
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(if (taskDetailsExpanded) "Скрыть дату и статус" else "Показать дату и статус") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            taskDetailsExpanded = !taskDetailsExpanded
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Добавить сессию") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            manualSessionDialogVisible = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("История и статистика") },
+                                        onClick = {
+                                            subtaskMenuExpanded = false
+                                            timeAnalyticsVisible = true
+                                        }
+                                    )
                                 }
-                            },
-                            enabled = historyIndex < history.lastIndex
-                        ) { AppIcon(NoteIcon.Redo, "Повторить") }
-                        IconButton(onClick = { onDelete(false) }) { AppIcon(NoteIcon.Trash, "Удалить") }
-                        if (!isTaskListItem) IconButton(onClick = onShare) { AppIcon(NoteIcon.Share, "Поделиться") }
+                            }
+                        }
                     },
                     backgroundColor = topBarColor
                 )

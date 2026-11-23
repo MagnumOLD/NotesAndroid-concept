@@ -16,9 +16,10 @@ internal class AppThemeState(
     initialMode: String,
     initialColorSets: ThemeColorSets,
     initialNoteColors: List<Color>,
-    initialNoteColorOpacities: NoteColorOpacities
+    initialNoteColorOpacities: NoteColorOpacities,
+    initialTimelineDateColorSets: TimelineDateColorSets = TimelineDateColorSets()
 ) {
-    var mode by mutableStateOf(initialMode)
+    var mode by mutableStateOf(initialMode.takeIf { it in listOf("system", "light", "dark") } ?: "system")
         private set
 
     var colorSets by mutableStateOf(initialColorSets)
@@ -30,10 +31,13 @@ internal class AppThemeState(
     var noteColorOpacities by mutableStateOf(initialNoteColorOpacities)
         private set
 
+    var timelineDateColorSets by mutableStateOf(initialTimelineDateColorSets)
+        private set
+
     private fun activePaletteMode(systemDark: Boolean): String =
         if (mode == "system") {
             if (systemDark) "dark" else "light"
-        } else mode
+        } else if (mode == "dark") "dark" else "light"
 
     fun activeColors(systemDark: Boolean): CustomThemeColors =
         themeColorsForMode(colorSets, mode, systemDark)
@@ -41,7 +45,6 @@ internal class AppThemeState(
     fun isDark(systemDark: Boolean): Boolean = when (mode) {
         "system" -> systemDark
         "dark" -> true
-        "custom" -> noteTextColor(activeColors(systemDark).background) == Color.White
         else -> false
     }
 
@@ -49,11 +52,11 @@ internal class AppThemeState(
         when (activePaletteMode(systemDark)) {
             "light" -> noteColorOpacities.light
             "dark" -> noteColorOpacities.dark
-            else -> noteColorOpacities.custom
+            else -> noteColorOpacities.light
         }
 
     fun changeMode(value: String) {
-        if (value in listOf("system", "light", "dark", "custom")) mode = value
+        if (value in listOf("system", "light", "dark")) mode = value
     }
 
     fun updateThemeColor(key: String, color: Color, systemDark: Boolean) {
@@ -62,15 +65,33 @@ internal class AppThemeState(
 
     fun resetThemeColors(systemDark: Boolean) {
         val paletteMode = activePaletteMode(systemDark)
-        val defaults = when (paletteMode) {
-            "light" -> ThemeColorSets().light
-            "dark" -> ThemeColorSets().dark
-            else -> defaultCustomThemeColors
+        val defaults = if (paletteMode == "dark") ThemeColorSets().dark else ThemeColorSets().light
+        colorSets = if (paletteMode == "dark") {
+            colorSets.copy(dark = defaults)
+        } else {
+            colorSets.copy(light = defaults)
         }
-        colorSets = when (paletteMode) {
-            "light" -> colorSets.copy(light = defaults)
-            "dark" -> colorSets.copy(dark = defaults)
-            else -> colorSets.copy(custom = defaults)
+    }
+
+    fun activeTimelineDateColors(systemDark: Boolean): TimelineDateColors =
+        if (activePaletteMode(systemDark) == "dark") timelineDateColorSets.dark else timelineDateColorSets.light
+
+    fun updateTimelineDateColor(key: String, color: Color, systemDark: Boolean) {
+        val current = activeTimelineDateColors(systemDark)
+        val updated = if (key == "background") current.copy(background = color) else current.copy(text = color)
+        timelineDateColorSets = if (activePaletteMode(systemDark) == "dark") {
+            timelineDateColorSets.copy(dark = updated)
+        } else {
+            timelineDateColorSets.copy(light = updated)
+        }
+    }
+
+    fun resetTimelineDateColors(systemDark: Boolean) {
+        val defaults = TimelineDateColorSets()
+        timelineDateColorSets = if (activePaletteMode(systemDark) == "dark") {
+            timelineDateColorSets.copy(dark = defaults.dark)
+        } else {
+            timelineDateColorSets.copy(light = defaults.light)
         }
     }
 
@@ -83,7 +104,7 @@ internal class AppThemeState(
         noteColorOpacities = when (activePaletteMode(systemDark)) {
             "light" -> noteColorOpacities.copy(light = value)
             "dark" -> noteColorOpacities.copy(dark = value)
-            else -> noteColorOpacities.copy(custom = value)
+            else -> noteColorOpacities.copy(light = value)
         }
     }
 }

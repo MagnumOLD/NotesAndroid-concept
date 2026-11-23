@@ -21,11 +21,11 @@ internal fun AppThemeEffects(
     themeColorSets: ThemeColorSets,
     noteColors: List<Color>,
     noteColorOpacities: NoteColorOpacities,
+    timelineDateColorSets: TimelineDateColorSets,
     themeSettings: ThemeSettingsStore
 ) {
     SideEffect {
-        val appBackground = if (themeMode == "custom") themeColors.background
-            else if (dark) Color.Black else Color.White
+        val appBackground = if (dark) Color.Black else Color.White
         val statusBarBackground = themeColors.statusBar
         activity.window.setBackgroundDrawable(
             android.graphics.drawable.ColorDrawable(appBackground.toArgbInt())
@@ -54,5 +54,8 @@ internal fun AppThemeEffects(
     }
     LaunchedEffect(noteColorOpacities) {
         themeSettings.saveNoteColorOpacities(noteColorOpacities)
+    }
+    LaunchedEffect(timelineDateColorSets) {
+        themeSettings.saveTimelineDateColorSets(timelineDateColorSets)
     }
 }

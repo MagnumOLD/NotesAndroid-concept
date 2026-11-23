@@ -1,12 +1,11 @@
 package com.magnumold.notes
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -69,7 +68,7 @@ internal fun PurchaseEditor(
     var selectedChildIds by remember(note.id) { mutableStateOf<Set<Long>>(emptySet()) }
     var editingBlockId by remember(note.id) { mutableStateOf<String?>(null) }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val listState = rememberLazyListState()
+    val listState = remember(note.id) { LazyListState() }
     val latestPurchaseNote = rememberUpdatedState(note)
     val latestPurchaseChildren = rememberUpdatedState(note.children)
     val latestPurchaseOnChange = rememberUpdatedState(onChange)
@@ -79,7 +78,7 @@ internal fun PurchaseEditor(
     var childDragGrabOffsetPx by remember(note.id) { mutableFloatStateOf(0f) }
     var childDragReleaseRequested by remember(note.id) { mutableStateOf(false) }
 
-    BackHandler {
+    AppBackHandler {
         if (selectedChildIds.isNotEmpty()) selectedChildIds = emptySet() else onBack()
     }
 
@@ -526,7 +525,9 @@ internal fun PurchaseEditor(
                         selectionColor = selectionColor,
                         showDivider = index != displayedChildRows.lastIndex,
                         modifier = Modifier.fillMaxWidth()
-                            .animateItemPlacement(animationSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS))
+                            .animateItem(
+                                placementSpec = tween(durationMillis = NOTE_REORDER_ANIMATION_DURATION_MILLIS)
+                            )
                     ) {
                         if (group) {
                             Box(
