@@ -44,11 +44,15 @@ internal class KitchenTimerReceiver : BroadcastReceiver() {
         if (intent?.action != KitchenTimerContract.ACTION_ALARM) return
         val timerId = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
         if (timerId <= 0L) return
-        val repository = NotesRepository(
-            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
-        )
+        val preferences = context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val mappedId = runCatching {
+            preferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, null)
+                ?.let(::org.json.JSONObject)
+                ?.optLong(timerId.toString(), 0L)
+        }.getOrNull()?.takeIf { it > 0L } ?: return
+        val repository = NotesRepository(preferences)
         val record = HomeTimelineOperations.records(repository.loadSnapshot())
-            .firstOrNull { it.id == timerId && it.type == RecordType.TIMER } ?: return
+            .firstOrNull { it.id == mappedId && it.type == RecordType.TIMER } ?: return
         RecordTimerScheduler(context).sync(record)
     }
 }
