@@ -177,10 +177,7 @@ internal fun KitchenTimersScreen(
             PrimaryAddButton(
                 color = addButtonColor,
                 onClick = {
-                    val nextId = maxOf(
-                        System.currentTimeMillis().coerceAtLeast(1L),
-                        (timers.maxOfOrNull { it.id } ?: 0L) + 1L
-                    )
+                    val nextId = newRecordId()
                     val created = KitchenTimerOperations.create(nextId)
                     editingTimer = created
                     editingIsNew = true
