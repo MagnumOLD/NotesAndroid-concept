@@ -265,20 +265,17 @@ private fun KitchenTimerCard(
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     when (timer.status) {
-                        KitchenTimerStatus.RUNNING -> Button(onClick = onPause) {
-                            Icon(Icons.Outlined.Pause, contentDescription = null)
-                            Spacer(Modifier.width(AppSpacing.xs))
-                            Text("Пауза")
+                        KitchenTimerStatus.RUNNING -> IconButton(onClick = onPause) {
+                            Icon(Icons.Outlined.Pause, contentDescription = "Пауза")
                         }
-                        KitchenTimerStatus.FINISHED -> Button(onClick = onReset) {
-                            Icon(Icons.Outlined.RestartAlt, contentDescription = null)
-                            Spacer(Modifier.width(AppSpacing.xs))
-                            Text("Сбросить")
+                        KitchenTimerStatus.FINISHED -> IconButton(onClick = onReset) {
+                            Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер")
                         }
-                        else -> Button(onClick = onStart) {
-                            Icon(Icons.Outlined.PlayArrow, contentDescription = null)
-                            Spacer(Modifier.width(AppSpacing.xs))
-                            Text(if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить")
+                        else -> IconButton(onClick = onStart) {
+                            Icon(
+                                Icons.Outlined.PlayArrow,
+                                contentDescription = if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить"
+                            )
                         }
                     }
                     if (timer.status != KitchenTimerStatus.FINISHED) {
