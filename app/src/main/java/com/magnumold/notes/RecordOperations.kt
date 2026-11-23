@@ -207,6 +207,7 @@ internal object RecordOperations {
                     status = timer.status,
                     timerEndsAtMillis = timer.timerEndsAtMillis,
                     timerRemainingSeconds = timer.timerRemainingSeconds,
+                    timerAlertStartedAtMillis = timer.timerAlertStartedAtMillis,
                     updated = timer.updated,
                     children = children
                 )
