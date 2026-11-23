@@ -24,7 +24,8 @@ internal class BackupFileStore(
             snapshot.trash,
             timeTracking,
             recoveryDataProvider(),
-            snapshot.nutritionProducts
+            snapshot.nutritionProducts,
+            snapshot.timerSettings
         ).toByteArray(Charsets.UTF_8)
         val output = contentResolver.openOutputStream(uri)
             ?: error("Не удалось открыть файл")
