@@ -207,6 +207,7 @@ internal fun NotesApp(
             val allHomeRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot)
             }
+            val allHomeDisplayRecords = allHomeRecords + kitchenTimers.map { it.toHomeRecord() }
             LaunchedEffect(showTimelineDateHeaders) {
                 homeTimelineDisplayStore.saveShowDateHeaders(showTimelineDateHeaders)
             }
@@ -216,13 +217,13 @@ internal fun NotesApp(
             LaunchedEffect(manualHomeOrderIds) {
                 manualHomeOrderIds?.let(homeTimelineDisplayStore::saveManualOrder)
             }
-            LaunchedEffect(showTimelineDateHeaders, allHomeRecords.map { it.id }, manualHomeOrderIds) {
+            LaunchedEffect(showTimelineDateHeaders, allHomeDisplayRecords.map { it.id }, manualHomeOrderIds) {
                 val currentOrder = manualHomeOrderIds
                 if (!showTimelineDateHeaders && currentOrder != null) {
-                    val validIds = allHomeRecords.map { it.id }.toSet()
+                    val validIds = allHomeDisplayRecords.map { it.id }.toSet()
                     val retained = currentOrder.filter { it in validIds }.distinct()
                     val retainedSet = retained.toSet()
-                    val newIds = HomeTimelineOperations.orderedRecordsByDate(allHomeRecords)
+                    val newIds = HomeTimelineOperations.orderedRecordsByDate(allHomeDisplayRecords)
                         .map { it.id }.filterNot { it in retainedSet }
                     val reconciled = newIds + retained
                     if (reconciled != currentOrder) manualHomeOrderIds = reconciled
@@ -479,31 +480,33 @@ internal fun NotesApp(
                             }
                         },
                         onMoveSelected = { ids, afterId, freeOrderMode ->
-                            val recordIds = ids.filter { it > 0L }.toSet()
-                            if (recordIds.isNotEmpty()) {
-                                val recordAfterId = afterId?.takeIf { it > 0L }
-                                if (homeTimelineMode && freeOrderMode) {
-                                    val currentVisibleOrder = HomeTimelineOperations.orderedVisibleRecordsManually(
-                                        activeNotes, manualHomeOrderIds
-                                    )
-                                    val reorderedVisible = NoteReorderModel.moveSelectedInCurrentOrder(
-                                        currentVisibleOrder, recordIds, recordAfterId
-                                    )
-                                    val visibleIds = activeNotes.filter { it.showOnHome }.map { it.id }.toSet()
-                                    val allIds = allHomeRecords.map { it.id }.toSet()
-                                    val fullOrder = (
-                                        manualHomeOrderIds.orEmpty() +
-                                            HomeTimelineOperations.orderedRecordsByDate(allHomeRecords).map { it.id }
-                                        ).distinct().filter { it in allIds }
-                                    val reorderedIds = reorderedVisible.map { it.id }
-                                    val reorderedIterator = reorderedIds.iterator()
-                                    manualHomeOrderIds = fullOrder.map { id ->
-                                        if (id in visibleIds && reorderedIterator.hasNext()) reorderedIterator.next() else id
+                            if (homeTimelineMode && freeOrderMode) {
+                                val currentVisibleOrder = HomeTimelineOperations.orderedVisibleRecordsManually(
+                                    homeDisplayNotes, manualHomeOrderIds
+                                )
+                                val reorderedVisible = NoteReorderModel.moveSelectedInCurrentOrder(
+                                    currentVisibleOrder, ids, afterId
+                                )
+                                val visibleIds = homeDisplayNotes.filter { it.showOnHome }.map { it.id }.toSet()
+                                val allIds = allHomeDisplayRecords.map { it.id }.toSet()
+                                val fullOrder = (
+                                    manualHomeOrderIds.orEmpty() +
+                                        HomeTimelineOperations.orderedRecordsByDate(allHomeDisplayRecords).map { it.id }
+                                    ).distinct().filter { it in allIds }
+                                val reorderedIds = reorderedVisible.map { it.id }
+                                val reorderedIterator = reorderedIds.iterator()
+                                manualHomeOrderIds = fullOrder.map { id ->
+                                    if (id in visibleIds && reorderedIterator.hasNext()) reorderedIterator.next() else id
+                                }
+                            } else {
+                                val recordIds = ids.filter { it > 0L }.toSet()
+                                if (recordIds.isNotEmpty()) {
+                                    val recordAfterId = afterId?.takeIf { it > 0L }
+                                    if (homeTimelineMode) {
+                                        recordsViewModel.reorderHomeRecords(recordIds, recordAfterId)
+                                    } else {
+                                        recordsViewModel.reorderActiveRecords(activeCollectionId, recordIds, recordAfterId)
                                     }
-                                } else if (homeTimelineMode) {
-                                    recordsViewModel.reorderHomeRecords(recordIds, recordAfterId)
-                                } else {
-                                    recordsViewModel.reorderActiveRecords(activeCollectionId, recordIds, recordAfterId)
                                 }
                             }
                         },
