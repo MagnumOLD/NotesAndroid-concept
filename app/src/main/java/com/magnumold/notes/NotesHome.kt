@@ -830,6 +830,7 @@ private fun homeTimelineDayLabel(day: Long, todayDay: Long): String {
 }
 
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun PrimaryAddButton(
     color: Color,
