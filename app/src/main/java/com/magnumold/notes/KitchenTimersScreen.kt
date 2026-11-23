@@ -74,6 +74,11 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
+internal fun resolveInitialKitchenTimer(
+    timers: List<KitchenTimer>,
+    requestedId: Long?
+): KitchenTimer? = requestedId?.let { id -> timers.firstOrNull { it.id == id } }
+
 @Composable
 internal fun KitchenTimersScreen(
     timers: List<KitchenTimer>,
@@ -86,11 +91,13 @@ internal fun KitchenTimersScreen(
     onSettingsChange: (KitchenTimerSettings) -> Unit,
     onRefresh: () -> Unit,
     initialEditingTimerId: Long? = null,
-    onInitialEditConsumed: () -> Unit = {},
+    initialEditingTimerId: Long? = null,
     onEditorExit: () -> Unit = {}
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var editingTimer by remember { mutableStateOf<KitchenTimer?>(null) }
+    var editingTimer by remember(initialEditingTimerId) {
+        mutableStateOf(resolveInitialKitchenTimer(timers, initialEditingTimerId))
+    }
     var editingIsNew by remember { mutableStateOf(false) }
     var settingsVisible by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -124,13 +131,6 @@ internal fun KitchenTimersScreen(
             nowMillis = System.currentTimeMillis()
             delay(1_000L)
         }
-    }
-
-    LaunchedEffect(initialEditingTimerId) {
-        val requestedId = initialEditingTimerId ?: return@LaunchedEffect
-        editingTimer = timers.firstOrNull { it.id == requestedId }
-        editingIsNew = false
-        onInitialEditConsumed()
     }
 
     fun closeEditor() {
