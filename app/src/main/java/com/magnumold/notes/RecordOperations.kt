@@ -81,7 +81,8 @@ internal object RecordOperations {
                 usedNoteIds,
                 importedNoteIdMap
             ),
-            nutritionProducts = NutritionCatalogOperations.mergeProducts(current.nutritionProducts, imported.nutritionProducts)
+            nutritionProducts = NutritionCatalogOperations.mergeProducts(current.nutritionProducts, imported.nutritionProducts),
+            timerSettings = imported.timerSettings ?: current.timerSettings
         )
 
         // Vault neighbor links are record references too. Once every imported
