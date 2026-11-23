@@ -10,6 +10,7 @@ import android.media.RingtoneManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -21,12 +22,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Pause
@@ -75,7 +78,8 @@ internal fun KitchenTimersScreen(
     onRefresh: () -> Unit
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
-    var editingTimerId by remember { mutableStateOf<Long?>(null) }
+    var editingTimer by remember { mutableStateOf<KitchenTimer?>(null) }
+    var editingIsNew by remember { mutableStateOf(false) }
     var settingsVisible by remember { mutableStateOf(false) }
     val lifecycleOwner = LocalLifecycleOwner.current
     val context = LocalContext.current
@@ -110,7 +114,23 @@ internal fun KitchenTimersScreen(
         }
     }
 
-    val editingTimer = timers.firstOrNull { it.id == editingTimerId }
+    if (editingTimer != null) {
+        KitchenTimerEditScreen(
+            timer = editingTimer!!,
+            defaultSoundUri = settings.defaultSoundUri,
+            topBarColor = topBarColor,
+            onBack = { editingTimer = null; editingIsNew = false },
+            onSave = { updated ->
+                val next = if (editingIsNew) timers + updated
+                    else timers.map { if (it.id == updated.id) updated else it }
+                onTimersChange(next)
+                editingTimer = null
+                editingIsNew = false
+            }
+        )
+        return
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -133,8 +153,8 @@ internal fun KitchenTimersScreen(
                         (timers.maxOfOrNull { it.id } ?: 0L) + 1L
                     )
                     val created = KitchenTimerOperations.create(nextId)
-                    onTimersChange(timers + created)
-                    editingTimerId = created.id
+                    editingTimer = created
+                    editingIsNew = true
                 },
                 onLongClick = {}
             )
@@ -166,7 +186,7 @@ internal fun KitchenTimersScreen(
                             if (it.id == timer.id) KitchenTimerOperations.reset(it) else it
                         })
                     },
-                    onEdit = { editingTimerId = timer.id },
+                    onEdit = { editingTimer = timer; editingIsNew = false },
                     onDelete = { onTimersChange(timers.filterNot { it.id == timer.id }) }
                 )
             }
@@ -174,17 +194,6 @@ internal fun KitchenTimersScreen(
         }
     }
 
-    if (editingTimer != null) {
-        KitchenTimerEditDialog(
-            timer = editingTimer,
-            defaultSoundUri = settings.defaultSoundUri,
-            onDismiss = { editingTimerId = null },
-            onSave = { updated ->
-                onTimersChange(timers.map { if (it.id == updated.id) updated else it })
-                editingTimerId = null
-            }
-        )
-    }
     if (settingsVisible) {
         KitchenTimerSettingsDialog(
             settings = settings,
@@ -293,10 +302,11 @@ private fun KitchenTimerCard(
 }
 
 @Composable
-private fun KitchenTimerEditDialog(
+private fun KitchenTimerEditScreen(
     timer: KitchenTimer,
     defaultSoundUri: String?,
-    onDismiss: () -> Unit,
+    topBarColor: androidx.compose.ui.graphics.Color,
+    onBack: () -> Unit,
     onSave: (KitchenTimer) -> Unit
 ) {
     var title by remember(timer.id) { mutableStateOf(timer.title) }
@@ -314,24 +324,84 @@ private fun KitchenTimerEditDialog(
         (minutes.toLongOrNull() ?: 0L) * 60L + (seconds.toLongOrNull() ?: 0L)
     val valid = duration in 1L..TimerOperations.MAX_DURATION_SECONDS
 
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Настройка таймера") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
+    BackHandler(onBack = onBack)
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            AppPageTopBar(
+                backgroundColor = topBarColor,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад")
+                        }
+                        Text("Настройка таймера", style = AppTypography.screenTitleStyle())
+                    }
+                }
+            )
+        },
+        bottomBar = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md)
+            ) {
+                Button(
+                    onClick = {
+                        val now = System.currentTimeMillis()
+                        val durationChanged = duration != timer.durationSeconds
+                        val changed = timer.copy(
+                            title = title.trim(),
+                            durationSeconds = duration,
+                            remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) {
+                                if (durationChanged) duration else timer.remainingSeconds
+                            } else null,
+                            endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) {
+                                if (durationChanged) TimerOperations.startAt(now, duration) else timer.endsAtMillis
+                            } else null,
+                            status = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
+                                KitchenTimerStatus.READY
+                            } else timer.status,
+                            soundUri = soundUri,
+                            alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
+                                null
+                            } else timer.alertStartedAtMillis
+                        )
+                        onSave(changed.normalized())
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text("Название (необязательно)") }
-                )
+                    enabled = valid
+                ) { Text("Сохранить") }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .padding(padding)
+                .appPageHorizontalInsets()
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = AppSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
+        ) {
+            OutlinedTextField(
+                value = title,
+                onValueChange = { title = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("Название (необязательно)") }
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
                 Text("Время", style = AppTypography.emphasisBodyStyle())
                 Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
                     TimerTimeField("Часы", hours, { hours = it }, Modifier.weight(1f))
                     TimerTimeField("Мин", minutes, { minutes = it }, Modifier.weight(1f))
                     TimerTimeField("Сек", seconds, { seconds = it }, Modifier.weight(1f))
                 }
+                if (!valid) {
+                    Text("Укажите время от 1 секунды до 24 часов.", color = MaterialTheme.colorScheme.error)
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                Text("Звук", style = AppTypography.emphasisBodyStyle())
                 OutlinedButton(
                     onClick = {
                         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
@@ -361,40 +431,9 @@ private fun KitchenTimerEditDialog(
                 if (soundUri != null) {
                     TextButton(onClick = { soundUri = null }) { Text("Использовать общий звук") }
                 }
-                if (!valid) {
-                    Text("Укажите время от 1 секунды до 24 часов.", color = MaterialTheme.colorScheme.error)
-                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val now = System.currentTimeMillis()
-                    val durationChanged = duration != timer.durationSeconds
-                    val changed = timer.copy(
-                        title = title.trim(),
-                        durationSeconds = duration,
-                        remainingSeconds = if (timer.status == KitchenTimerStatus.PAUSED) {
-                            if (durationChanged) duration else timer.remainingSeconds
-                        } else null,
-                        endsAtMillis = if (timer.status == KitchenTimerStatus.RUNNING) {
-                            if (durationChanged) TimerOperations.startAt(now, duration) else timer.endsAtMillis
-                        } else null,
-                        status = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
-                            KitchenTimerStatus.READY
-                        } else timer.status,
-                        soundUri = soundUri,
-                        alertStartedAtMillis = if (timer.status == KitchenTimerStatus.FINISHED && durationChanged) {
-                            null
-                        } else timer.alertStartedAtMillis
-                    )
-                    onSave(changed.normalized())
-                },
-                enabled = valid
-            ) { Text("Сохранить") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
-    )
+        }
+    }
 }
 
 @Composable
