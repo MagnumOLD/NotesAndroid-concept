@@ -57,7 +57,7 @@ class KitchenTimerOperationsTest {
             durationSeconds = 900L,
             remainingSeconds = 420L,
             status = KitchenTimerStatus.PAUSED
-        ).toHomeRecord()
+        ).toRecord()
         assertEquals(RecordStatus.PAUSED, paused.status)
         assertEquals(420L, paused.timerRemainingSeconds)
 
@@ -66,7 +66,7 @@ class KitchenTimerOperationsTest {
             durationSeconds = 900L,
             endsAtMillis = 1_700_000_000_900L,
             status = KitchenTimerStatus.RUNNING
-        ).toHomeRecord()
+        ).toRecord()
         assertEquals(RecordStatus.IN_PROGRESS, running.status)
         assertEquals(1_700_000_000_900L, running.timerEndsAtMillis)
     }
