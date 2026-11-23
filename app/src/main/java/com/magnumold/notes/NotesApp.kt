@@ -95,9 +95,7 @@ internal fun NotesApp(
             val kitchenTimerRepository = remember(activity) {
                 KitchenTimerRepository(activity.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE))
             }
-            var kitchenTimerSettings by remember(kitchenTimerRepository) {
-                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.loadSettings())
-            }
+            val kitchenTimerSettings = snapshot.timerSettings
             val kitchenTimers = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot)
                     .filter { it.type == RecordType.TIMER }
@@ -400,14 +398,8 @@ internal fun NotesApp(
                         topBarColor = activeThemeColors.topBar,
                         addButtonColor = activeThemeColors.addButton,
                         onTimersChange = ::updateKitchenTimers,
-                        onSettingsChange = {
-                            kitchenTimerRepository.saveSettings(it)
-                            kitchenTimerSettings = it
-                        },
-                        onRefresh = {
-                            recordsViewModel.refreshTimerStatesFromRepository()
-                            kitchenTimerSettings = kitchenTimerRepository.loadSettings()
-                        }
+                        onSettingsChange = recordsViewModel::updateTimerSettings,
+                        onRefresh = { recordsViewModel.refreshTimerStatesFromRepository() }
                     )
                 } else if (selected == null) {
                     screenStateHolder.SaveableStateProvider(notesListStateKey) {
