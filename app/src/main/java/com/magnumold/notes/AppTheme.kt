@@ -31,8 +31,8 @@ internal val defaultCustomThemeColors = CustomThemeColors()
 internal data class NoteColorOpacities(val light: Float = 0.5f, val dark: Float = 0.5f, val custom: Float = 0.5f)
 internal data class TimelineDateColors(val background: Color, val text: Color)
 internal data class TimelineDateColorSets(
-    val light: TimelineDateColors = TimelineDateColors(Color(0xFFF5F5F5), Color(0xFF666666)),
-    val dark: TimelineDateColors = TimelineDateColors(Color(0xFF191919), Color(0xFFB0B0B0))
+    val light: TimelineDateColors = TimelineDateColors(Color.White, Color(0xFF202020)),
+    val dark: TimelineDateColors = TimelineDateColors(Color.Black, Color.White)
 )
 internal fun Color.toArgbInt(): Int = android.graphics.Color.argb(
     (alpha * 255).toInt(), (red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt()
