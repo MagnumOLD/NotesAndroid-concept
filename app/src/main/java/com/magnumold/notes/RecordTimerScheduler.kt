@@ -124,13 +124,6 @@ internal class RecordTimerReceiver : BroadcastReceiver() {
         val settings = repository.loadSnapshot().timerSettings
         val serviceIntent = Intent(context, KitchenTimerAlertService::class.java)
             .setAction(KitchenTimerContract.ACTION_START_ALERT)
-            .putExtra(KitchenTimerContract.EXTRA_TIMER_ID, recordId)
-            .putExtra(KitchenTimerContract.EXTRA_TITLE, current.titleText)
-            .putExtra(
-                KitchenTimerContract.EXTRA_SOUND_URI,
-                current.timerSoundUri ?: settings.defaultSoundUri
-            )
-            .putExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, settings.alertDurationSeconds())
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
             else context.startService(serviceIntent)
