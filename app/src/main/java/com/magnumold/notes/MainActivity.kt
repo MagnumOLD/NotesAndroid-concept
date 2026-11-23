@@ -166,6 +166,9 @@ class MainActivity : ComponentActivity() {
         val repository = NotesRepository(recordPreferences)
         // Recover an interrupted multi-store import before repositories load state.
         recoverBackupImportIfNeeded(this)
+        repository.migrateLegacyKitchenTimers(
+            getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
+        )
         val backupImportJournal = BackupImportTransactionJournal(
             recordPreferences,
             timeTrackingPreferences,
