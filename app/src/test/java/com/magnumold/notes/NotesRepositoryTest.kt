@@ -124,7 +124,7 @@ class NotesRepositoryTest {
         assertTrue(migrated.id != legacyId)
         assertEquals(legacyId, migrated.created)
         val mapping = org.json.JSONObject(
-            recordPreferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, "{}")
+            recordPreferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, "{}") ?: "{}"
         )
         assertEquals(migrated.id, mapping.getLong(legacyId.toString()))
         assertEquals("Existing record", repository.loadSnapshot().notes
