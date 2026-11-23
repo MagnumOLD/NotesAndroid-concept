@@ -210,9 +210,6 @@ internal fun NotesApp(
             LaunchedEffect(showTimelineDateHeaders) {
                 homeTimelineDisplayStore.saveShowDateHeaders(showTimelineDateHeaders)
             }
-            LaunchedEffect(dateHeaderTextSize) {
-                homeTimelineDisplayStore.saveDateHeaderTextSize(dateHeaderTextSize)
-            }
             LaunchedEffect(manualHomeOrderIds) {
                 manualHomeOrderIds?.let(homeTimelineDisplayStore::saveManualOrder)
             }
@@ -340,7 +337,10 @@ internal fun NotesApp(
                             showTimelineDateHeaders = enabled
                         },
                         dateHeaderTextSize = dateHeaderTextSize,
-                        onDateHeaderTextSizeChange = { dateHeaderTextSize = it },
+                        onDateHeaderTextSizeChange = {
+                            dateHeaderTextSize = it
+                            homeTimelineDisplayStore.saveDateHeaderTextSize(it)
+                        },
                         onNoteColorsChange = { themeState.replaceNoteColors(it) },
                         onNoteColorOpacityChange = { opacity -> themeState.setNoteColorOpacity(opacity, systemDark) },
                         onExport = backupActions.exportBackup,
