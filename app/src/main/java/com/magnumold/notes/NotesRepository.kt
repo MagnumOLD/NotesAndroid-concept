@@ -2,6 +2,7 @@ package com.magnumold.notes
 
 import android.content.SharedPreferences
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Single persistence boundary for local records.
@@ -13,6 +14,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         // Services and receivers must open this exact same file.
         const val PREFERENCES_NAME = "MainActivity"
         private const val KEY_KITCHEN_TIMER_MIGRATION = "kitchen_timers_migrated_v1"
+        const val KEY_KITCHEN_TIMER_LEGACY_ID_MAP = "kitchen_timer_legacy_id_map"
     }
     fun loadSnapshot() = PersistenceSnapshot(
         notes = loadNotes(),
@@ -43,6 +45,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         )
         val existingTimers = HomeTimelineOperations.records(current)
             .filter { it.type == RecordType.TIMER }
+        val legacyIdMap = linkedMapOf<Long, Long>()
         val migrated = if (legacyRaw.isNullOrBlank()) {
             if (existingTimers.isNotEmpty()) current
             else {
@@ -73,6 +76,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             val converted = legacy.map { timer ->
                 val safeId = if (timer.id > 0L && usedIds.add(timer.id)) timer.id
                     else newRecordId().also { usedIds.add(it) }
+                legacyIdMap[timer.id] = safeId
                 timer.copy(id = safeId).toRecord().copy(
                     created = timer.id,
                     homeOrder = timer.id,
@@ -82,7 +86,11 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             current.copy(notes = converted + current.notes)
         }
 
+        val legacyIdMapJson = JSONObject().apply {
+            legacyIdMap.forEach { (legacyId, recordId) -> put(legacyId.toString(), recordId) }
+        }.toString()
         check(snapshotEditor(migrated)
+            .putString(KEY_KITCHEN_TIMER_LEGACY_ID_MAP, legacyIdMapJson)
             .putBoolean(KEY_KITCHEN_TIMER_MIGRATION, true)
             .commit()) { "Не удалось перенести таймеры в основное хранилище" }
 
