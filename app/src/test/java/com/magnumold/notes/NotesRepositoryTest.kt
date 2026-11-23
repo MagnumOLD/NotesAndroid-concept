@@ -132,13 +132,13 @@ class NotesRepositoryTest {
     }
 
     @Test
-    fun firstLaunchCreatesOneDefaultCanonicalTimer() {
+    fun firstLaunchWithoutLegacyTimersKeepsTimerListEmptyAndDoesNotRecreateDeletedTimer() {
         val context = RuntimeEnvironment.getApplication()
         val recordPreferences = context.getSharedPreferences(
-            "notes_repository_default_timer_test", Context.MODE_PRIVATE
+            "notes_repository_empty_timer_migration_test", Context.MODE_PRIVATE
         )
         val legacyPreferences = context.getSharedPreferences(
-            "kitchen_timers_default_timer_test", Context.MODE_PRIVATE
+            "kitchen_timers_empty_migration_test", Context.MODE_PRIVATE
         )
         recordPreferences.edit().clear().commit()
         legacyPreferences.edit().clear().commit()
@@ -146,11 +146,51 @@ class NotesRepositoryTest {
         val repository = NotesRepository(recordPreferences)
         repository.migrateLegacyKitchenTimers(legacyPreferences)
 
+        assertTrue(HomeTimelineOperations.records(repository.loadSnapshot())
+            .none { it.type == RecordType.TIMER })
+        assertTrue(recordPreferences.getBoolean("kitchen_timers_migrated_v1", false))
+
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+        assertTrue(HomeTimelineOperations.records(repository.loadSnapshot())
+            .none { it.type == RecordType.TIMER })
+    }
+
+    @Test
+    fun migrationWithoutLegacyTimersPreservesExistingCanonicalTimers() {
+        val context = RuntimeEnvironment.getApplication()
+        val recordPreferences = context.getSharedPreferences(
+            "notes_repository_existing_timer_migration_test", Context.MODE_PRIVATE
+        )
+        val legacyPreferences = context.getSharedPreferences(
+            "kitchen_timers_existing_timer_migration_test", Context.MODE_PRIVATE
+        )
+        recordPreferences.edit().clear().commit()
+        legacyPreferences.edit().clear().commit()
+
+        val existing = Note(
+            id = 77L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 77L,
+            created = 77L,
+            type = RecordType.TIMER,
+            timerDurationSeconds = 180L
+        )
+        val repository = NotesRepository(recordPreferences)
+        repository.flushSnapshot(PersistenceSnapshot(
+            notes = listOf(existing),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        ))
+
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+
         val timers = HomeTimelineOperations.records(repository.loadSnapshot())
             .filter { it.type == RecordType.TIMER }
         assertEquals(1, timers.size)
-        assertEquals(RecordStatus.WAITING, timers.single().status)
-        assertEquals(TimerOperations.DEFAULT_DURATION_SECONDS, timers.single().timerDurationSeconds)
+        assertEquals(77L, timers.single().id)
+        assertEquals(180L, timers.single().timerDurationSeconds)
     }
 
     @Test
