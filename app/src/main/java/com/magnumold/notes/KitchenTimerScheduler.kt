@@ -35,51 +35,21 @@ internal object KitchenTimerContract {
 internal fun kitchenTimerNotificationTag(timerId: Long) = "kitchen-timer-alert:$timerId"
 
 internal class KitchenTimerReceiver : BroadcastReceiver() {
+    /**
+     * Compatibility bridge for alarms registered by versions that stored
+     * kitchen timers separately. It immediately hands the event to the
+     * canonical record scheduler; no legacy timer data is read or written.
+     */
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != KitchenTimerContract.ACTION_ALARM) return
         val timerId = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
         if (timerId <= 0L) return
-        val repository = KitchenTimerRepository(
-            context.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
+        val repository = NotesRepository(
+            context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
-        val snapshot = repository.load()
-        val current = snapshot.timers.firstOrNull { it.id == timerId } ?: return
-        val now = System.currentTimeMillis()
-        val reconciled = KitchenTimerOperations.reconcile(current, now)
-        if (reconciled.status == KitchenTimerStatus.RUNNING) {
-            KitchenTimerScheduler(context).sync(reconciled)
-            return
-        }
-        if (reconciled.status != KitchenTimerStatus.FINISHED || reconciled.alertStartedAtMillis != null) return
-
-        val fired = reconciled.copy(alertStartedAtMillis = now)
-        repository.saveTimers(snapshot.timers.map { if (it.id == timerId) fired else it })
-        context.sendBroadcast(
-            Intent(KitchenTimerContract.ACTION_STATE_CHANGED).setPackage(context.packageName)
-        )
-        val sound = fired.soundUri ?: snapshot.settings.defaultSoundUri
-        val serviceIntent = Intent(context, KitchenTimerAlertService::class.java)
-            .setAction(KitchenTimerContract.ACTION_START_ALERT)
-            .putExtra(KitchenTimerContract.EXTRA_TIMER_ID, timerId)
-            .putExtra(KitchenTimerContract.EXTRA_TITLE, fired.title)
-            .putExtra(KitchenTimerContract.EXTRA_SOUND_URI, sound)
-            .putExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, snapshot.settings.alertDurationSeconds())
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(serviceIntent)
-            else context.startService(serviceIntent)
-        } catch (_: RuntimeException) {
-            postKitchenTimerFallbackNotification(context, fired, sound, snapshot.settings.alertDurationSeconds())
-        }
-    }
-}
-
-internal class KitchenTimerBootReceiver : BroadcastReceiver() {
-    override fun onReceive(context: Context, intent: Intent?) {
-        if (intent?.action != Intent.ACTION_BOOT_COMPLETED) return
-        val repository = KitchenTimerRepository(
-            context.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
-        )
-        KitchenTimerScheduler(context).scheduleAll(repository.load().timers)
+        val record = HomeTimelineOperations.records(repository.loadSnapshot())
+            .firstOrNull { it.id == timerId && it.type == RecordType.TIMER } ?: return
+        RecordTimerScheduler(context).sync(record)
     }
 }
 
