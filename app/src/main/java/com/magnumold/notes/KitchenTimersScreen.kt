@@ -199,7 +199,6 @@ internal fun KitchenTimersScreen(
             items(timers, key = { it.id }) { timer ->
                 KitchenTimerCard(
                     timer = timer,
-                    nowMillis = nowMillis,
                     onStart = {
                         onTimersChange(timers.map {
                             if (it.id == timer.id) KitchenTimerOperations.start(it, nowMillis) else it
@@ -228,7 +227,6 @@ internal fun KitchenTimersScreen(
 @Composable
 private fun KitchenTimerCard(
     timer: KitchenTimer,
-    nowMillis: Long,
     onStart: () -> Unit,
     onPause: () -> Unit,
     onReset: () -> Unit,
@@ -243,7 +241,7 @@ private fun KitchenTimerCard(
         TimerRecordCardContent(
             note = record,
             textColor = MaterialTheme.colorScheme.onSurface,
-            pinned = false,
+            pinned = timer.pinned,
             onClick = onEdit,
             onLongPress = {},
             onQuickAction = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart,
