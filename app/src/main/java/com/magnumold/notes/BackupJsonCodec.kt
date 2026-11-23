@@ -15,7 +15,8 @@ internal data class BackupData(
     val trash: List<VaultNote>,
     val timeTracking: TimeTrackingState? = null,
     val recoveryEntries: List<RecoveryEntry> = emptyList(),
-    val nutritionProducts: List<NutritionProduct> = emptyList()
+    val nutritionProducts: List<NutritionProduct> = emptyList(),
+    val timerSettings: KitchenTimerSettings? = null
 )
 private fun noteToJson(note: Note): JSONObject {
     val blocks = JSONArray()
@@ -179,7 +180,8 @@ internal fun createBackupJson(
     trash: List<VaultNote>,
     timeTracking: TimeTrackingState = TimeTrackingState(),
     recoveryEntries: List<RecoveryEntry> = emptyList(),
-    nutritionProducts: List<NutritionProduct> = emptyList()
+    nutritionProducts: List<NutritionProduct> = emptyList(),
+    timerSettings: KitchenTimerSettings = KitchenTimerSettings()
 ): String {
     val collectionArray = JSONArray()
     collections.forEach { collection ->
@@ -194,18 +196,23 @@ internal fun createBackupJson(
                 .put("raw", entry.raw)
         )
     }
-    return JSONObject().put("format", "notes_backup").put("version", 13).put("exportedAt", System.currentTimeMillis())
+    val timerSettingsJson = JSONObject()
+        .put("alertDurationMode", timerSettings.alertDurationMode.name)
+        .put("customAlertDurationSeconds", timerSettings.customAlertDurationSeconds)
+        .put("defaultSoundUri", timerSettings.defaultSoundUri ?: JSONObject.NULL)
+    return JSONObject().put("format", "notes_backup").put("version", 14).put("exportedAt", System.currentTimeMillis())
         .put("notes", notesToJson(items)).put("collections", collectionArray)
         .put("archive", vaultToJson(archived)).put("trash", vaultToJson(trash))
         .put("timeTracking", timeTrackingToJson(timeTracking))
         .put("recoveryData", recoveryArray)
         .put("nutritionProducts", NutritionCatalogOperations.productsToJson(nutritionProducts))
+        .put("timerSettings", timerSettingsJson)
         .toString(2)
 }
 internal fun parseBackupJson(raw: String): BackupData {
     val root = JSONObject(raw)
     require(root.optString("format") == "notes_backup") { "Это не резервная копия блокнота" }
-    require(root.optInt("version") in 1..13) { "Неподдерживаемая версия файла" }
+    require(root.optInt("version") in 1..14) { "Неподдерживаемая версия файла" }
     val notes = parseNotesArray(root.getJSONArray("notes"))
     val collections = if (!root.has("collections") || root.isNull("collections")) emptyList()
         else parseCollectionsArray(root.getJSONArray("collections"))
@@ -254,7 +261,18 @@ internal fun parseBackupJson(raw: String): BackupData {
         }
     }
     val nutritionProducts = NutritionCatalogOperations.parseProducts(root.optJSONArray("nutritionProducts"))
-    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries, nutritionProducts)
+    val timerSettings = if (!root.has("timerSettings") || root.isNull("timerSettings")) null else {
+        val settings = root.getJSONObject("timerSettings")
+        KitchenTimerSettings(
+            alertDurationMode = runCatching {
+                TimerAlertDurationMode.valueOf(settings.optString("alertDurationMode"))
+            }.getOrDefault(TimerAlertDurationMode.THIRTY_SECONDS),
+            customAlertDurationSeconds = settings.optInt("customAlertDurationSeconds", 30),
+            defaultSoundUri = if (settings.isNull("defaultSoundUri")) null
+                else settings.optString("defaultSoundUri").takeIf { it.isNotBlank() }
+        ).normalized()
+    }
+    return BackupData(notes, collections, archived, trash, timeTracking, recoveryEntries, nutritionProducts, timerSettings)
 }
 
 private fun Note.sameRecordContent(other: Note): Boolean =
