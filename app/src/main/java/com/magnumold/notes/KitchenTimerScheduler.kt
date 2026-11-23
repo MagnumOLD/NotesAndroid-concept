@@ -37,8 +37,8 @@ internal fun kitchenTimerNotificationTag(timerId: Long) = "kitchen-timer-alert:$
 internal class KitchenTimerReceiver : BroadcastReceiver() {
     /**
      * Compatibility bridge for alarms registered by versions that stored
-     * kitchen timers separately. It immediately hands the event to the
-     * canonical record scheduler; no legacy timer data is read or written.
+     * kitchen timers separately. It runs the one-time migration if needed,
+     * then hands the event to the canonical record scheduler.
      */
     override fun onReceive(context: Context, intent: Intent?) {
         if (intent?.action != KitchenTimerContract.ACTION_ALARM) return
@@ -121,9 +121,10 @@ internal class KitchenTimerAlertService : Service() {
         val repository = NotesRepository(
             getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
-        val records = HomeTimelineOperations.records(repository.loadSnapshot())
+        val snapshot = repository.loadSnapshot()
+        val records = HomeTimelineOperations.records(snapshot)
             .filter { it.type == RecordType.TIMER && it.timerAlertStartedAtMillis != null }
-        val settings = repository.loadSnapshot().timerSettings
+        val settings = snapshot.timerSettings
         val now = System.currentTimeMillis()
         records.filter { it.status == RecordStatus.COMPLETED }.forEach { record ->
             val startedAt = record.timerAlertStartedAtMillis ?: return@forEach
