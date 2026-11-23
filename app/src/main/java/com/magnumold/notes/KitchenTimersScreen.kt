@@ -69,6 +69,7 @@ internal fun KitchenTimersScreen(
     timers: List<KitchenTimer>,
     settings: KitchenTimerSettings,
     topBarColor: androidx.compose.ui.graphics.Color,
+    addButtonColor: androidx.compose.ui.graphics.Color,
     onTimersChange: (List<KitchenTimer>) -> Unit,
     onSettingsChange: (KitchenTimerSettings) -> Unit,
     onRefresh: () -> Unit
@@ -122,13 +123,28 @@ internal fun KitchenTimersScreen(
                     }
                 }
             )
+        },
+        floatingActionButton = {
+            PrimaryAddButton(
+                color = addButtonColor,
+                onClick = {
+                    val nextId = maxOf(
+                        System.currentTimeMillis().coerceAtLeast(1L),
+                        (timers.maxOfOrNull { it.id } ?: 0L) + 1L
+                    )
+                    val created = KitchenTimerOperations.create(nextId)
+                    onTimersChange(timers + created)
+                    editingTimerId = created.id
+                },
+                onLongClick = {}
+            )
         }
     ) { padding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding).appPageHorizontalInsets(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 top = AppSpacing.md,
-                bottom = AppSpacing.xl
+                bottom = 88.dp
             ),
         ) {
             items(timers, key = { it.id }) { timer ->
@@ -154,23 +170,7 @@ internal fun KitchenTimersScreen(
                     onDelete = { onTimersChange(timers.filterNot { it.id == timer.id }) }
                 )
             }
-            item {
-                OutlinedButton(
-                    onClick = {
-                        val nextId = maxOf(
-                            System.currentTimeMillis().coerceAtLeast(1L),
-                            (timers.maxOfOrNull { it.id } ?: 0L) + 1L
-                        )
-                        onTimersChange(timers + KitchenTimerOperations.create(nextId))
-                    },
-                    modifier = Modifier.fillMaxWidth().padding(top = AppSpacing.md),
-                    shape = RoundedCornerShape(14.dp)
-                ) {
-                    Icon(Icons.Outlined.Add, contentDescription = null)
-                    Spacer(Modifier.width(AppSpacing.sm))
-                    Text("Добавить таймер")
-                }
-            }
+
         }
     }
 
