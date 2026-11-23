@@ -33,8 +33,14 @@ internal class RecordTimerScheduler(private val context: Context) {
 
     fun sync(note: Note) {
         val pending = pendingIntent(note.id)
-        val endAt = note.timerEndsAtMillis
-        if (note.type != RecordType.TIMER || endAt == null) {
+        val triggerAt = when {
+            note.type != RecordType.TIMER -> null
+            note.timerEndsAtMillis != null -> note.timerEndsAtMillis
+            note.status == RecordStatus.COMPLETED && note.timerAlertStartedAtMillis != null ->
+                System.currentTimeMillis() + 1_000L
+            else -> null
+        }
+        if (triggerAt == null) {
             alarmManager.cancel(pending)
             if (note.status != RecordStatus.COMPLETED) {
                 notificationManager().cancel(recordTimerNotificationTag(note.id), RecordTimerContract.NOTIFICATION_ID)
@@ -43,14 +49,17 @@ internal class RecordTimerScheduler(private val context: Context) {
         }
         notificationManager().cancel(recordTimerNotificationTag(note.id), RecordTimerContract.NOTIFICATION_ID)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endAt, pending)
+            alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
         } else {
-            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, endAt, pending)
+            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, pending)
         }
     }
 
     fun scheduleAll(records: List<Note>) {
-        records.filter { it.type == RecordType.TIMER && it.timerEndsAtMillis != null }
+        records.filter {
+            it.type == RecordType.TIMER &&
+                (it.timerEndsAtMillis != null || it.timerAlertStartedAtMillis != null)
+        }
             .forEach(::sync)
     }
 
@@ -84,7 +93,19 @@ internal class RecordTimerReceiver : BroadcastReceiver() {
         val current = HomeTimelineOperations.records(snapshot).firstOrNull {
             it.id == recordId && it.type == RecordType.TIMER
         } ?: return
-        val endAt = current.timerEndsAtMillis ?: return
+        val endAt = current.timerEndsAtMillis
+        if (endAt == null) {
+            if (current.status == RecordStatus.COMPLETED && current.timerAlertStartedAtMillis != null) {
+                val restoreIntent = Intent(context, KitchenTimerAlertService::class.java)
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) context.startForegroundService(restoreIntent)
+                    else context.startService(restoreIntent)
+                } catch (_: RuntimeException) {
+                    // The durable alert marker remains available for the next app/service restore.
+                }
+            }
+            return
+        }
         val now = System.currentTimeMillis()
         if (now < endAt) {
             RecordTimerScheduler(context).sync(current)
