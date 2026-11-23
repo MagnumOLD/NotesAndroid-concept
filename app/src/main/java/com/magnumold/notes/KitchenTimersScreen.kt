@@ -280,9 +280,9 @@ private fun KitchenTimerEditScreen(
     onSave: (KitchenTimer) -> Unit
 ) {
     var title by remember(timer.id) { mutableStateOf(timer.title) }
-    var hours by remember(timer.id) { mutableStateOf((timer.durationSeconds / 3600L).toString()) }
-    var minutes by remember(timer.id) { mutableStateOf(((timer.durationSeconds % 3600L) / 60L).toString()) }
-    var seconds by remember(timer.id) { mutableStateOf((timer.durationSeconds % 60L).toString()) }
+    var hours by remember(timer.id) { mutableStateOf((timer.durationSeconds / 3600L).toString().padStart(2, '0')) }
+    var minutes by remember(timer.id) { mutableStateOf(((timer.durationSeconds % 3600L) / 60L).toString().padStart(2, '0')) }
+    var seconds by remember(timer.id) { mutableStateOf((timer.durationSeconds % 60L).toString().padStart(2, '0')) }
     var soundUri by remember(timer.id) { mutableStateOf(timer.soundUri) }
     val context = LocalContext.current
     val soundPicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
