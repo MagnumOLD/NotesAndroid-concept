@@ -10,14 +10,14 @@ internal enum class HomeButtonLayout {
 
 internal class HomeButtonLayoutStore(private val preferences: SharedPreferences) {
     fun load(): HomeButtonLayout {
-        val stored = preferences.getString(KEY_LAYOUT, null) ?: return HomeButtonLayout.SEPARATE
+        val stored = preferences.getString(KEY_LAYOUT, null) ?: return HomeButtonLayout.VERTICAL_PANEL
         return when (stored) {
             // Migrate the former horizontal shared panel to the vertical panel.
             "SHARED_PANEL" -> HomeButtonLayout.VERTICAL_PANEL
             // The old horizontal pair is intentionally retired.
             "SIDE_BY_SIDE" -> HomeButtonLayout.SEPARATE
             else -> runCatching { HomeButtonLayout.valueOf(stored) }
-                .getOrDefault(HomeButtonLayout.SEPARATE)
+                .getOrDefault(HomeButtonLayout.VERTICAL_PANEL)
         }
     }
 
