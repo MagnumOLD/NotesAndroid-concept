@@ -45,7 +45,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -225,60 +224,73 @@ private fun KitchenTimerCard(
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(AppSpacing.lg),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+            modifier = Modifier.fillMaxWidth().padding(AppSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    if (timer.title.isNotBlank()) {
-                        Text(timer.title, style = AppTypography.sectionHeadingStyle(), fontWeight = FontWeight.Medium)
-                    }
-                    Text(
-                        statusText,
-                        style = AppTypography.helperStyle(),
-                        color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
-                        else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Настроить таймер")
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Удалить таймер")
-                }
-            }
-            Text(
-                KitchenTimerOperations.format(remaining),
-                style = MaterialTheme.typography.displaySmall,
-                color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
             ) {
-                when (timer.status) {
-                    KitchenTimerStatus.RUNNING -> Button(onClick = onPause, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.Pause, contentDescription = null)
-                        Spacer(Modifier.width(AppSpacing.xs))
-                        Text("Пауза")
-                    }
-                    KitchenTimerStatus.FINISHED -> Button(onClick = onReset, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = null)
-                        Spacer(Modifier.width(AppSpacing.xs))
-                        Text("Сбросить")
-                    }
-                    else -> Button(onClick = onStart, modifier = Modifier.weight(1f)) {
-                        Icon(Icons.Outlined.PlayArrow, contentDescription = null)
-                        Spacer(Modifier.width(AppSpacing.xs))
-                        Text(if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить")
-                    }
+                if (timer.title.isNotBlank()) {
+                    Text(
+                        timer.title,
+                        modifier = Modifier.weight(1f),
+                        style = AppTypography.sectionHeadingStyle(),
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1
+                    )
+                } else {
+                    Spacer(Modifier.weight(1f))
                 }
-                if (timer.status != KitchenTimerStatus.FINISHED) {
-                    IconButton(onClick = onReset) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить")
+                Text(
+                    statusText,
+                    style = AppTypography.helperStyle(),
+                    color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    KitchenTimerOperations.format(remaining),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    when (timer.status) {
+                        KitchenTimerStatus.RUNNING -> Button(onClick = onPause) {
+                            Icon(Icons.Outlined.Pause, contentDescription = null)
+                            Spacer(Modifier.width(AppSpacing.xs))
+                            Text("Пауза")
+                        }
+                        KitchenTimerStatus.FINISHED -> Button(onClick = onReset) {
+                            Icon(Icons.Outlined.RestartAlt, contentDescription = null)
+                            Spacer(Modifier.width(AppSpacing.xs))
+                            Text("Сбросить")
+                        }
+                        else -> Button(onClick = onStart) {
+                            Icon(Icons.Outlined.PlayArrow, contentDescription = null)
+                            Spacer(Modifier.width(AppSpacing.xs))
+                            Text(if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить")
+                        }
+                    }
+                    if (timer.status != KitchenTimerStatus.FINISHED) {
+                        IconButton(onClick = onReset) {
+                            Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить")
+                        }
+                    }
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Outlined.Edit, contentDescription = "Настроить таймер")
+                    }
+                    IconButton(onClick = onDelete) {
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = "Удалить таймер")
                     }
                 }
             }
@@ -470,7 +482,7 @@ private fun KitchenTimerSettingsDialog(
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             label = { Text("Секунды") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            keyboardOptions = KeyboardType.Number
                         )
                     }
                 }
