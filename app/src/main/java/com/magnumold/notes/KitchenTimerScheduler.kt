@@ -45,12 +45,15 @@ internal class KitchenTimerReceiver : BroadcastReceiver() {
         val timerId = intent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
         if (timerId <= 0L) return
         val preferences = context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val repository = NotesRepository(preferences)
+        repository.migrateLegacyKitchenTimers(
+            context.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
+        )
         val mappedId = runCatching {
             preferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, null)
                 ?.let { org.json.JSONObject(it) }
                 ?.optLong(timerId.toString(), 0L)
         }.getOrNull()?.takeIf { it > 0L } ?: return
-        val repository = NotesRepository(preferences)
         val record = HomeTimelineOperations.records(repository.loadSnapshot())
             .firstOrNull { it.id == mappedId && it.type == RecordType.TIMER } ?: return
         RecordTimerScheduler(context).sync(record)
@@ -95,8 +98,10 @@ internal class KitchenTimerAlertService : Service() {
         ensureForeground()
         when (intent?.action) {
             KitchenTimerContract.ACTION_START_ALERT -> {
+                // The persisted Note records are authoritative. Never start an
+                // alert from stale extras if the timer was reset in the meantime.
                 restoreActiveAlerts(finishWhenEmpty = false)
-                intent?.let(::startAlert)
+                if (activeAlerts.isEmpty()) finishIfIdle()
             }
             KitchenTimerContract.ACTION_STOP_ALERT -> {
                 restoreActiveAlerts(finishWhenEmpty = false)
