@@ -235,86 +235,22 @@ private fun KitchenTimerCard(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val remaining = KitchenTimerOperations.remainingSeconds(timer, nowMillis)
-    val statusText = when (timer.status) {
-        KitchenTimerStatus.READY -> "Готов к запуску"
-        KitchenTimerStatus.RUNNING -> "Работает"
-        KitchenTimerStatus.PAUSED -> "На паузе"
-        KitchenTimerStatus.FINISHED -> "Время вышло"
-    }
+    val record = timer.toRecord()
     RecordCardSurface(
         background = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxWidth()
     ) {
-        var menuExpanded by remember(timer.id) { mutableStateOf(false) }
-        Row(
-            modifier = Modifier.fillMaxWidth()
-                .heightIn(min = CardDimensions.contentHeight)
-                .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                Text(
-                    text = timer.title.ifBlank { "Таймер" },
-                    style = AppTypography.sectionHeadingStyle(),
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    softWrap = false,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    statusText,
-                    style = AppTypography.helperStyle(),
-                    color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    softWrap = false
-                )
-            }
-            Text(
-                KitchenTimerOperations.format(remaining),
-                style = MaterialTheme.typography.titleLarge,
-                color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
-                softWrap = false
-            )
-            IconButton(onClick = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart) {
-                if (timer.status == KitchenTimerStatus.RUNNING) {
-                    Icon(Icons.Outlined.Pause, contentDescription = "Пауза")
-                } else {
-                    Icon(Icons.Outlined.PlayArrow, contentDescription = if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить")
-                }
-            }
-            IconButton(onClick = onReset) {
-                Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер")
-            }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = "Дополнительные действия")
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false }
-                ) {
-                    DropdownMenuItem(
-                        text = { Text("Редактировать") },
-                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
-                        onClick = { menuExpanded = false; onEdit() }
-                    )
-                    DropdownMenuItem(
-                        text = { Text("Удалить") },
-                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
-                        onClick = { menuExpanded = false; onDelete() }
-                    )
-                }
-            }
-        }
+        TimerRecordCardContent(
+            note = record,
+            textColor = MaterialTheme.colorScheme.onSurface,
+            pinned = false,
+            onClick = onEdit,
+            onLongPress = {},
+            onQuickAction = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart,
+            onResetAction = onReset,
+            onDeleteRequest = onDelete,
+            showDragHandle = false
+        )
     }
 }
 
