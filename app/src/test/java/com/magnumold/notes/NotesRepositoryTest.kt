@@ -13,6 +13,81 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class NotesRepositoryTest {
     @Test
+    fun legacyKitchenTimersMigrateIntoMainRecordsWithSettingsAndWithoutDuplicates() {
+        val context = RuntimeEnvironment.getApplication()
+        val recordPreferences = context.getSharedPreferences(
+            "notes_repository_kitchen_migration_test", Context.MODE_PRIVATE
+        )
+        val legacyPreferences = context.getSharedPreferences(
+            "kitchen_timers_migration_test", Context.MODE_PRIVATE
+        )
+        recordPreferences.edit().clear().commit()
+        legacyPreferences.edit().clear().commit()
+
+        val legacyTimer = KitchenTimer(
+            id = 1_700_000_000_123L,
+            title = "Гречка",
+            durationSeconds = 900L,
+            remainingSeconds = 420L,
+            soundUri = "content://alarm/test",
+            status = KitchenTimerStatus.PAUSED,
+            colorIndex = 3
+        )
+        val legacyRepository = KitchenTimerRepository(legacyPreferences)
+        legacyRepository.saveTimers(listOf(legacyTimer))
+        val settings = KitchenTimerSettings(
+            TimerAlertDurationMode.TEN_SECONDS,
+            customAlertDurationSeconds = 47,
+            defaultSoundUri = "content://alarm/default"
+        )
+        legacyRepository.saveSettings(settings)
+
+        val repository = NotesRepository(recordPreferences)
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+
+        val migrated = HomeTimelineOperations.records(repository.loadSnapshot())
+            .single { it.type == RecordType.TIMER }
+        assertEquals(legacyTimer.id, migrated.id)
+        assertEquals(legacyTimer.id, migrated.created)
+        assertEquals("Гречка", migrated.titleText)
+        assertEquals(RecordStatus.PAUSED, migrated.status)
+        assertEquals(420L, migrated.timerRemainingSeconds)
+        assertEquals("content://alarm/test", migrated.timerSoundUri)
+        assertEquals(3, migrated.colorIndex)
+        assertEquals(settings, repository.loadSnapshot().timerSettings)
+        assertTrue(repository.loadSnapshot().hasUniqueRecordIds())
+        assertTrue(!legacyPreferences.contains("kitchen_timers_v1"))
+
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+        assertEquals(
+            1,
+            HomeTimelineOperations.records(repository.loadSnapshot()).count { it.type == RecordType.TIMER }
+        )
+    }
+
+    @Test
+    fun firstLaunchCreatesOneDefaultCanonicalTimer() {
+        val context = RuntimeEnvironment.getApplication()
+        val recordPreferences = context.getSharedPreferences(
+            "notes_repository_default_timer_test", Context.MODE_PRIVATE
+        )
+        val legacyPreferences = context.getSharedPreferences(
+            "kitchen_timers_default_timer_test", Context.MODE_PRIVATE
+        )
+        recordPreferences.edit().clear().commit()
+        legacyPreferences.edit().clear().commit()
+
+        val repository = NotesRepository(recordPreferences)
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+
+        val timers = HomeTimelineOperations.records(repository.loadSnapshot())
+            .filter { it.type == RecordType.TIMER }
+        assertEquals(1, timers.size)
+        assertEquals(RecordStatus.WAITING, timers.single().status)
+        assertEquals(TimerOperations.DEFAULT_DURATION_SECONDS, timers.single().timerDurationSeconds)
+    }
+
+    @Test
     fun findTaskResolvesNestedTasksAcrossActiveArchiveAndTrash() {
         val preferences = RuntimeEnvironment.getApplication().getSharedPreferences(
             "notes_repository_find_task_test", Context.MODE_PRIVATE
