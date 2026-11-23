@@ -51,8 +51,7 @@ internal object RecordTimerOperations {
     fun remainingSeconds(note: Note, nowMillis: Long = System.currentTimeMillis()): Long = when {
         note.timerEndsAtMillis != null ->
             TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis)
-        note.status == RecordStatus.PAUSED ||
-            (note.status == RecordStatus.IN_PROGRESS && note.timerEndsAtMillis == null) ->
+        note.status == RecordStatus.PAUSED || note.status == RecordStatus.IN_PROGRESS ->
             (note.timerRemainingSeconds ?: note.timerDurationSeconds).coerceAtLeast(0L)
         note.status == RecordStatus.COMPLETED -> 0L
         else -> TimerOperations.normalizeDuration(note.timerDurationSeconds)
@@ -64,8 +63,7 @@ internal object RecordTimerOperations {
         val remaining = when {
             note.timerEndsAtMillis != null ->
                 TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis).takeIf { it > 0L } ?: duration
-            note.status == RecordStatus.PAUSED ||
-                (note.status == RecordStatus.IN_PROGRESS && note.timerEndsAtMillis == null) ->
+            note.status == RecordStatus.PAUSED || note.status == RecordStatus.IN_PROGRESS ->
                 note.timerRemainingSeconds?.takeIf { it > 0L } ?: duration
             else -> duration
         }
