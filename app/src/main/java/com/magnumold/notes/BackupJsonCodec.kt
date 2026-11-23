@@ -32,6 +32,8 @@ private fun noteToJson(note: Note): JSONObject {
         .put("timerDurationSeconds", note.timerDurationSeconds)
         .put("timerEndsAtMillis", note.timerEndsAtMillis ?: JSONObject.NULL)
         .put("timerRemainingSeconds", note.timerRemainingSeconds ?: JSONObject.NULL)
+        .put("timerSoundUri", note.timerSoundUri ?: JSONObject.NULL)
+        .put("timerAlertStartedAtMillis", note.timerAlertStartedAtMillis ?: JSONObject.NULL)
         .put("nutritionGrams", note.nutritionGrams).put("nutritionCalories", note.nutritionCalories)
         .put("nutritionProtein", note.nutritionProtein).put("nutritionFat", note.nutritionFat)
         .put("nutritionCarbs", note.nutritionCarbs)
@@ -107,6 +109,8 @@ private fun parseNoteObject(obj: JSONObject, index: Int): Note {
         timerDurationSeconds = obj.optLong("timerDurationSeconds", 300L).coerceIn(1L, 86_400L),
         timerEndsAtMillis = if (obj.isNull("timerEndsAtMillis")) null else obj.optLong("timerEndsAtMillis"),
         timerRemainingSeconds = if (obj.isNull("timerRemainingSeconds")) null else obj.optLong("timerRemainingSeconds").coerceIn(0L, 86_400L),
+        timerSoundUri = if (obj.isNull("timerSoundUri")) null else obj.optString("timerSoundUri").takeIf { it.isNotBlank() },
+        timerAlertStartedAtMillis = if (obj.isNull("timerAlertStartedAtMillis")) null else obj.optLong("timerAlertStartedAtMillis"),
         nutritionGrams = obj.nonNegativeFiniteDouble("nutritionGrams", 0.0, 9_999_999_999.0),
         nutritionCalories = obj.nonNegativeFiniteDouble("nutritionCalories", 0.0, 9_999_999_999.0),
         nutritionProtein = obj.nonNegativeFiniteDouble("nutritionProtein", 0.0, 9_999_999_999.0),
