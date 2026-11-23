@@ -36,6 +36,16 @@ class AppThemeStateTest {
     }
 
     @Test
+    fun timelineDateBadgeDefaultsAreWhiteInLightThemeAndBlackInDarkTheme() {
+        val defaults = TimelineDateColorSets()
+
+        assertEquals(Color.White, defaults.light.background)
+        assertEquals(Color(0xFF202020), defaults.light.text)
+        assertEquals(Color.Black, defaults.dark.background)
+        assertEquals(Color.White, defaults.dark.text)
+    }
+
+    @Test
     fun systemModeUsesSeparateLightAndDarkNoteColorOpacity() {
         val state = state()
 
