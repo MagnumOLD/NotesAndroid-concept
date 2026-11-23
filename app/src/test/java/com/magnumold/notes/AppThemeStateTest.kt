@@ -40,9 +40,9 @@ class AppThemeStateTest {
         val defaults = TimelineDateColorSets()
 
         assertEquals(Color.White, defaults.light.background)
-        assertEquals(Color(0xFF202020), defaults.light.text)
+        assertEquals(Color(0xFF666666), defaults.light.text)
         assertEquals(Color.Black, defaults.dark.background)
-        assertEquals(Color.White, defaults.dark.text)
+        assertEquals(Color(0xFFB0B0B0), defaults.dark.text)
     }
 
     @Test
