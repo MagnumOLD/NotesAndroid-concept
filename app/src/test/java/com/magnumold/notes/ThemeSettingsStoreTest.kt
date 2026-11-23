@@ -14,7 +14,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class ThemeSettingsStoreTest {
     @Test
-    fun unchangedLegacyDateColorsMigrateButCustomizedColorsArePreserved() {
+    fun customizedDateTextColorsArePreservedWhenBackgroundDefaultsMigrate() {
         val preferences = RuntimeEnvironment.getApplication()
             .getSharedPreferences("theme_settings_date_migration_test", Context.MODE_PRIVATE)
         val light = JSONObject()
@@ -36,5 +36,28 @@ class ThemeSettingsStoreTest {
         assertEquals(Color.Red, migrated.light.text)
         assertEquals(Color.Black, migrated.dark.background)
         assertEquals(Color.Green, migrated.dark.text)
+    }
+
+    @Test
+    fun unchangedLegacyDateColorsKeepOriginalTextDefaults() {
+        val preferences = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("theme_settings_date_default_migration_test", Context.MODE_PRIVATE)
+        preferences.edit().clear()
+            .putString("timeline_date_colors_v1", JSONObject()
+                .put("light", JSONObject()
+                    .put("background", "#FFF5F5F5")
+                    .put("text", "#FF666666"))
+                .put("dark", JSONObject()
+                    .put("background", "#FF191919")
+                    .put("text", "#FFB0B0B0"))
+                .toString())
+            .commit()
+
+        val migrated = ThemeSettingsStore(preferences).loadTimelineDateColorSets()
+
+        assertEquals(Color.White, migrated.light.background)
+        assertEquals(Color(0xFF666666), migrated.light.text)
+        assertEquals(Color.Black, migrated.dark.background)
+        assertEquals(Color(0xFFB0B0B0), migrated.dark.text)
     }
 }
