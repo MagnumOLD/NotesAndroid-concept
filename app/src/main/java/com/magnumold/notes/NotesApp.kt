@@ -518,7 +518,12 @@ internal fun NotesApp(
                         onToggleFavorite = { ids -> recordsViewModel.toggleRecordsFavorite(ids.filter { it > 0L }.toSet()) },
                         onSetShowOnHome = { ids, show -> recordsViewModel.setRecordsShowOnHome(ids.filter { it > 0L }.toSet(), show) },
                         onChangeNoteColor = { noteId, colorIndex ->
-                            if (noteId > 0L) {
+                            if (noteId < 0L) {
+                                val kitchenId = -noteId
+                                updateKitchenTimers(kitchenTimers.map {
+                                    if (it.id == kitchenId) it.copy(colorIndex = colorIndex) else it
+                                })
+                            } else if (noteId > 0L) {
                                 if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
                                 else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
                             }
