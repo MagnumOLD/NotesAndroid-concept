@@ -56,7 +56,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         val legacyIdMap = linkedMapOf<Long, Long>()
         // An empty legacy store means there is nothing to migrate.
         // Never synthesize a timer during first launch or after the last timer was deleted.
-        val migrated = if (legacyRaw.isNullOrBlank()) current        } else {
+        val migrated = if (legacyRaw.isNullOrBlank()) current else {
             val legacy = KitchenTimerRepository(legacyPreferences).load().timers
             val usedIds = mutableSetOf<Long>()
             fun collect(notes: List<Note>) {
