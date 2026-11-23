@@ -98,10 +98,13 @@ internal class KitchenTimerAlertService : Service() {
                 restoreActiveAlerts(finishWhenEmpty = false)
                 intent?.let(::startAlert)
             }
-            KitchenTimerContract.ACTION_STOP_ALERT -> intent?.let { stopIntent ->
-                val id = stopIntent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
-                if (id > 0L) stopAlert(id)
-                else finishIfIdle()
+            KitchenTimerContract.ACTION_STOP_ALERT -> {
+                restoreActiveAlerts(finishWhenEmpty = false)
+                intent?.let { stopIntent ->
+                    val id = stopIntent.getLongExtra(KitchenTimerContract.EXTRA_TIMER_ID, -1L)
+                    if (id > 0L) stopAlert(id)
+                    else finishIfIdle()
+                }
             }
             null -> restoreActiveAlerts()
             else -> finishIfIdle()
