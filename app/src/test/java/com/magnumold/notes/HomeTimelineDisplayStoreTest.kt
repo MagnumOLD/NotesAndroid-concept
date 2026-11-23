@@ -37,6 +37,26 @@ class HomeTimelineDisplayStoreTest {
     }
 
     @Test
+    fun legacyUnmarkedFourteenSpDefaultMigratesToTwelve() {
+        val preferences = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("home_timeline_display_legacy_test", Context.MODE_PRIVATE)
+        preferences.edit().clear().putInt("date_header_text_size", 14).commit()
+
+        assertEquals(12, HomeTimelineDisplayStore(preferences).loadDateHeaderTextSize())
+        assertEquals(12, preferences.getInt("date_header_text_size", -1))
+    }
+
+    @Test
+    fun explicitlySelectedFourteenSpPersistsAcrossReload() {
+        val preferences = RuntimeEnvironment.getApplication()
+            .getSharedPreferences("home_timeline_display_explicit_test", Context.MODE_PRIVATE)
+        preferences.edit().clear().commit()
+        HomeTimelineDisplayStore(preferences).saveDateHeaderTextSize(14)
+
+        assertEquals(14, HomeTimelineDisplayStore(preferences).loadDateHeaderTextSize())
+    }
+
+    @Test
     fun unsupportedDateHeaderTextSizeFallsBackToTwelve() {
         val settings = store()
         settings.saveDateHeaderTextSize(18)
