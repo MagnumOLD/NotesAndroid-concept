@@ -16,8 +16,8 @@ class HomeButtonLayoutStoreTest {
         .apply { edit().clear().commit() }
 
     @Test
-    fun defaultsToCurrentSeparateLayout() {
-        assertEquals(HomeButtonLayout.SEPARATE, HomeButtonLayoutStore(preferences()).load())
+    fun defaultsToVerticalPanelLayout() {
+        assertEquals(HomeButtonLayout.VERTICAL_PANEL, HomeButtonLayoutStore(preferences()).load())
     }
 
     @Test
@@ -42,6 +42,6 @@ class HomeButtonLayoutStoreTest {
     fun unknownStoredValueFallsBackToCurrentLayout() {
         val prefs = preferences()
         prefs.edit().putString("home_button_layout", "UNKNOWN").commit()
-        assertEquals(HomeButtonLayout.SEPARATE, HomeButtonLayoutStore(prefs).load())
+        assertEquals(HomeButtonLayout.VERTICAL_PANEL, HomeButtonLayoutStore(prefs).load())
     }
 }
