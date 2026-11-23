@@ -92,9 +92,6 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
-            val kitchenTimerRepository = remember(activity) {
-                KitchenTimerRepository(activity.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE))
-            }
             val kitchenTimerSettings = snapshot.timerSettings
             val kitchenTimers = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot)
