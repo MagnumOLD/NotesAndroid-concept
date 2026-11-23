@@ -107,6 +107,10 @@ internal class NotesViewModel(
         updateSnapshot { it.copy(nutritionProducts = products.distinctBy { product -> product.id }) }
     }
 
+    fun updateTimerSettings(settings: KitchenTimerSettings) {
+        updateSnapshot { it.copy(timerSettings = settings.normalized()) }
+    }
+
     fun updateHomeRecord(note: Note) {
         updateSnapshot { HomeTimelineOperations.update(it, note) }
     }
