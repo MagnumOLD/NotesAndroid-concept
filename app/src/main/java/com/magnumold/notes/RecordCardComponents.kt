@@ -658,9 +658,7 @@ private fun HomeTimerCardContent(
             }
         }
     }
-    val remaining = note.timerEndsAtMillis?.let {
-        TimerOperations.remainingSeconds(it, nowMillis)
-    } ?: note.timerRemainingSeconds ?: note.timerDurationSeconds
+    val remaining = RecordTimerOperations.remainingSeconds(note, nowMillis)
     val statusText = when {
         note.timerEndsAtMillis != null -> "Работает"
         note.status == RecordStatus.PAUSED -> "На паузе"
