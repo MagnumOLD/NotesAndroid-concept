@@ -9,6 +9,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 
+internal fun recordTimerNotificationTag(recordId: Long): String = "record-timer:$recordId"
+
 internal object RecordTimerContract {
     const val ACTION_ALARM = "com.magnumold.notes.action.RECORD_TIMER_ALARM"
     const val EXTRA_RECORD_ID = "record_timer_id"
