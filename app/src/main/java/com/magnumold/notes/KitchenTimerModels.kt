@@ -60,17 +60,19 @@ internal fun KitchenTimer.toRecord(existing: Note? = null): Note {
 
 internal fun Note.toKitchenTimer(): KitchenTimer {
     require(type == RecordType.TIMER)
-    val timerStatus = when (status) {
-        RecordStatus.IN_PROGRESS -> KitchenTimerStatus.RUNNING
-        RecordStatus.PAUSED -> KitchenTimerStatus.PAUSED
-        RecordStatus.COMPLETED -> KitchenTimerStatus.FINISHED
+    val timerStatus = when {
+        status == RecordStatus.IN_PROGRESS && timerEndsAtMillis != null -> KitchenTimerStatus.RUNNING
+        status == RecordStatus.IN_PROGRESS || status == RecordStatus.PAUSED -> KitchenTimerStatus.PAUSED
+        status == RecordStatus.COMPLETED -> KitchenTimerStatus.FINISHED
         else -> KitchenTimerStatus.READY
     }
     return KitchenTimer(
         id = id,
         title = titleText,
         durationSeconds = timerDurationSeconds,
-        remainingSeconds = timerRemainingSeconds,
+        remainingSeconds = if (timerStatus == KitchenTimerStatus.PAUSED) {
+            timerRemainingSeconds ?: timerDurationSeconds
+        } else timerRemainingSeconds,
         endsAtMillis = timerEndsAtMillis,
         soundUri = timerSoundUri,
         status = timerStatus,
@@ -122,7 +124,8 @@ internal object KitchenTimerOperations {
         return timer.copy(
             remainingSeconds = remaining,
             endsAtMillis = null,
-            status = if (remaining == 0L) KitchenTimerStatus.FINISHED else KitchenTimerStatus.PAUSED
+            status = if (remaining == 0L) KitchenTimerStatus.FINISHED else KitchenTimerStatus.PAUSED,
+            alertStartedAtMillis = if (remaining == 0L) nowMillis else null
         )
     }
 
