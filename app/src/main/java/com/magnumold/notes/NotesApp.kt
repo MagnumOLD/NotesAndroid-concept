@@ -397,6 +397,8 @@ internal fun NotesApp(
                         onInitialEditConsumed = { pendingKitchenTimerEditId = null },
                         topBarColor = activeThemeColors.topBar,
                         addButtonColor = activeThemeColors.addButton,
+                        noteColors = displayedNoteColors,
+                        dark = dark,
                         onTimersChange = ::updateKitchenTimers,
                         onSettingsChange = recordsViewModel::updateTimerSettings,
                         onRefresh = { recordsViewModel.refreshTimerStatesFromRepository() }
