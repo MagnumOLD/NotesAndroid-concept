@@ -45,3 +45,91 @@ internal object TimerOperations {
         else "%02d:%02d".format(minutes, remainder)
     }
 }
+
+/** Canonical state transitions for every persisted countdown timer record. */
+internal object RecordTimerOperations {
+    fun remainingSeconds(note: Note, nowMillis: Long = System.currentTimeMillis()): Long = when {
+        note.timerEndsAtMillis != null ->
+            TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis)
+        note.status == RecordStatus.PAUSED ->
+            (note.timerRemainingSeconds ?: note.timerDurationSeconds).coerceAtLeast(0L)
+        note.status == RecordStatus.COMPLETED -> 0L
+        else -> TimerOperations.normalizeDuration(note.timerDurationSeconds)
+    }
+
+    fun start(note: Note, nowMillis: Long = System.currentTimeMillis()): Note {
+        require(note.type == RecordType.TIMER)
+        val duration = TimerOperations.normalizeDuration(note.timerDurationSeconds)
+        val remaining = when {
+            note.timerEndsAtMillis != null ->
+                TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis).takeIf { it > 0L } ?: duration
+            note.status == RecordStatus.PAUSED ->
+                note.timerRemainingSeconds?.takeIf { it > 0L } ?: duration
+            else -> duration
+        }
+        return note.copy(
+            timerDurationSeconds = duration,
+            timerEndsAtMillis = TimerOperations.startAt(nowMillis, remaining),
+            timerRemainingSeconds = null,
+            timerAlertStartedAtMillis = null,
+            status = RecordStatus.IN_PROGRESS,
+            updated = nowMillis
+        )
+    }
+
+    fun pause(note: Note, nowMillis: Long = System.currentTimeMillis()): Note {
+        require(note.type == RecordType.TIMER)
+        val endAt = note.timerEndsAtMillis ?: return note
+        val remaining = TimerOperations.remainingSeconds(endAt, nowMillis)
+        return note.copy(
+            timerEndsAtMillis = null,
+            timerRemainingSeconds = remaining,
+            timerAlertStartedAtMillis = if (remaining == 0L) nowMillis else null,
+            status = if (remaining == 0L) RecordStatus.COMPLETED else RecordStatus.PAUSED,
+            updated = nowMillis
+        )
+    }
+
+    fun reset(note: Note, nowMillis: Long = System.currentTimeMillis()): Note {
+        require(note.type == RecordType.TIMER)
+        return note.copy(
+            timerEndsAtMillis = null,
+            timerRemainingSeconds = null,
+            timerAlertStartedAtMillis = null,
+            status = RecordStatus.WAITING,
+            updated = nowMillis
+        )
+    }
+
+    fun updateDuration(
+        note: Note,
+        durationSeconds: Long,
+        nowMillis: Long = System.currentTimeMillis()
+    ): Note {
+        require(note.type == RecordType.TIMER)
+        val duration = TimerOperations.normalizeDuration(durationSeconds)
+        val running = note.timerEndsAtMillis != null
+        return note.copy(
+            timerDurationSeconds = duration,
+            timerRemainingSeconds = if (!running && note.status == RecordStatus.PAUSED) duration else null,
+            timerEndsAtMillis = if (running) TimerOperations.startAt(nowMillis, duration) else null,
+            timerAlertStartedAtMillis = if (note.status == RecordStatus.COMPLETED) null
+                else note.timerAlertStartedAtMillis,
+            status = if (note.status == RecordStatus.COMPLETED) RecordStatus.WAITING else note.status,
+            updated = nowMillis
+        )
+    }
+
+    fun reconcile(note: Note, nowMillis: Long = System.currentTimeMillis()): Note {
+        require(note.type == RecordType.TIMER)
+        val endAt = note.timerEndsAtMillis ?: return note
+        if (TimerOperations.remainingSeconds(endAt, nowMillis) > 0L) return note
+        return note.copy(
+            timerEndsAtMillis = null,
+            timerRemainingSeconds = 0L,
+            timerAlertStartedAtMillis = note.timerAlertStartedAtMillis ?: nowMillis,
+            status = RecordStatus.COMPLETED,
+            updated = nowMillis
+        )
+    }
+}
