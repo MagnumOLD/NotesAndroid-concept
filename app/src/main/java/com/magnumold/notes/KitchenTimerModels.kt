@@ -27,31 +27,56 @@ internal data class KitchenTimer(
     }
 }
 
-internal fun KitchenTimer.toHomeRecord(): Note {
+internal fun KitchenTimer.toRecord(existing: Note? = null): Note {
     val recordStatus = when (status) {
         KitchenTimerStatus.READY -> RecordStatus.WAITING
         KitchenTimerStatus.RUNNING -> RecordStatus.IN_PROGRESS
         KitchenTimerStatus.PAUSED -> RecordStatus.PAUSED
         KitchenTimerStatus.FINISHED -> RecordStatus.COMPLETED
     }
-    val timestamp = endsAtMillis ?: alertStartedAtMillis ?: id
+    val timestamp = endsAtMillis ?: alertStartedAtMillis ?: existing?.updated ?: id
     return Note(
-        id = -id,
+        id = id,
         title = "",
-        blocks = listOf(NoteBlock()),
+        blocks = existing?.blocks ?: listOf(NoteBlock()),
         updated = timestamp,
-        created = id,
+        created = existing?.created ?: id,
         type = RecordType.TIMER,
         colorIndex = colorIndex,
+        pinned = existing?.pinned ?: false,
         status = recordStatus,
         titleEnabled = true,
-        titleText = title.ifBlank { "Таймер" },
+        titleText = title,
+        showOnHome = existing?.showOnHome ?: true,
+        favorite = existing?.favorite ?: false,
+        homeOrder = existing?.homeOrder ?: id,
         timerDurationSeconds = durationSeconds,
         timerEndsAtMillis = endsAtMillis,
         timerRemainingSeconds = remainingSeconds,
-        showOnHome = true,
-        homeOrder = id
+        timerSoundUri = soundUri,
+        timerAlertStartedAtMillis = alertStartedAtMillis
     )
+}
+
+internal fun Note.toKitchenTimer(): KitchenTimer {
+    require(type == RecordType.TIMER)
+    val timerStatus = when (status) {
+        RecordStatus.IN_PROGRESS -> KitchenTimerStatus.RUNNING
+        RecordStatus.PAUSED -> KitchenTimerStatus.PAUSED
+        RecordStatus.COMPLETED -> KitchenTimerStatus.FINISHED
+        else -> KitchenTimerStatus.READY
+    }
+    return KitchenTimer(
+        id = id,
+        title = titleText,
+        durationSeconds = timerDurationSeconds,
+        remainingSeconds = timerRemainingSeconds,
+        endsAtMillis = timerEndsAtMillis,
+        soundUri = timerSoundUri,
+        status = timerStatus,
+        alertStartedAtMillis = timerAlertStartedAtMillis,
+        colorIndex = colorIndex
+    ).normalized()
 }
 
 internal enum class TimerAlertDurationMode { TEN_SECONDS, THIRTY_SECONDS, ONE_MINUTE, CUSTOM }
