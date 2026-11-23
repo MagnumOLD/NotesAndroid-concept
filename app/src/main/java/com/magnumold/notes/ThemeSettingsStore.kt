@@ -90,6 +90,7 @@ internal class ThemeSettingsStore(private val preferences: SharedPreferences) {
                 defaultsForMode: TimelineDateColors
             ) = colors.copy(
                 background = if (colors.background == oldBackground) defaultsForMode.background else colors.background,
+                // Date text was not part of the approved background change; keep its original defaults.
                 text = if (colors.text == oldText) defaultsForMode.text else colors.text
             )
             TimelineDateColorSets(
