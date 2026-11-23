@@ -41,7 +41,7 @@ import kotlin.math.abs
 internal fun NotesHome(
     notes: List<Note>, search: String, searchVisible: Boolean, noteColors: List<Color>,
     themeColors: CustomThemeColors, timelineDateColors: TimelineDateColors,
-    showTimelineDateHeaders: Boolean = true, dateHeaderTextSize: Int = 14,
+    showTimelineDateHeaders: Boolean = true, dateHeaderTextSize: Int = 12,
     manualHomeOrderIds: List<Long>? = null,
     onSearch: (String) -> Unit,
     onToggleSearch: () -> Unit, dark: Boolean, onOpenSettings: () -> Unit,
@@ -62,7 +62,7 @@ internal fun NotesHome(
      showCollections: Boolean = true,
     collectionsAvailable: Boolean = true,
     enabledModules: List<AppModule> = AppModule.entries.filter { it != AppModule.ALL },
-    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.SEPARATE,
+    homeButtonLayout: HomeButtonLayout = HomeButtonLayout.VERTICAL_PANEL,
     homeAddRecordType: RecordType = RecordType.NOTE,
     isMainHome: Boolean = timelineMode
 ) {
@@ -684,12 +684,12 @@ internal fun NotesHome(
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(timelineDateColors.background)
+                                            .then(
+                                                if (isFavoritesView) Modifier.background(timelineDateColors.background)
+                                                else Modifier
+                                            )
                                     ) {
-                                        Text(
-                                            text = if (isFavoritesView) {
-                                                HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
-                                            } else homeTimelineDayLabel(rowDay, todayDay),
+                                        Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(
@@ -698,14 +698,25 @@ internal fun NotesHome(
                                                     top = if (index == 0) AppSpacing.sm else AppSpacing.xl,
                                                     bottom = AppSpacing.xs
                                                 ),
-                                            style = MaterialTheme.typography.labelLarge.copy(
-                                                fontSize = if (isFavoritesView) MaterialTheme.typography.labelLarge.fontSize
-                                                else dateHeaderTextSize.sp,
-                                                textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
-                                                else androidx.compose.ui.text.style.TextAlign.End
-                                            ),
-                                            color = timelineDateColors.text
-                                        )
+                                            horizontalArrangement = if (isFavoritesView) Arrangement.Start else Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = if (isFavoritesView) {
+                                                    HomeTimelineOperations.moduleSectionTitle(anchorNote.type)
+                                                } else homeTimelineDayLabel(rowDay, todayDay),
+                                                modifier = if (isFavoritesView) Modifier else Modifier
+                                                    .background(timelineDateColors.background, RoundedCornerShape(7.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontSize = if (isFavoritesView) MaterialTheme.typography.labelLarge.fontSize
+                                                    else dateHeaderTextSize.sp,
+                                                    textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
+                                                    else androidx.compose.ui.text.style.TextAlign.End
+                                                ),
+                                                color = timelineDateColors.text
+                                            )
+                                        }
                                         HorizontalDivider(
                                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f),
                                             thickness = CardDimensions.dividerThickness
