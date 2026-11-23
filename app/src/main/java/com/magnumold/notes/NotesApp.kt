@@ -139,10 +139,11 @@ internal fun NotesApp(
             }
             val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot).filter {
-                    it.type == RecordType.TIMER && it.timerEndsAtMillis != null
+                    it.type == RecordType.TIMER &&
+                        (it.timerEndsAtMillis != null || it.timerAlertStartedAtMillis != null)
                 }
             }
-            LaunchedEffect(activeTimerRecords.map { it.id to it.timerEndsAtMillis }) {
+            LaunchedEffect(activeTimerRecords.map { it.id to (it.timerEndsAtMillis to it.timerAlertStartedAtMillis) }) {
                 activeTimerRecords.forEach(recordTimerScheduler::sync)
             }
             LaunchedEffect(timeTrackingState.protectionTimer) {
