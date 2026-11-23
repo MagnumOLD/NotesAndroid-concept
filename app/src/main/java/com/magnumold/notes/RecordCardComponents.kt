@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
@@ -52,6 +53,7 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun MainCardHeader(
@@ -430,6 +432,8 @@ internal fun NoteRow(
     colorSwipeEnabled: Boolean, onChangeColor: (Int) -> Unit,
     interactiveCards: Boolean = false,
     onQuickAction: () -> Unit = {},
+    onResetAction: () -> Unit = {},
+    onDeleteRequest: () -> Unit = {},
     showSecondaryPreview: Boolean = true,
     previewFields: Set<String> = CardPreviewField.defaults,
     onMeasuredHeight: (Int) -> Unit = {}
@@ -470,6 +474,18 @@ internal fun NoteRow(
         modifier = Modifier.fillMaxWidth()
             .onSizeChanged { onMeasuredHeight(it.height) }
     ) {
+        if (note.type == RecordType.TIMER && interactiveCards) {
+            HomeTimerCardContent(
+                note = note,
+                textColor = rowTextColor,
+                pinned = pinned,
+                onClick = onClick,
+                onLongPress = onLongPress,
+                onQuickAction = onQuickAction,
+                onResetAction = onResetAction,
+                onDeleteRequest = onDeleteRequest
+            )
+        } else {
         Row(
             Modifier.fillMaxWidth()
                 .heightIn(min = CardDimensions.contentHeight)
@@ -616,8 +632,134 @@ internal fun NoteRow(
                 }
             }
         }
+        }
     }
 }
+
+@Composable
+private fun HomeTimerCardContent(
+    note: Note,
+    textColor: Color,
+    pinned: Boolean,
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    onQuickAction: () -> Unit,
+    onResetAction: () -> Unit,
+    onDeleteRequest: () -> Unit
+) {
+    var nowMillis by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
+    var menuExpanded by remember(note.id) { mutableStateOf(false) }
+    LaunchedEffect(note.id, note.timerEndsAtMillis) {
+        if (note.timerEndsAtMillis != null) {
+            while (true) {
+                nowMillis = System.currentTimeMillis()
+                delay(250L)
+            }
+        }
+    }
+    val remaining = note.timerEndsAtMillis?.let {
+        TimerOperations.remainingSeconds(it, nowMillis)
+    } ?: note.timerRemainingSeconds ?: note.timerDurationSeconds
+    val statusText = when {
+        note.timerEndsAtMillis != null -> "Работает"
+        note.status == RecordStatus.PAUSED -> "На паузе"
+        note.status == RecordStatus.COMPLETED -> "Время вышло"
+        else -> "Готов к запуску"
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth()
+            .heightIn(min = CardDimensions.contentHeight)
+            .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+                .pointerInput(note.id) {
+                    detectTapGestures(onTap = { onClick() }, onLongPress = { onLongPress() })
+                },
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Text(
+                text = recordCardPrimaryText(note),
+                style = AppTypography.sectionHeadingStyle(),
+                fontWeight = FontWeight.Medium,
+                color = textColor,
+                maxLines = 1,
+                softWrap = false,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+            )
+            Text(
+                text = statusText,
+                style = AppTypography.helperStyle(),
+                color = if (note.status == RecordStatus.COMPLETED) MaterialTheme.colorScheme.error else textColor.copy(alpha = 0.72f),
+                maxLines = 1,
+                softWrap = false
+            )
+        }
+        Text(
+            text = TimerOperations.format(remaining),
+            style = MaterialTheme.typography.titleMedium,
+            color = if (note.status == RecordStatus.COMPLETED) MaterialTheme.colorScheme.error else textColor,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            softWrap = false
+        )
+        Box(
+            modifier = Modifier.size(40.dp).clickable(onClick = onQuickAction),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (note.timerEndsAtMillis != null) Icons.Outlined.PauseCircleOutline else Icons.Outlined.PlayCircleOutline,
+                contentDescription = if (note.timerEndsAtMillis != null) "Пауза таймера" else "Запустить таймер",
+                tint = textColor
+            )
+        }
+        Box(
+            modifier = Modifier.size(40.dp).clickable(onClick = onResetAction),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер", tint = textColor)
+        }
+        Box {
+            Box(
+                modifier = Modifier.size(40.dp).clickable { menuExpanded = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.MoreVert, contentDescription = "Дополнительные действия", tint = textColor)
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false }
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Редактировать") },
+                    onClick = { menuExpanded = false; onClick() }
+                )
+                DropdownMenuItem(
+                    text = { Text("Удалить") },
+                    onClick = { menuExpanded = false; onDeleteRequest() }
+                )
+            }
+        }
+        Column(
+            modifier = Modifier.padding(start = 2.dp, end = CardDimensions.sideRailEndInset),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                DragHandleIcon(color = textColor)
+            }
+            if (pinned) AppIcon(
+                NoteIcon.Pin,
+                contentDescription = "Закреплено",
+                tint = textColor.copy(alpha = 0.8f),
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
 internal enum class NoteIcon {
     Back, Add, AddBlock, Search, Close, More, Palette, Archive, Trash,
     Upload, Download, Pin, Folder, Undo, Redo, Share, Modules, Home
