@@ -114,13 +114,7 @@ internal class RecordTimerReceiver : BroadcastReceiver() {
             return
         }
 
-        val completed = current.copy(
-            timerEndsAtMillis = null,
-            timerRemainingSeconds = 0L,
-            timerAlertStartedAtMillis = now,
-            status = RecordStatus.COMPLETED,
-            updated = now
-        )
+        val completed = RecordTimerOperations.reconcile(current, now)
         repository.flushSnapshot(HomeTimelineOperations.update(snapshot, completed))
         repository.markExternalTimerStateUpdate()
         context.sendBroadcast(
