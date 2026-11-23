@@ -19,7 +19,8 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         collections = loadCollections(),
         archived = loadVault("archive"),
         trash = loadVault("trash"),
-        nutritionProducts = loadJsonArray("nutrition_products", emptyList()) { NutritionCatalogOperations.parseProducts(it) }
+        nutritionProducts = loadJsonArray("nutrition_products", emptyList()) { NutritionCatalogOperations.parseProducts(it) },
+        timerSettings = loadTimerSettings()
     )
 
     @Synchronized
@@ -37,7 +38,9 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         if (preferences.getBoolean(KEY_KITCHEN_TIMER_MIGRATION, false)) return
 
         val legacyRaw = legacyPreferences.getString("kitchen_timers_v1", null)
-        val current = loadSnapshot()
+        val current = loadSnapshot().copy(
+            timerSettings = KitchenTimerRepository(legacyPreferences).loadSettings()
+        )
         val existingTimers = HomeTimelineOperations.records(current)
             .filter { it.type == RecordType.TIMER }
         val migrated = if (legacyRaw.isNullOrBlank()) {
@@ -84,6 +87,9 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         legacyPreferences.edit()
             .remove("kitchen_timers_v1")
             .remove("kitchen_timer_next_id")
+            .remove("kitchen_timer_alert_mode")
+            .remove("kitchen_timer_custom_alert_seconds")
+            .remove("kitchen_timer_default_sound_uri")
             .commit()
     }
 
@@ -101,6 +107,19 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             .putString("archive", vaultToJson(snapshot.archived).toString())
             .putString("trash", vaultToJson(snapshot.trash).toString())
             .putString("nutrition_products", NutritionCatalogOperations.productsToJson(snapshot.nutritionProducts).toString())
+            .putString("timer_alert_mode", snapshot.timerSettings.alertDurationMode.name)
+            .putInt("timer_custom_alert_seconds", snapshot.timerSettings.customAlertDurationSeconds)
+            .putString("timer_default_sound_uri", snapshot.timerSettings.defaultSoundUri)
+
+    private fun loadTimerSettings(): KitchenTimerSettings = runCatching {
+        KitchenTimerSettings(
+            alertDurationMode = preferences.getString("timer_alert_mode", null)
+                ?.let { TimerAlertDurationMode.valueOf(it) }
+                ?: TimerAlertDurationMode.THIRTY_SECONDS,
+            customAlertDurationSeconds = preferences.getInt("timer_custom_alert_seconds", 30),
+            defaultSoundUri = preferences.getString("timer_default_sound_uri", null)
+        ).normalized()
+    }.getOrDefault(KitchenTimerSettings())
 
     fun findTask(taskId: Long): Note? {
         val snapshot = loadSnapshot()
