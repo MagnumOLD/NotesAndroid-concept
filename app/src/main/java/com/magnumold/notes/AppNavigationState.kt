@@ -17,6 +17,7 @@ internal class AppNavigationState {
         private set
     var returnToModulesOnBack by mutableStateOf(false)
         private set
+    private var returnHomeAfterTimerEditor by mutableStateOf(false)
 
     val canReturnToModules: Boolean
         get() = returnToModulesOnBack && activeModule != AppModule.ALL && !modulesVisible
@@ -65,6 +66,7 @@ internal class AppNavigationState {
     fun closeModuleManagement() { moduleManagementVisible = false }
 
     fun returnToHomeKeepingModuleScreens() {
+        returnHomeAfterTimerEditor = false
         returnToModulesOnBack = false
         activeModule = AppModule.ALL
         activeCollectionId = null
@@ -75,6 +77,7 @@ internal class AppNavigationState {
     }
 
     fun selectModule(module: AppModule) {
+        returnHomeAfterTimerEditor = false
         returnToModulesOnBack = module != AppModule.ALL && modulesVisible
         activeModule = module
         activeCollectionId = null
@@ -85,8 +88,22 @@ internal class AppNavigationState {
         searchVisible = false
     }
 
+    fun openTimerEditorFromHome() {
+        selectModule(AppModule.TIMERS)
+        returnHomeAfterTimerEditor = true
+    }
+
+    /** Returns true when a Home-origin timer editor should skip the timer list. */
+    fun returnFromTimerEditor(): Boolean {
+        if (!returnHomeAfterTimerEditor) return false
+        returnHomeAfterTimerEditor = false
+        returnToHomeKeepingModuleScreens()
+        return true
+    }
+
     fun returnFromModuleToModules() {
         if (!canReturnToModules) return
+        returnHomeAfterTimerEditor = false
         activeModule = AppModule.ALL
         activeCollectionId = null
         selectedId = null
