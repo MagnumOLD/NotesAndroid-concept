@@ -83,7 +83,25 @@ internal class ThemeSettingsStore(private val preferences: SharedPreferences) {
                     text = parseThemeColor(item.optString("text"), fallback.text)
                 )
             } ?: fallback
-            TimelineDateColorSets(decode("light", defaults.light), decode("dark", defaults.dark))
+            fun migrateUnchangedDefaults(
+                colors: TimelineDateColors,
+                oldBackground: Color,
+                oldText: Color,
+                defaultsForMode: TimelineDateColors
+            ) = colors.copy(
+                background = if (colors.background == oldBackground) defaultsForMode.background else colors.background,
+                text = if (colors.text == oldText) defaultsForMode.text else colors.text
+            )
+            TimelineDateColorSets(
+                light = migrateUnchangedDefaults(
+                    decode("light", defaults.light),
+                    Color(0xFFF5F5F5), Color(0xFF666666), defaults.light
+                ),
+                dark = migrateUnchangedDefaults(
+                    decode("dark", defaults.dark),
+                    Color(0xFF191919), Color(0xFFB0B0B0), defaults.dark
+                )
+            )
         } catch (_: Exception) { defaults }
     }
 
