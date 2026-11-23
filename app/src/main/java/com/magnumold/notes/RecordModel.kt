@@ -95,7 +95,8 @@ internal data class PersistenceSnapshot(
     val collections: List<NoteCollection>,
     val archived: List<VaultNote>,
     val trash: List<VaultNote>,
-    val nutritionProducts: List<NutritionProduct> = emptyList()
+    val nutritionProducts: List<NutritionProduct> = emptyList(),
+    val timerSettings: KitchenTimerSettings = KitchenTimerSettings()
 )
 internal data class VaultNote(
     val note: Note,
