@@ -356,26 +356,12 @@ internal fun NotesHome(
                     }
 
                     if (activeButtonLayout != HomeButtonLayout.VERTICAL_PANEL) {
-                        Box(
-                            modifier = Modifier
-                                .size(addDiameter)
-                                .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
-                                .clip(androidx.compose.foundation.shape.CircleShape)
-                                .background(themeColors.addButton)
-                                .combinedClickable(
-                                    role = Role.Button,
-                                    onClick = addAction,
-                                    onLongClick = addLongAction
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "+",
-                                fontSize = 34.sp,
-                                fontWeight = FontWeight.Light,
-                                color = noteTextColor(themeColors.addButton)
-                            )
-                        }
+                        PrimaryAddButton(
+                            color = themeColors.addButton,
+                            onClick = addAction,
+                            onLongClick = addLongAction,
+                            modifier = Modifier.size(addDiameter)
+                        )
                     }
                     DropdownMenu(
                         expanded = createMenuExpanded,
@@ -840,5 +826,34 @@ private fun homeTimelineDayLabel(day: Long, todayDay: Long): String {
             timeZone = java.util.TimeZone.getTimeZone("UTC")
         }.format(java.util.Date(day * 86_400_000L))
             .replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }
+    }
+}
+
+
+@Composable
+internal fun PrimaryAddButton(
+    color: Color,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .shadow(6.dp, androidx.compose.foundation.shape.CircleShape)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .background(color)
+            .combinedClickable(
+                role = Role.Button,
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            "+",
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Light,
+            color = noteTextColor(color)
+        )
     }
 }
