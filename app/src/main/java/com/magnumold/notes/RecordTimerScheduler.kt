@@ -125,9 +125,7 @@ internal class RecordTimerReceiver : BroadcastReceiver() {
             Intent(KitchenTimerContract.ACTION_STATE_CHANGED).setPackage(context.packageName)
         )
 
-        val settings = KitchenTimerRepository(
-            context.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
-        ).loadSettings()
+        val settings = repository.loadSnapshot().timerSettings
         val serviceIntent = Intent(context, KitchenTimerAlertService::class.java)
             .setAction(KitchenTimerContract.ACTION_START_ALERT)
             .putExtra(KitchenTimerContract.EXTRA_TIMER_ID, recordId)
