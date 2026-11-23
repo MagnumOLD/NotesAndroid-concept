@@ -709,8 +709,7 @@ internal fun NotesHome(
                                                     .background(timelineDateColors.background, RoundedCornerShape(7.dp))
                                                     .padding(horizontal = 10.dp, vertical = 4.dp),
                                                 style = MaterialTheme.typography.labelLarge.copy(
-                                                    fontSize = if (isFavoritesView) MaterialTheme.typography.labelLarge.fontSize
-                                                    else dateHeaderTextSize.sp,
+                                                    fontSize = dateHeaderTextSize.sp,
                                                     textAlign = if (isFavoritesView) androidx.compose.ui.text.style.TextAlign.Start
                                                     else androidx.compose.ui.text.style.TextAlign.End
                                                 ),
