@@ -110,6 +110,9 @@ internal fun NotesApp(
                 updated.forEach { timer ->
                     val existing = currentRecords.firstOrNull { it.id == timer.id }
                     val record = timer.toRecord(existing)
+                    if (existing?.timerAlertStartedAtMillis != null && timer.alertStartedAtMillis == null) {
+                        recordTimerScheduler.cancel(timer.id)
+                    }
                     if (existing == null) recordsViewModel.createActiveRecord(null, record)
                     else recordsViewModel.updateHomeRecord(record)
                     recordTimerScheduler.sync(record)
