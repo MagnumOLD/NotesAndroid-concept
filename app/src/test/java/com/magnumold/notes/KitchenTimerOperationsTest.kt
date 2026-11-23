@@ -42,11 +42,13 @@ class KitchenTimerOperationsTest {
         val ready = KitchenTimer(
             id = 1_700_000_000_000L,
             title = "Гречка",
-            durationSeconds = 900L
+            durationSeconds = 900L,
+            colorIndex = 3
         ).toHomeRecord()
         assertEquals(-1_700_000_000_000L, ready.id)
         assertEquals(RecordType.TIMER, ready.type)
         assertEquals("Гречка", ready.titleText)
+        assertEquals(3, ready.colorIndex)
         assertEquals(RecordStatus.WAITING, ready.status)
         assertEquals(900L, ready.timerDurationSeconds)
 
