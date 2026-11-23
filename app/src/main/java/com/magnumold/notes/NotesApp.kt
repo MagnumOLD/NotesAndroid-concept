@@ -394,8 +394,10 @@ internal fun NotesApp(
                         timers = kitchenTimers,
                         settings = kitchenTimerSettings,
                         initialEditingTimerId = pendingKitchenTimerEditId,
-                        onInitialEditConsumed = { pendingKitchenTimerEditId = null },
-                        onEditorExit = { navigation.returnFromTimerEditor() },
+                        onEditorExit = {
+                            pendingKitchenTimerEditId = null
+                            navigation.returnFromTimerEditor()
+                        },
                         topBarColor = activeThemeColors.topBar,
                         addButtonColor = activeThemeColors.addButton,
                         noteColors = displayedNoteColors,
