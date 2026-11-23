@@ -16,6 +16,9 @@
             android:name=".KitchenTimerAlertService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+        <receiver
+            android:name=".KitchenTimerReceiver"
+            android:exported="false" />
         <service
             android:name=".ProtectionTimerAlertService"
             android:exported="false"
