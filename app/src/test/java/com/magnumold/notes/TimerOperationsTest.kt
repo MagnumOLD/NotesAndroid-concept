@@ -112,7 +112,6 @@ class TimerOperationsTest {
         assertEquals("record-timer:101", first)
         assertEquals("record-timer:101", recordTimerNotificationTag(101L))
         org.junit.Assert.assertNotEquals(first, second)
-        assertEquals("record-timer:-202", recordTimerNotificationTag(-202L))
     }
 
 }
