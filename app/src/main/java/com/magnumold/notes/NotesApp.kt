@@ -569,10 +569,17 @@ internal fun NotesApp(
                         },
                         onCreate = { requestedType ->
                             val type = navigation.activeModule.recordType ?: requestedType
-                            val now = System.currentTimeMillis()
-                            val id = newRecordId()
-                            recordsViewModel.createActiveRecord(activeCollectionId, Note(id, "", listOf(NoteBlock()), now, created = now, type = type))
-                            navigation.openNewRecord(id)
+                            if (type == RecordType.TIMER) {
+                                val created = KitchenTimerOperations.create(newRecordId())
+                                updateKitchenTimers(kitchenTimers + created)
+                                pendingKitchenTimerEditId = created.id
+                                navigation.selectModule(AppModule.TIMERS)
+                            } else {
+                                val now = System.currentTimeMillis()
+                                val id = newRecordId()
+                                recordsViewModel.createActiveRecord(activeCollectionId, Note(id, "", listOf(NoteBlock()), now, created = now, type = type))
+                                navigation.openNewRecord(id)
+                            }
                         }
                     )
                     }
