@@ -12,6 +12,7 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         // Activity.getPreferences() uses the Activity's local class name.
         // Services and receivers must open this exact same file.
         const val PREFERENCES_NAME = "MainActivity"
+        private const val KEY_KITCHEN_TIMER_MIGRATION = "kitchen_timers_migrated_v1"
     }
     fun loadSnapshot() = PersistenceSnapshot(
         notes = loadNotes(),
@@ -24,6 +25,66 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
     @Synchronized
     fun saveSnapshot(snapshot: PersistenceSnapshot) {
         snapshotEditor(snapshot).apply()
+    }
+
+    /**
+     * One-time, crash-safe migration from the legacy kitchen-timer store.
+     * The records and migration marker are committed in the same preferences
+     * transaction; legacy timer JSON is removed only after that commit succeeds.
+     */
+    @Synchronized
+    fun migrateLegacyKitchenTimers(legacyPreferences: SharedPreferences) {
+        if (preferences.getBoolean(KEY_KITCHEN_TIMER_MIGRATION, false)) return
+
+        val legacyRaw = legacyPreferences.getString("kitchen_timers_v1", null)
+        val current = loadSnapshot()
+        val existingTimers = HomeTimelineOperations.records(current)
+            .filter { it.type == RecordType.TIMER }
+        val migrated = if (legacyRaw.isNullOrBlank()) {
+            if (existingTimers.isNotEmpty()) current
+            else {
+                val now = System.currentTimeMillis()
+                current.copy(notes = listOf(
+                    Note(
+                        id = newRecordId(),
+                        title = "",
+                        blocks = listOf(NoteBlock()),
+                        updated = now,
+                        created = now,
+                        type = RecordType.TIMER,
+                        titleEnabled = true,
+                        titleText = "",
+                        timerDurationSeconds = TimerOperations.DEFAULT_DURATION_SECONDS
+                    )
+                ) + current.notes)
+            }
+        } else {
+            val legacy = KitchenTimerRepository(legacyPreferences).load().timers
+            val usedIds = mutableSetOf<Long>()
+            fun collect(notes: List<Note>) {
+                notes.forEach { note -> usedIds += note.id; collect(note.children) }
+            }
+            collect(current.notes)
+            current.collections.forEach { collect(it.notes) }
+            (current.archived + current.trash).forEach { collect(listOf(it.note)) }
+            val converted = legacy.map { timer ->
+                val safeId = if (timer.id > 0L && usedIds.add(timer.id)) timer.id
+                    else newRecordId().also { usedIds.add(it) }
+                timer.copy(id = safeId).toRecord()
+            }
+            current.copy(notes = converted + current.notes)
+        }
+
+        check(snapshotEditor(migrated)
+            .putBoolean(KEY_KITCHEN_TIMER_MIGRATION, true)
+            .commit()) { "Не удалось перенести таймеры в основное хранилище" }
+
+        // Settings are retained in the old preferences for the settings UI.
+        // Only the duplicate timer records and their ID counter are removed.
+        legacyPreferences.edit()
+            .remove("kitchen_timers_v1")
+            .remove("kitchen_timer_next_id")
+            .commit()
     }
 
     @Synchronized
