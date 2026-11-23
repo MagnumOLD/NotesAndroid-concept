@@ -119,7 +119,7 @@ internal fun KitchenTimersScreen(
         onRefresh()
         while (true) {
             nowMillis = System.currentTimeMillis()
-            delay(250L)
+            delay(1_000L)
         }
     }
 
