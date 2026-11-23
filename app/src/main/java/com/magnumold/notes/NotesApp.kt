@@ -395,6 +395,7 @@ internal fun NotesApp(
                         settings = kitchenTimerSettings,
                         initialEditingTimerId = pendingKitchenTimerEditId,
                         onInitialEditConsumed = { pendingKitchenTimerEditId = null },
+                        onEditorExit = { navigation.returnFromTimerEditor() },
                         topBarColor = activeThemeColors.topBar,
                         addButtonColor = activeThemeColors.addButton,
                         noteColors = displayedNoteColors,
@@ -444,7 +445,7 @@ internal fun NotesApp(
                             val record = homeDisplayNotes.firstOrNull { it.id == id }
                             if (record?.type == RecordType.TIMER) {
                                 pendingKitchenTimerEditId = id
-                                navigation.selectModule(AppModule.TIMERS)
+                                navigation.openTimerEditorFromHome()
                             } else navigation.openRecord(id)
                         },
                         onArchiveSelected = { ids ->
@@ -575,7 +576,7 @@ internal fun NotesApp(
                                 val created = KitchenTimerOperations.create(newRecordId())
                                 updateKitchenTimers(kitchenTimers + created)
                                 pendingKitchenTimerEditId = created.id
-                                navigation.selectModule(AppModule.TIMERS)
+                                navigation.openTimerEditorFromHome()
                             } else {
                                 val now = System.currentTimeMillis()
                                 val id = newRecordId()
