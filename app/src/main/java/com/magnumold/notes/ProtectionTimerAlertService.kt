@@ -13,21 +13,15 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 
-internal fun recordTimerNotificationTag(recordId: Long): String =
-    "record-timer:$recordId"
-
 internal class ProtectionTimerAlertService : Service() {
     private var ringtone: Ringtone? = null
     private var wakeLock: PowerManager.WakeLock? = null
-    // Both alarm types share this service. A record timer must never replace
-    // or tear down an already-running protection alert.
     private var protectionAlertActive = false
     private var activeProtectionAlert: ProtectionTimer? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ProtectionTimerContract.ACTION_ALARM -> handleAlarm(startId)
-            RecordTimerContract.ACTION_ALARM -> handleRecordTimerAlarm(intent, startId)
             ProtectionTimerContract.ACTION_STOP_TRACKING -> handleStopTracking(intent, startId)
             ProtectionTimerContract.ACTION_CONTINUE_WORK -> handleContinueWork(intent, startId)
             else -> stopSelf(startId)
@@ -101,122 +95,6 @@ internal class ProtectionTimerAlertService : Service() {
         startForeground(NOTIFICATION_ID, buildNotification(timer, actionPendingIntent(timer)))
     }
 
-
-    private fun handleRecordTimerAlarm(intent: Intent, startId: Int) {
-        val recordId = intent.getLongExtra(RecordTimerContract.EXTRA_RECORD_ID, 0L)
-        createRecordTimerChannel()
-        if (!protectionAlertActive) {
-            startForeground(
-                RecordTimerContract.NOTIFICATION_ID,
-                buildRecordTimerNotification("Проверка таймера", recordId)
-            )
-        }
-        if (!intent.hasExtra(RecordTimerContract.EXTRA_RECORD_ID)) {
-            finishRecordTimerService(startId)
-            return
-        }
-
-        val repository = notesRepository()
-        val snapshot = repository.loadSnapshot()
-        val note = HomeTimelineOperations.records(snapshot).firstOrNull { it.id == recordId }
-        val endAt = note?.timerEndsAtMillis
-        if (note == null || note.type != RecordType.TIMER || endAt == null) {
-            finishRecordTimerService(startId)
-            return
-        }
-
-        val now = System.currentTimeMillis()
-        if (now < endAt) {
-            RecordTimerScheduler(this).sync(note)
-            finishRecordTimerService(startId)
-            return
-        }
-
-        val completed = note.copy(
-            timerEndsAtMillis = null,
-            timerRemainingSeconds = 0L,
-            status = RecordStatus.COMPLETED,
-            updated = now
-        )
-        repository.flushSnapshot(HomeTimelineOperations.update(snapshot, completed))
-        repository.markExternalTimerStateUpdate()
-        sendRecordTimerStateChanged()
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        if (!protectionAlertActive) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
-        }
-        // A stable tag per record prevents two timers ending together from
-        // replacing each other's notifications despite sharing the Android ID.
-        notificationManager.notify(
-            recordTimerNotificationTag(recordId),
-            RecordTimerContract.NOTIFICATION_ID,
-            buildRecordTimerNotification(note.titleText.ifBlank { "Таймер завершён" }, recordId)
-        )
-        if (!protectionAlertActive) stopSelfResult(startId)
-    }
-
-    private fun finishRecordTimerService(startId: Int) {
-        if (!protectionAlertActive) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                stopForeground(STOP_FOREGROUND_REMOVE)
-            } else {
-                @Suppress("DEPRECATION")
-                stopForeground(true)
-            }
-            stopSelfResult(startId)
-        }
-    }
-
-    private fun buildRecordTimerNotification(title: String, recordId: Long): Notification {
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, RECORD_TIMER_CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
-        val openApp = PendingIntent.getActivity(
-            this,
-            RecordTimerContract.NOTIFICATION_ID,
-            Intent(this, MainActivity::class.java)
-                .setData(Uri.parse("notesandroid://record-timer-notification/$recordId"))
-                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        return builder
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle("Таймер завершён")
-            .setContentText(title)
-            .setContentIntent(openApp)
-            .setAutoCancel(true)
-            .setCategory(Notification.CATEGORY_ALARM)
-            .setPriority(Notification.PRIORITY_HIGH)
-            .setShowWhen(false)
-            .build()
-    }
-
-    private fun createRecordTimerChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val manager = getSystemService(NotificationManager::class.java)
-            if (manager.getNotificationChannel(RECORD_TIMER_CHANNEL_ID) == null) {
-                manager.createNotificationChannel(
-                    NotificationChannel(
-                        RECORD_TIMER_CHANNEL_ID,
-                        "Таймеры",
-                        NotificationManager.IMPORTANCE_HIGH
-                    ).apply {
-                        description = "Уведомления об окончании обратного отсчёта"
-                        enableVibration(true)
-                    }
-                )
-            }
-        }
-    }
 
     private fun handleStopTracking(intent: Intent, startId: Int) {
         val taskId = intent.getLongExtra(ProtectionTimerContract.EXTRA_TASK_ID, -1L)
@@ -416,14 +294,6 @@ internal class ProtectionTimerAlertService : Service() {
         sendBroadcast(intent)
     }
 
-    private fun sendRecordTimerStateChanged() {
-        sendBroadcast(
-            Intent(ProtectionTimerContract.ACTION_TASK_STATUS_CHANGED)
-                .setPackage(packageName)
-                .putExtra(ProtectionTimerContract.EXTRA_TIMER_STATE_CHANGED, true)
-        )
-    }
-
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val manager = getSystemService(NotificationManager::class.java)
@@ -473,6 +343,5 @@ internal class ProtectionTimerAlertService : Service() {
     private companion object {
         const val CHANNEL_ID = "protection_timer_alerts"
         const val NOTIFICATION_ID = 7432
-        const val RECORD_TIMER_CHANNEL_ID = "record_timer_alerts"
     }
 }
