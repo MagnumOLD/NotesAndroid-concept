@@ -11,7 +11,8 @@ internal data class KitchenTimer(
     val soundUri: String? = null,
     val status: KitchenTimerStatus = KitchenTimerStatus.READY,
     val alertStartedAtMillis: Long? = null,
-    val colorIndex: Int = 0
+    val colorIndex: Int = 0,
+    val pinned: Boolean = false
 ) {
     fun normalized(): KitchenTimer {
         val duration = TimerOperations.normalizeDuration(durationSeconds)
@@ -43,7 +44,7 @@ internal fun KitchenTimer.toRecord(existing: Note? = null): Note {
         created = existing?.created ?: System.currentTimeMillis(),
         type = RecordType.TIMER,
         colorIndex = colorIndex,
-        pinned = existing?.pinned ?: false,
+        pinned = existing?.pinned ?: pinned,
         status = recordStatus,
         titleEnabled = true,
         titleText = title,
@@ -77,7 +78,8 @@ internal fun Note.toKitchenTimer(): KitchenTimer {
         soundUri = timerSoundUri,
         status = timerStatus,
         alertStartedAtMillis = timerAlertStartedAtMillis,
-        colorIndex = colorIndex
+        colorIndex = colorIndex,
+        pinned = pinned
     ).normalized()
 }
 
