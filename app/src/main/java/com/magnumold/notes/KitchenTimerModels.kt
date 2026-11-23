@@ -10,7 +10,8 @@ internal data class KitchenTimer(
     val endsAtMillis: Long? = null,
     val soundUri: String? = null,
     val status: KitchenTimerStatus = KitchenTimerStatus.READY,
-    val alertStartedAtMillis: Long? = null
+    val alertStartedAtMillis: Long? = null,
+    val colorIndex: Int = 0
 ) {
     fun normalized(): KitchenTimer {
         val duration = TimerOperations.normalizeDuration(durationSeconds)
@@ -20,7 +21,8 @@ internal data class KitchenTimer(
             remainingSeconds = remainingSeconds?.coerceIn(0L, duration),
             endsAtMillis = endsAtMillis?.takeIf { status == KitchenTimerStatus.RUNNING },
             soundUri = soundUri?.takeIf { it.isNotBlank() },
-            alertStartedAtMillis = alertStartedAtMillis?.takeIf { status == KitchenTimerStatus.FINISHED }
+            alertStartedAtMillis = alertStartedAtMillis?.takeIf { status == KitchenTimerStatus.FINISHED },
+            colorIndex = colorIndex.coerceIn(0, 6)
         )
     }
 }
@@ -40,6 +42,7 @@ internal fun KitchenTimer.toHomeRecord(): Note {
         updated = timestamp,
         created = id,
         type = RecordType.TIMER,
+        colorIndex = colorIndex,
         status = recordStatus,
         titleEnabled = true,
         titleText = title.ifBlank { "Таймер" },
