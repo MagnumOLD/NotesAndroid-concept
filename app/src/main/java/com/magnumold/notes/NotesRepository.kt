@@ -37,14 +37,34 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
      */
     @Synchronized
     fun migrateLegacyKitchenTimers(legacyPreferences: SharedPreferences) {
-        if (preferences.getBoolean(KEY_KITCHEN_TIMER_MIGRATION, false)) return
+        if (preferences.getBoolean(KEY_KITCHEN_TIMER_MIGRATION, false)) {
+            // Retry cleanup if the process was interrupted after the main-store commit.
+            legacyPreferences.edit()
+                .remove("kitchen_timers_v1")
+                .remove("kitchen_timer_next_id")
+                .remove("kitchen_timer_alert_mode")
+                .remove("kitchen_timer_custom_alert_seconds")
+                .remove("kitchen_timer_default_sound_uri")
+                .commit()
+            return
+        }
 
         val legacyRaw = legacyPreferences.getString("kitchen_timers_v1", null)
         val current = loadSnapshot().copy(
             timerSettings = KitchenTimerRepository(legacyPreferences).loadSettings()
         )
-        val existingTimers = HomeTimelineOperations.records(current)
-            .filter { it.type == RecordType.TIMER }
+        val existingTimers = buildList {
+            fun collect(notes: List<Note>) {
+                notes.forEach { note ->
+                    add(note)
+                    collect(note.children)
+                }
+            }
+            collect(current.notes)
+            current.collections.forEach { collect(it.notes) }
+            current.archived.forEach { collect(listOf(it.note)) }
+            current.trash.forEach { collect(listOf(it.note)) }
+        }.filter { it.type == RecordType.TIMER }
         val legacyIdMap = linkedMapOf<Long, Long>()
         val migrated = if (legacyRaw.isNullOrBlank()) {
             if (existingTimers.isNotEmpty()) current
