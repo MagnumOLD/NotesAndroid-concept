@@ -53,38 +53,10 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
         val current = loadSnapshot().copy(
             timerSettings = KitchenTimerRepository(legacyPreferences).loadSettings()
         )
-        val existingTimers = buildList {
-            fun collect(notes: List<Note>) {
-                notes.forEach { note ->
-                    add(note)
-                    collect(note.children)
-                }
-            }
-            collect(current.notes)
-            current.collections.forEach { collect(it.notes) }
-            current.archived.forEach { collect(listOf(it.note)) }
-            current.trash.forEach { collect(listOf(it.note)) }
-        }.filter { it.type == RecordType.TIMER }
         val legacyIdMap = linkedMapOf<Long, Long>()
-        val migrated = if (legacyRaw.isNullOrBlank()) {
-            if (existingTimers.isNotEmpty()) current
-            else {
-                val now = System.currentTimeMillis()
-                current.copy(notes = listOf(
-                    Note(
-                        id = newRecordId(),
-                        title = "",
-                        blocks = listOf(NoteBlock()),
-                        updated = now,
-                        created = now,
-                        type = RecordType.TIMER,
-                        titleEnabled = true,
-                        titleText = "",
-                        timerDurationSeconds = TimerOperations.DEFAULT_DURATION_SECONDS
-                    )
-                ) + current.notes)
-            }
-        } else {
+        // An empty legacy store means there is nothing to migrate.
+        // Never synthesize a timer during first launch or after the last timer was deleted.
+        val migrated = if (legacyRaw.isNullOrBlank()) current        } else {
             val legacy = KitchenTimerRepository(legacyPreferences).load().timers
             val usedIds = mutableSetOf<Long>()
             fun collect(notes: List<Note>) {
