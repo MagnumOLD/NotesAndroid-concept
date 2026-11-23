@@ -39,6 +39,41 @@ class ModuleRecordBackupTest {
     }
 
     @Test
+    fun timerSoundAlertStateAndGlobalSettingsSurviveBackupRoundTrip() {
+        val timer = Note(
+            id = 901L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 1_800_000_000_000L,
+            created = 1_800_000_000_000L,
+            type = RecordType.TIMER,
+            status = RecordStatus.COMPLETED,
+            titleEnabled = true,
+            titleText = "Чай",
+            timerDurationSeconds = 240L,
+            timerRemainingSeconds = 0L,
+            timerSoundUri = "content://alarm/custom",
+            timerAlertStartedAtMillis = 1_800_000_000_000L
+        )
+        val settings = KitchenTimerSettings(
+            TimerAlertDurationMode.CUSTOM,
+            customAlertDurationSeconds = 75,
+            defaultSoundUri = "content://alarm/default"
+        )
+
+        val decoded = parseBackupJson(
+            createBackupJson(
+                listOf(timer), emptyList(), emptyList(), emptyList(),
+                timerSettings = settings
+            )
+        )
+
+        assertEquals("content://alarm/custom", decoded.notes.single().timerSoundUri)
+        assertEquals(1_800_000_000_000L, decoded.notes.single().timerAlertStartedAtMillis)
+        assertEquals(settings, decoded.timerSettings)
+    }
+
+    @Test
     fun importedRecordCountIncludesNestedTasksInEveryStorageArea() {
         fun record(id: Long, children: List<Note> = emptyList()) = Note(
             id = id,
