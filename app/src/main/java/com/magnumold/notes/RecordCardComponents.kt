@@ -535,7 +535,7 @@ internal fun NoteRow(
                 }
     ) {
         if (note.type == RecordType.TIMER && interactiveCards) {
-            HomeTimerCardContent(
+            TimerRecordCardContent(
                 note = note,
                 textColor = rowTextColor,
                 pinned = pinned,
@@ -638,7 +638,7 @@ internal fun NoteRow(
 }
 
 @Composable
-private fun HomeTimerCardContent(
+private fun TimerRecordCardContent(
     note: Note,
     textColor: Color,
     pinned: Boolean,
@@ -646,7 +646,8 @@ private fun HomeTimerCardContent(
     onLongPress: () -> Unit,
     onQuickAction: () -> Unit,
     onResetAction: () -> Unit,
-    onDeleteRequest: () -> Unit
+    onDeleteRequest: () -> Unit,
+    showDragHandle: Boolean = true
 ) {
     var nowMillis by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
     var menuExpanded by remember(note.id) { mutableStateOf(false) }
@@ -741,20 +742,24 @@ private fun HomeTimerCardContent(
                 )
             }
         }
-        Column(
-            modifier = Modifier.padding(start = 2.dp, end = CardDimensions.sideRailEndInset),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
-                DragHandleIcon(color = textColor)
+        if (showDragHandle || pinned) {
+            Column(
+                modifier = Modifier.padding(start = 2.dp, end = CardDimensions.sideRailEndInset),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                if (showDragHandle) {
+                    Box(modifier = Modifier.size(20.dp), contentAlignment = Alignment.Center) {
+                        DragHandleIcon(color = textColor)
+                    }
+                }
+                if (pinned) AppIcon(
+                    NoteIcon.Pin,
+                    contentDescription = "Закреплено",
+                    tint = textColor.copy(alpha = 0.8f),
+                    modifier = Modifier.size(16.dp)
+                )
             }
-            if (pinned) AppIcon(
-                NoteIcon.Pin,
-                contentDescription = "Закреплено",
-                tint = textColor.copy(alpha = 0.8f),
-                modifier = Modifier.size(16.dp)
-            )
         }
     }
 }
