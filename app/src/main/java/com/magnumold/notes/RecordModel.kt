@@ -63,6 +63,8 @@ internal data class Note(
     val timerDurationSeconds: Long = 300L,
     val timerEndsAtMillis: Long? = null,
     val timerRemainingSeconds: Long? = null,
+    val timerSoundUri: String? = null,
+    val timerAlertStartedAtMillis: Long? = null,
     val nutritionGrams: Double = 0.0,
     val nutritionCalories: Double = 0.0,
     val nutritionProtein: Double = 0.0,
