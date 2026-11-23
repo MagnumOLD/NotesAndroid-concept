@@ -229,6 +229,9 @@ internal class ProtectionTimerBootReceiver : BroadcastReceiver() {
         val notesRepository = NotesRepository(
             context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         )
+        notesRepository.migrateLegacyKitchenTimers(
+            context.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
+        )
         val records = HomeTimelineOperations.records(notesRepository.loadSnapshot())
         // Reconcile against the latest persisted state while holding the repository
         // transaction lock. A timer/service update must not be overwritten by a
