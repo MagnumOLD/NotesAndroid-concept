@@ -92,35 +92,40 @@ internal fun NotesApp(
             val timeTrackingState by timeTrackingRepository.state.collectAsStateWithLifecycle()
             val protectionTimerScheduler = remember(activity) { ProtectionTimerScheduler(activity) }
             val recordTimerScheduler = remember(activity) { RecordTimerScheduler(activity) }
-            val kitchenTimerScheduler = remember(activity) { KitchenTimerScheduler(activity) }
             val kitchenTimerRepository = remember(activity) {
                 KitchenTimerRepository(activity.getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE))
             }
-            var kitchenTimers by remember(kitchenTimerRepository) {
-                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.load().timers)
-            }
             var kitchenTimerSettings by remember(kitchenTimerRepository) {
-                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.load().settings)
+                androidx.compose.runtime.mutableStateOf(kitchenTimerRepository.loadSettings())
+            }
+            val kitchenTimers = remember(snapshot.notes, snapshot.collections) {
+                HomeTimelineOperations.records(snapshot)
+                    .filter { it.type == RecordType.TIMER }
+                    .map { it.toKitchenTimer() }
             }
             var pendingKitchenTimerEditId by remember { androidx.compose.runtime.mutableStateOf<Long?>(null) }
             fun updateKitchenTimers(updated: List<KitchenTimer>) {
-                kitchenTimers.filter { old ->
-                    updated.none { it.id == old.id } ||
-                        (old.alertStartedAtMillis != null &&
-                            updated.none { it.id == old.id && it.status == KitchenTimerStatus.FINISHED })
-                }.forEach { kitchenTimerScheduler.cancel(it.id) }
-                kitchenTimerRepository.saveTimers(updated)
-                kitchenTimerScheduler.scheduleAll(updated)
-                kitchenTimers = updated
+                val currentRecords = HomeTimelineOperations.records(recordsViewModel.snapshot.value)
+                    .filter { it.type == RecordType.TIMER }
+                val updatedById = updated.associateBy { it.id }
+                currentRecords.filterNot { it.id in updatedById }.forEach { removed ->
+                    recordTimerScheduler.cancel(removed.id)
+                    recordsViewModel.removeHomeRecord(removed.id)
+                }
+                updated.forEach { timer ->
+                    val existing = currentRecords.firstOrNull { it.id == timer.id }
+                    val record = timer.toRecord(existing)
+                    if (existing == null) recordsViewModel.createActiveRecord(null, record)
+                    else recordsViewModel.updateHomeRecord(record)
+                    recordTimerScheduler.sync(record)
+                }
             }
-            DisposableEffect(activity, kitchenTimerRepository) {
+            DisposableEffect(activity) {
                 val receiver = object : BroadcastReceiver() {
                     override fun onReceive(context: Context?, intent: Intent?) {
-                        if (intent?.action != KitchenTimerContract.ACTION_STATE_CHANGED) return
-                        val refreshed = kitchenTimerRepository.load()
-                        kitchenTimers = refreshed.timers
-                        kitchenTimerSettings = refreshed.settings
-                        kitchenTimerScheduler.scheduleAll(refreshed.timers)
+                        if (intent?.action == KitchenTimerContract.ACTION_STATE_CHANGED) {
+                            recordsViewModel.refreshTimerStatesFromRepository()
+                        }
                     }
                 }
                 val filter = IntentFilter(KitchenTimerContract.ACTION_STATE_CHANGED)
@@ -131,9 +136,6 @@ internal fun NotesApp(
                     activity.registerReceiver(receiver, filter)
                 }
                 onDispose { runCatching { activity.unregisterReceiver(receiver) } }
-            }
-            LaunchedEffect(kitchenTimers) {
-                kitchenTimerScheduler.scheduleAll(kitchenTimers)
             }
             val activeTimerRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot).filter {
@@ -201,13 +203,11 @@ internal fun NotesApp(
             val activeNotes = enabledSourceNotes.filter {
                 navigation.activeModule.recordType == null || it.type == navigation.activeModule.recordType
             }
-            val homeDisplayNotes = if (
-                homeTimelineMode && AppModule.TIMERS in moduleConfiguration.enabled
-            ) activeNotes + kitchenTimers.map { it.toHomeRecord() } else activeNotes
+            val homeDisplayNotes = activeNotes
             val allHomeRecords = remember(snapshot.notes, snapshot.collections) {
                 HomeTimelineOperations.records(snapshot)
             }
-            val allHomeDisplayRecords = allHomeRecords + kitchenTimers.map { it.toHomeRecord() }
+            val allHomeDisplayRecords = allHomeRecords
             LaunchedEffect(showTimelineDateHeaders) {
                 homeTimelineDisplayStore.saveShowDateHeaders(showTimelineDateHeaders)
             }
@@ -404,10 +404,8 @@ internal fun NotesApp(
                             kitchenTimerSettings = it
                         },
                         onRefresh = {
-                            val refreshed = kitchenTimerRepository.load()
-                            kitchenTimers = refreshed.timers
-                            kitchenTimerSettings = refreshed.settings
-                            kitchenTimerScheduler.scheduleAll(refreshed.timers)
+                            recordsViewModel.refreshTimerStatesFromRepository()
+                            kitchenTimerSettings = kitchenTimerRepository.loadSettings()
                         }
                     )
                 } else if (selected == null) {
@@ -448,8 +446,9 @@ internal fun NotesApp(
                         dark = dark,
                         onOpenSettings = { navigation.openSettings() },
                         onOpen = { id ->
-                            if (id < 0L) {
-                                pendingKitchenTimerEditId = -id
+                            val record = homeDisplayNotes.firstOrNull { it.id == id }
+                            if (record?.type == RecordType.TIMER) {
+                                pendingKitchenTimerEditId = id
                                 navigation.selectModule(AppModule.TIMERS)
                             } else navigation.openRecord(id)
                         },
@@ -465,11 +464,7 @@ internal fun NotesApp(
                             }
                         },
                         onDeleteSelected = { ids ->
-                            val kitchenIds = ids.filter { it < 0L }.map { -it }.toSet()
-                            if (kitchenIds.isNotEmpty()) {
-                                updateKitchenTimers(kitchenTimers.filterNot { it.id in kitchenIds })
-                            }
-                            val recordIds = ids.filter { it > 0L }.toSet()
+                            val recordIds = ids.toSet()
                             val selectedRecords = activeNotes.filter { it.id in recordIds }
                             closeActiveSessionsForRemoved(selectedRecords)
                             selectedRecords.filter { it.type == RecordType.TIMER }
@@ -499,9 +494,9 @@ internal fun NotesApp(
                                     if (id in visibleIds && reorderedIterator.hasNext()) reorderedIterator.next() else id
                                 }
                             } else {
-                                val recordIds = ids.filter { it > 0L }.toSet()
+                                val recordIds = ids.toSet()
                                 if (recordIds.isNotEmpty()) {
-                                    val recordAfterId = afterId?.takeIf { it > 0L }
+                                    val recordAfterId = afterId
                                     if (homeTimelineMode) {
                                         recordsViewModel.reorderHomeRecords(recordIds, recordAfterId)
                                     } else {
@@ -511,22 +506,14 @@ internal fun NotesApp(
                             }
                         },
                         onTogglePinned = { ids ->
-                            val recordIds = ids.filter { it > 0L }.toSet()
-                            if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(recordIds)
-                            else recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, recordIds)
+                            if (homeTimelineMode) recordsViewModel.toggleHomeRecordsPinned(ids)
+                            else recordsViewModel.toggleActiveRecordsPinned(activeCollectionId, ids)
                         },
-                        onToggleFavorite = { ids -> recordsViewModel.toggleRecordsFavorite(ids.filter { it > 0L }.toSet()) },
-                        onSetShowOnHome = { ids, show -> recordsViewModel.setRecordsShowOnHome(ids.filter { it > 0L }.toSet(), show) },
+                        onToggleFavorite = { ids -> recordsViewModel.toggleRecordsFavorite(ids) },
+                        onSetShowOnHome = { ids, show -> recordsViewModel.setRecordsShowOnHome(ids, show) },
                         onChangeNoteColor = { noteId, colorIndex ->
-                            if (noteId < 0L) {
-                                val kitchenId = -noteId
-                                updateKitchenTimers(kitchenTimers.map {
-                                    if (it.id == kitchenId) it.copy(colorIndex = colorIndex) else it
-                                })
-                            } else if (noteId > 0L) {
-                                if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
-                                else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
-                            }
+                            if (homeTimelineMode) recordsViewModel.changeHomeRecordColor(noteId, colorIndex)
+                            else recordsViewModel.changeActiveRecordColor(activeCollectionId, noteId, colorIndex)
                         },
                         screenTitle = navigation.activeModule.title,
                         onOpenModules = { navigation.openModules() },
@@ -545,17 +532,15 @@ internal fun NotesApp(
                         homeAddRecordType = homeAddRecordType,
                         isMainHome = navigation.activeModule == AppModule.ALL,
                         onQuickAction = { record ->
-                            if (record.id < 0L) {
-                                val kitchenId = -record.id
-                                val now = System.currentTimeMillis()
-                                val changed = kitchenTimers.firstOrNull { it.id == kitchenId }?.let { timer ->
-                                    if (timer.status == KitchenTimerStatus.RUNNING) KitchenTimerOperations.pause(timer, now)
-                                    else KitchenTimerOperations.start(timer, now)
-                                } ?: return@NotesHome
-                                updateKitchenTimers(kitchenTimers.map { if (it.id == kitchenId) changed else it })
+                            val now = System.currentTimeMillis()
+                            if (record.type == RecordType.TIMER) {
+                                val timer = record.toKitchenTimer()
+                                val changed = if (timer.status == KitchenTimerStatus.RUNNING) {
+                                    KitchenTimerOperations.pause(timer, now)
+                                } else KitchenTimerOperations.start(timer, now)
+                                updateKitchenTimers(kitchenTimers.map { if (it.id == record.id) changed else it })
                                 return@NotesHome
                             }
-                            val now = System.currentTimeMillis()
                             val changed = CardInteractionOperations.applyQuickAction(record, now) ?: return@NotesHome
                             if (record.type == RecordType.TASK) {
                                 timeTrackingRepository.update { current ->
@@ -573,11 +558,9 @@ internal fun NotesApp(
                             if (record.type == RecordType.TIMER) recordTimerScheduler.sync(updated)
                         },
                         onResetTimer = { record ->
-                            if (record.id < 0L) {
-                                val kitchenId = -record.id
-                                val timer = kitchenTimers.firstOrNull { it.id == kitchenId } ?: return@NotesHome
-                                val reset = KitchenTimerOperations.reset(timer)
-                                updateKitchenTimers(kitchenTimers.map { if (it.id == kitchenId) reset else it })
+                            if (record.type == RecordType.TIMER) {
+                                val reset = KitchenTimerOperations.reset(record.toKitchenTimer())
+                                updateKitchenTimers(kitchenTimers.map { if (it.id == record.id) reset else it })
                                 return@NotesHome
                             }
                             val now = System.currentTimeMillis()
