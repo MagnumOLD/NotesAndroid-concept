@@ -51,7 +51,8 @@ internal object RecordTimerOperations {
     fun remainingSeconds(note: Note, nowMillis: Long = System.currentTimeMillis()): Long = when {
         note.timerEndsAtMillis != null ->
             TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis)
-        note.status == RecordStatus.PAUSED ->
+        note.status == RecordStatus.PAUSED ||
+            (note.status == RecordStatus.IN_PROGRESS && note.timerEndsAtMillis == null) ->
             (note.timerRemainingSeconds ?: note.timerDurationSeconds).coerceAtLeast(0L)
         note.status == RecordStatus.COMPLETED -> 0L
         else -> TimerOperations.normalizeDuration(note.timerDurationSeconds)
@@ -63,7 +64,8 @@ internal object RecordTimerOperations {
         val remaining = when {
             note.timerEndsAtMillis != null ->
                 TimerOperations.remainingSeconds(note.timerEndsAtMillis, nowMillis).takeIf { it > 0L } ?: duration
-            note.status == RecordStatus.PAUSED ->
+            note.status == RecordStatus.PAUSED ||
+                (note.status == RecordStatus.IN_PROGRESS && note.timerEndsAtMillis == null) ->
                 note.timerRemainingSeconds?.takeIf { it > 0L } ?: duration
             else -> duration
         }
@@ -111,11 +113,15 @@ internal object RecordTimerOperations {
         val running = note.timerEndsAtMillis != null
         return note.copy(
             timerDurationSeconds = duration,
-            timerRemainingSeconds = if (!running && note.status == RecordStatus.PAUSED) duration else null,
+            timerRemainingSeconds = if (!running && (note.status == RecordStatus.PAUSED || note.status == RecordStatus.IN_PROGRESS)) duration else null,
             timerEndsAtMillis = if (running) TimerOperations.startAt(nowMillis, duration) else null,
             timerAlertStartedAtMillis = if (note.status == RecordStatus.COMPLETED) null
                 else note.timerAlertStartedAtMillis,
-            status = if (note.status == RecordStatus.COMPLETED) RecordStatus.WAITING else note.status,
+            status = when {
+                note.status == RecordStatus.COMPLETED -> RecordStatus.WAITING
+                !running && note.status == RecordStatus.IN_PROGRESS -> RecordStatus.PAUSED
+                else -> note.status
+            },
             updated = nowMillis
         )
     }
