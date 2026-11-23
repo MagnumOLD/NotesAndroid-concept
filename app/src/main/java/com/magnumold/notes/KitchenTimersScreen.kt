@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -67,6 +68,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -287,9 +289,15 @@ private fun KitchenTimerEditScreen(
             soundUri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)?.toString()
         }
     }
-    val duration = (hours.toLongOrNull() ?: 0L) * 3600L +
-        (minutes.toLongOrNull() ?: 0L) * 60L + (seconds.toLongOrNull() ?: 0L)
-    val valid = duration in 1L..TimerOperations.MAX_DURATION_SECONDS
+    val hoursValue = hours.toLongOrNull()
+    val minutesValue = minutes.toLongOrNull()
+    val secondsValue = seconds.toLongOrNull()
+    val duration = (hoursValue ?: 0L) * 3600L +
+        (minutesValue ?: 0L) * 60L + (secondsValue ?: 0L)
+    val valid = hoursValue != null && hoursValue in 0L..24L &&
+        minutesValue != null && minutesValue in 0L..59L &&
+        secondsValue != null && secondsValue in 0L..59L &&
+        duration in 1L..TimerOperations.MAX_DURATION_SECONDS
 
     BackHandler(onBack = onBack)
     Scaffold(
@@ -358,13 +366,29 @@ private fun KitchenTimerEditScreen(
             )
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
                 Text("Время", style = AppTypography.emphasisBodyStyle())
-                Row(horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
-                    TimerTimeField("Часы", hours, { hours = it }, Modifier.weight(1f))
-                    TimerTimeField("Мин", minutes, { minutes = it }, Modifier.weight(1f))
-                    TimerTimeField("Сек", seconds, { seconds = it }, Modifier.weight(1f))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+                    ) {
+                        TimerTimeField("Часы", hours, { hours = it }, Modifier.weight(1f), 2)
+                        Text(":", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TimerTimeField("Минуты", minutes, { minutes = it }, Modifier.weight(1f), 2)
+                        Text(":", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        TimerTimeField("Секунды", seconds, { seconds = it }, Modifier.weight(1f), 2)
+                    }
                 }
                 if (!valid) {
-                    Text("Укажите время от 1 секунды до 24 часов.", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        "Укажите время от 1 секунды до 24 часов. Минуты и секунды — от 00 до 59.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = AppTypography.helperStyle()
+                    )
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
@@ -408,16 +432,35 @@ private fun TimerTimeField(
     label: String,
     value: String,
     onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    maxLength: Int
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { input -> if (input.length <= 3 && input.all(Char::isDigit)) onValueChange(input) },
+    Column(
         modifier = modifier,
-        singleLine = true,
-        label = { Text(label) },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-    )
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = { input ->
+                if (input.length <= maxLength && input.all(Char::isDigit)) onValueChange(input)
+            },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            textStyle = MaterialTheme.typography.headlineMedium.copy(
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Medium
+            ),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+    }
 }
 
 @Composable
