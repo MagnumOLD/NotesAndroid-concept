@@ -479,7 +479,7 @@ private fun KitchenTimerSettingsDialog(
                             modifier = Modifier.weight(1f),
                             singleLine = true,
                             label = { Text("Секунды") },
-                            keyboardOptions = KeyboardType.Number
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
                 }
