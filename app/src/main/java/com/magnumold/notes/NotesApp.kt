@@ -357,6 +357,7 @@ internal fun NotesApp(
                         timers = kitchenTimers,
                         settings = kitchenTimerSettings,
                         topBarColor = activeThemeColors.topBar,
+                        addButtonColor = activeThemeColors.addButton,
                         onTimersChange = { updated ->
                             kitchenTimers.filter { old ->
                                 updated.none { it.id == old.id } ||
