@@ -145,6 +145,16 @@ internal class RecordTimerReceiver : BroadcastReceiver() {
                 current.timerSoundUri ?: settings.defaultSoundUri,
                 settings.alertDurationSeconds()
             )
+            // The fallback notification owns its timeout; clear the durable
+            // service-alert marker so it cannot be replayed indefinitely.
+            val latest = repository.loadSnapshot()
+            val latestRecord = HomeTimelineOperations.records(latest).firstOrNull { it.id == recordId }
+            if (latestRecord?.timerAlertStartedAtMillis != null) {
+                repository.flushSnapshot(
+                    HomeTimelineOperations.update(latest, latestRecord.copy(timerAlertStartedAtMillis = null))
+                )
+                repository.markExternalTimerStateUpdate()
+            }
         }
     }
 }
