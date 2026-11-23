@@ -73,7 +73,11 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             val converted = legacy.map { timer ->
                 val safeId = if (timer.id > 0L && usedIds.add(timer.id)) timer.id
                     else newRecordId().also { usedIds.add(it) }
-                timer.copy(id = safeId).toRecord()
+                timer.copy(id = safeId).toRecord().copy(
+                    created = timer.id,
+                    homeOrder = timer.id,
+                    updated = timer.endsAtMillis ?: timer.alertStartedAtMillis ?: timer.id
+                )
             }
             current.copy(notes = converted + current.notes)
         }
