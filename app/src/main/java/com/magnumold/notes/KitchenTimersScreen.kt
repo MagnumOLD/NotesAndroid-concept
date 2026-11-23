@@ -237,20 +237,20 @@ private fun KitchenTimerCard(
         background = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
+        var menuExpanded by remember(timer.id) { mutableStateOf(false) }
+        Row(
             modifier = Modifier.fillMaxWidth()
                 .heightIn(min = CardDimensions.contentHeight)
                 .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Text(
                     text = timer.title.ifBlank { "Таймер" },
-                    modifier = Modifier.weight(1f),
                     style = AppTypography.sectionHeadingStyle(),
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -268,42 +268,41 @@ private fun KitchenTimerCard(
             }
             Text(
                 KitchenTimerOperations.format(remaining),
-                style = MaterialTheme.typography.displaySmall,
+                style = MaterialTheme.typography.titleLarge,
                 color = if (timer.status == KitchenTimerStatus.FINISHED) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 softWrap = false
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.End
-            ) {
-                when (timer.status) {
-                    KitchenTimerStatus.RUNNING -> IconButton(onClick = onPause) {
-                        Icon(Icons.Outlined.Pause, contentDescription = "Пауза")
-                    }
-                    KitchenTimerStatus.FINISHED -> IconButton(onClick = onReset) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер")
-                    }
-                    else -> IconButton(onClick = onStart) {
-                        Icon(
-                            Icons.Outlined.PlayArrow,
-                            contentDescription = if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить"
-                        )
-                    }
+            IconButton(onClick = if (timer.status == KitchenTimerStatus.RUNNING) onPause else onStart) {
+                if (timer.status == KitchenTimerStatus.RUNNING) {
+                    Icon(Icons.Outlined.Pause, contentDescription = "Пауза")
+                } else {
+                    Icon(Icons.Outlined.PlayArrow, contentDescription = if (timer.status == KitchenTimerStatus.PAUSED) "Продолжить" else "Запустить")
                 }
-                if (timer.status != KitchenTimerStatus.FINISHED) {
-                    IconButton(onClick = onReset) {
-                        Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить")
-                    }
+            }
+            IconButton(onClick = onReset) {
+                Icon(Icons.Outlined.RestartAlt, contentDescription = "Сбросить таймер")
+            }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Outlined.MoreVert, contentDescription = "Дополнительные действия")
                 }
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Outlined.Edit, contentDescription = "Настроить таймер")
-                }
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Outlined.DeleteOutline, contentDescription = "Удалить таймер")
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Редактировать") },
+                        leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null) },
+                        onClick = { menuExpanded = false; onEdit() }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Удалить") },
+                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null) },
+                        onClick = { menuExpanded = false; onDelete() }
+                    )
                 }
             }
         }
