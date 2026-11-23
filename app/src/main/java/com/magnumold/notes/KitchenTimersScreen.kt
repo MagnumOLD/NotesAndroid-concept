@@ -37,9 +37,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.RestartAlt
-import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.VolumeUp
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -134,6 +133,19 @@ internal fun KitchenTimersScreen(
         return
     }
 
+    if (settingsVisible) {
+        KitchenTimerSettingsScreen(
+            settings = settings,
+            topBarColor = topBarColor,
+            onBack = { settingsVisible = false },
+            onSave = {
+                onSettingsChange(it)
+                settingsVisible = false
+            }
+        )
+        return
+    }
+
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -142,7 +154,7 @@ internal fun KitchenTimersScreen(
                 title = { Text("Таймеры", style = AppTypography.screenTitleStyle()) },
                 actions = {
                     IconButton(onClick = { settingsVisible = true }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Настройки таймеров")
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "Настройки таймеров")
                     }
                 }
             )
@@ -167,7 +179,7 @@ internal fun KitchenTimersScreen(
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).appPageHorizontalInsets(),
+            modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(
                 top = AppSpacing.md,
                 bottom = 88.dp
@@ -459,9 +471,10 @@ private fun TimerTimeField(
 }
 
 @Composable
-private fun KitchenTimerSettingsDialog(
+private fun KitchenTimerSettingsScreen(
     settings: KitchenTimerSettings,
-    onDismiss: () -> Unit,
+    topBarColor: androidx.compose.ui.graphics.Color,
+    onBack: () -> Unit,
     onSave: (KitchenTimerSettings) -> Unit
 ) {
     var mode by remember { mutableStateOf(settings.alertDurationMode) }
@@ -474,32 +487,62 @@ private fun KitchenTimerSettingsDialog(
             defaultSoundUri = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)?.toString()
         }
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Настройки сигналов") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
-                val alarmManager = context.getSystemService(AlarmManager::class.java)
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-                    Text(
-                        "Для более точного срабатывания разрешите приложению точные будильники.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = AppTypography.helperStyle()
-                    )
-                    TextButton(onClick = {
-                        context.startActivity(
-                            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                                .setData(Uri.parse("package:${context.packageName}"))
-                        )
-                    }) { Text("Разрешить точные сигналы") }
+    val alarmManager = context.getSystemService(AlarmManager::class.java)
+    val exactAlarmsAllowed = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || alarmManager.canScheduleExactAlarms()
+    val customDuration = (customMinutes.toIntOrNull() ?: 0) * 60 +
+        (customSeconds.toIntOrNull() ?: 0)
+    val validCustomDuration = customDuration in 1..3600
+
+    BackHandler(onBack = onBack)
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            AppPageTopBar(
+                backgroundColor = topBarColor,
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад")
+                        }
+                        Text("Настройки таймеров", style = AppTypography.screenTitleStyle())
+                    }
                 }
+            )
+        },
+        bottomBar = {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md)
+            ) {
+                Button(
+                    onClick = {
+                        onSave(KitchenTimerSettings(mode, customDuration.coerceIn(1, 3600), defaultSoundUri))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = mode != TimerAlertDurationMode.CUSTOM || validCustomDuration
+                ) { Text("Сохранить") }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .padding(padding)
+                .appPageContentInsets()
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.lg)
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                Text("Длительность сигнала", style = AppTypography.emphasisBodyStyle())
                 listOf(
                     TimerAlertDurationMode.TEN_SECONDS to "10 секунд",
                     TimerAlertDurationMode.THIRTY_SECONDS to "30 секунд",
                     TimerAlertDurationMode.ONE_MINUTE to "1 минута",
                     TimerAlertDurationMode.CUSTOM to "Вручную"
                 ).forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         RadioButton(selected = mode == value, onClick = { mode = value })
                         Text(label)
                     }
@@ -523,7 +566,20 @@ private fun KitchenTimerSettingsDialog(
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                     }
+                    if (!validCustomDuration) {
+                        Text(
+                            "Укажите длительность от 1 секунды до 60 минут.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = AppTypography.helperStyle()
+                        )
+                    }
                 }
+            }
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                Text("Общий звук", style = AppTypography.emphasisBodyStyle())
                 OutlinedButton(
                     onClick = {
                         val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
@@ -539,7 +595,7 @@ private fun KitchenTimerSettingsDialog(
                 ) {
                     Icon(Icons.Outlined.VolumeUp, contentDescription = null)
                     Spacer(Modifier.width(AppSpacing.sm))
-                    Text(if (defaultSoundUri == null) "Выбрать общий звук" else "Изменить общий звук")
+                    Text(if (defaultSoundUri == null) "Выбрать звук" else "Изменить звук")
                 }
                 val previewUri = defaultSoundUri
                     ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)?.toString()
@@ -548,24 +604,43 @@ private fun KitchenTimerSettingsDialog(
                         runCatching {
                             RingtoneManager.getRingtone(context, Uri.parse(previewUri))?.play()
                         }
-                    }) { Text("Прослушать общий звук") }
+                    }) { Text("Прослушать звук") }
                 }
                 if (defaultSoundUri != null) {
-                    TextButton(onClick = { defaultSoundUri = null }) { Text("Системный звук по умолчанию") }
+                    TextButton(onClick = { defaultSoundUri = null }) {
+                        Text("Системный звук по умолчанию")
+                    }
                 }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    val customDuration = (customMinutes.toIntOrNull() ?: 0) * 60 +
-                        (customSeconds.toIntOrNull() ?: 0)
-                    onSave(KitchenTimerSettings(mode, customDuration.coerceIn(1, 3600), defaultSoundUri))
-                },
-                enabled = mode != TimerAlertDurationMode.CUSTOM ||
-                    ((customMinutes.toIntOrNull() ?: 0) * 60 + (customSeconds.toIntOrNull() ?: 0)) in 1..3600
-            ) { Text("Сохранить") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
-    )
+
+            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.65f))
+
+            Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)) {
+                Text("Точность срабатывания", style = AppTypography.emphasisBodyStyle())
+                if (exactAlarmsAllowed) {
+                    Text(
+                        "Разрешение на точные сигналы включено.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AppTypography.helperStyle()
+                    )
+                } else {
+                    Text(
+                        "Для более точного срабатывания разрешите приложению точные будильники.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = AppTypography.helperStyle()
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+                                    .setData(Uri.parse("package:" + context.packageName))
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) { Text("Разрешить точные сигналы") }
+                }
+            }
+            Spacer(Modifier.height(AppSpacing.md))
+        }
+    }
 }
