@@ -307,12 +307,7 @@ private fun KitchenTimerEditScreen(
             AppPageTopBar(
                 backgroundColor = topBarColor,
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.Outlined.ArrowBack, contentDescription = "Назад")
-                        }
-                        Text("Настройка таймера", style = AppTypography.screenTitleStyle())
-                    }
+                    Text("Настройка таймера", style = AppTypography.screenTitleStyle())
                 }
             )
         },
@@ -366,23 +361,15 @@ private fun KitchenTimerEditScreen(
                 label = { Text("Название (необязательно)") }
             )
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.sm)) {
-                Text("Время", style = AppTypography.emphasisBodyStyle())
-                Surface(
+                Text("Длительность", style = AppTypography.emphasisBodyStyle())
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = AppSpacing.md, vertical = AppSpacing.md),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs)
-                    ) {
-                        TimerTimeField("Часы", hours, { hours = it }, Modifier.weight(1f), 2)
-                        Text(":", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TimerTimeField("Минуты", minutes, { minutes = it }, Modifier.weight(1f), 2)
-                        Text(":", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TimerTimeField("Секунды", seconds, { seconds = it }, Modifier.weight(1f), 2)
-                    }
+                    TimerTimeField(hours, { hours = it }, Modifier.weight(1f), "ч", 2)
+                    TimerTimeField(minutes, { minutes = it }, Modifier.weight(1f), "м", 2)
+                    TimerTimeField(seconds, { seconds = it }, Modifier.weight(1f), "с", 2)
                 }
                 if (!valid) {
                     Text(
@@ -430,29 +417,23 @@ private fun KitchenTimerEditScreen(
 
 @Composable
 private fun TimerTimeField(
-    label: String,
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    unit: String,
     maxLength: Int
 ) {
-    Column(
+    Row(
         modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1
-        )
         BasicTextField(
             value = value,
             onValueChange = { input ->
                 if (input.length <= maxLength && input.all(Char::isDigit)) onValueChange(input)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.weight(1f),
             singleLine = true,
             textStyle = MaterialTheme.typography.headlineMedium.copy(
                 textAlign = TextAlign.Center,
@@ -460,6 +441,11 @@ private fun TimerTimeField(
                 fontWeight = FontWeight.Medium
             ),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+        )
+        Text(
+            unit,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
