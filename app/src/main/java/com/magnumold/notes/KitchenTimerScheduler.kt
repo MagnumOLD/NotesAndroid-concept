@@ -132,7 +132,7 @@ internal class KitchenTimerBootReceiver : BroadcastReceiver() {
     }
 }
 
-private fun postKitchenTimerFallbackNotification(context: Context, timer: KitchenTimer, sound: String?, durationSeconds: Int) {
+internal fun postKitchenTimerFallbackNotification(context: Context, timer: KitchenTimer, sound: String?, durationSeconds: Int) {
     val manager = context.getSystemService(NotificationManager::class.java)
     val soundUri = sound?.let(Uri::parse) ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
     val channelId = "kitchen_timer_fallback_${soundUri?.toString()?.hashCode() ?: 0}"
@@ -182,31 +182,51 @@ internal class KitchenTimerAlertService : Service() {
     }
 
     private fun restoreActiveAlerts() {
-        val snapshot = KitchenTimerRepository(
+        val repository = NotesRepository(
+            getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        )
+        val records = HomeTimelineOperations.records(repository.loadSnapshot())
+            .filter { it.type == RecordType.TIMER && it.timerAlertStartedAtMillis != null }
+        val settings = KitchenTimerRepository(
             getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
-        ).load()
+        ).loadSettings()
         val now = System.currentTimeMillis()
-        snapshot.timers.filter { it.status == KitchenTimerStatus.FINISHED && it.alertStartedAtMillis != null }
-            .forEach { timer ->
-                val startedAt = timer.alertStartedAtMillis ?: return@forEach
-                val elapsed = (now - startedAt).coerceAtLeast(0L) / 1_000L
-                val remainingAlertSeconds = snapshot.settings.alertDurationSeconds() - elapsed
-                if (remainingAlertSeconds > 0L) {
-                    startAlert(
-                        Intent().putExtra(KitchenTimerContract.EXTRA_TIMER_ID, timer.id)
-                            .putExtra(KitchenTimerContract.EXTRA_TITLE, timer.title)
-                            .putExtra(
-                                KitchenTimerContract.EXTRA_SOUND_URI,
-                                timer.soundUri ?: snapshot.settings.defaultSoundUri
-                            )
-                            .putExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, remainingAlertSeconds.toInt())
-                    )
-                } else {
-                    getSystemService(NotificationManager::class.java)
-                        .cancel(kitchenTimerNotificationTag(timer.id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
-                }
+        records.filter { it.status == RecordStatus.COMPLETED }.forEach { record ->
+            val startedAt = record.timerAlertStartedAtMillis ?: return@forEach
+            val elapsed = (now - startedAt).coerceAtLeast(0L) / 1_000L
+            val remaining = settings.alertDurationSeconds() - elapsed
+            if (remaining > 0L) {
+                startAlert(
+                    Intent().putExtra(KitchenTimerContract.EXTRA_TIMER_ID, record.id)
+                        .putExtra(KitchenTimerContract.EXTRA_TITLE, record.titleText)
+                        .putExtra(
+                            KitchenTimerContract.EXTRA_SOUND_URI,
+                            record.timerSoundUri ?: settings.defaultSoundUri
+                        )
+                        .putExtra(KitchenTimerContract.EXTRA_ALERT_DURATION, remaining.toInt())
+                )
+            } else {
+                clearPersistedAlert(record.id)
+                getSystemService(NotificationManager::class.java)
+                    .cancel(kitchenTimerNotificationTag(record.id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
             }
+        }
         if (activeAlerts.isEmpty()) finishIfIdle()
+    }
+
+    private fun clearPersistedAlert(recordId: Long) {
+        val repository = NotesRepository(
+            getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
+        )
+        val snapshot = repository.loadSnapshot()
+        val record = HomeTimelineOperations.records(snapshot).firstOrNull {
+            it.id == recordId && it.type == RecordType.TIMER && it.timerAlertStartedAtMillis != null
+        } ?: return
+        repository.flushSnapshot(
+            HomeTimelineOperations.update(snapshot, record.copy(timerAlertStartedAtMillis = null))
+        )
+        repository.markExternalTimerStateUpdate()
+        sendBroadcast(Intent(KitchenTimerContract.ACTION_STATE_CHANGED).setPackage(packageName))
     }
 
     private fun startAlert(intent: Intent) {
@@ -247,8 +267,13 @@ internal class KitchenTimerAlertService : Service() {
     }
 
     private fun stopAlert(id: Long) {
+        // Acknowledgement is durable: a service restart must not replay a
+        // signal the user has already stopped (or whose selected duration ended).
+        clearPersistedAlert(id)
         val active = activeAlerts.remove(id)
         if (active == null) {
+            getSystemService(NotificationManager::class.java)
+                .cancel(kitchenTimerNotificationTag(id), KitchenTimerContract.ALERT_NOTIFICATION_ID)
             finishIfIdle()
             return
         }
