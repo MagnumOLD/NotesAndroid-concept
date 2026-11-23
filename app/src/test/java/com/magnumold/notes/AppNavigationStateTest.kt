@@ -169,4 +169,35 @@ class AppNavigationStateTest {
         assertTrue(state.modulesVisible)
         assertTrue(state.moduleManagementVisible)
     }
+
+    @Test
+    fun timerEditorOpenedFromHomeReturnsDirectlyHomeOnExit() {
+        val state = AppNavigationState()
+        state.openTimerEditorFromHome()
+
+        assertEquals(AppModule.TIMERS, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+
+        assertTrue(state.returnFromTimerEditor())
+        assertEquals(AppModule.ALL, state.activeModule)
+        assertFalse(state.modulesVisible)
+        assertFalse(state.canReturnToModules)
+        assertFalse(state.returnFromTimerEditor())
+    }
+
+    @Test
+    fun timerEditorOpenedFromModulesKeepsTimerListAsBackDestination() {
+        val state = AppNavigationState()
+        state.openModules()
+        state.selectModule(AppModule.TIMERS)
+
+        assertFalse(state.returnFromTimerEditor())
+        assertEquals(AppModule.TIMERS, state.activeModule)
+        assertTrue(state.canReturnToModules)
+
+        state.returnFromModuleToModules()
+        assertTrue(state.modulesVisible)
+        assertEquals(AppModule.ALL, state.activeModule)
+    }
 }
