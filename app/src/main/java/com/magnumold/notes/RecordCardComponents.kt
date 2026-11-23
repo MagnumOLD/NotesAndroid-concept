@@ -473,24 +473,7 @@ internal fun NoteRow(
         background = selectedBackground,
         modifier = Modifier.fillMaxWidth()
             .onSizeChanged { onMeasuredHeight(it.height) }
-    ) {
-        if (note.type == RecordType.TIMER && interactiveCards) {
-            HomeTimerCardContent(
-                note = note,
-                textColor = rowTextColor,
-                pinned = pinned,
-                onClick = onClick,
-                onLongPress = onLongPress,
-                onQuickAction = onQuickAction,
-                onResetAction = onResetAction,
-                onDeleteRequest = onDeleteRequest
-            )
-        } else {
-        Row(
-            Modifier.fillMaxWidth()
-                .heightIn(min = CardDimensions.contentHeight)
-                .height(IntrinsicSize.Min)
-                .pointerInput(note.id, note.colorIndex, colorSwipeEnabled) {
+            .pointerInput(note.id, note.colorIndex, colorSwipeEnabled) {
                     if (colorSwipeEnabled) {
                         var horizontalDistance = 0f
                         var colorSwipeStarted = false
@@ -550,6 +533,24 @@ internal fun NoteRow(
                         )
                     }
                 }
+    ) {
+        if (note.type == RecordType.TIMER && interactiveCards) {
+            HomeTimerCardContent(
+                note = note,
+                textColor = rowTextColor,
+                pinned = pinned,
+                onClick = onClick,
+                onLongPress = onLongPress,
+                onQuickAction = onQuickAction,
+                onResetAction = onResetAction,
+                onDeleteRequest = onDeleteRequest
+            )
+        } else {
+        Row(
+            Modifier.fillMaxWidth()
+                .heightIn(min = CardDimensions.contentHeight)
+                .height(IntrinsicSize.Min)
+                
         ) {
             Column(
                 modifier = Modifier.weight(1f).fillMaxHeight()
