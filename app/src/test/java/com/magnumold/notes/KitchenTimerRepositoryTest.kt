@@ -32,7 +32,7 @@ class KitchenTimerRepositoryTest {
         val repository = KitchenTimerRepository(preferences)
         val timers = listOf(
             KitchenTimer(id = 101L, title = "Гречка", durationSeconds = 1200L),
-            KitchenTimer(id = 102L, title = "Рыба", durationSeconds = 720L, status = KitchenTimerStatus.PAUSED, remainingSeconds = 400L)
+            KitchenTimer(id = 102L, title = "Рыба", durationSeconds = 720L, status = KitchenTimerStatus.PAUSED, remainingSeconds = 400L, colorIndex = 4)
         )
         val settings = KitchenTimerSettings(
             alertDurationMode = TimerAlertDurationMode.CUSTOM,
@@ -47,5 +47,6 @@ class KitchenTimerRepositoryTest {
         assertEquals(timers, restored.timers)
         assertEquals(settings, restored.settings)
         assertNotNull(restored.timers.firstOrNull { it.title == "Рыба" })
+        assertEquals(4, restored.timers.first { it.title == "Рыба" }.colorIndex)
     }
 }
