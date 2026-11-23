@@ -153,6 +153,22 @@ class NotesRepositoryTest {
         repository.migrateLegacyKitchenTimers(legacyPreferences)
         assertTrue(HomeTimelineOperations.records(repository.loadSnapshot())
             .none { it.type == RecordType.TIMER })
+
+        // A timer explicitly created by the user can be deleted permanently.
+        val manuallyCreated = Note(
+            id = 88L,
+            title = "",
+            blocks = listOf(NoteBlock()),
+            updated = 88L,
+            created = 88L,
+            type = RecordType.TIMER,
+            timerDurationSeconds = 240L
+        )
+        repository.flushSnapshot(repository.loadSnapshot().copy(notes = listOf(manuallyCreated)))
+        repository.flushSnapshot(repository.loadSnapshot().copy(notes = emptyList()))
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+        assertTrue(HomeTimelineOperations.records(repository.loadSnapshot())
+            .none { it.type == RecordType.TIMER })
     }
 
     @Test
