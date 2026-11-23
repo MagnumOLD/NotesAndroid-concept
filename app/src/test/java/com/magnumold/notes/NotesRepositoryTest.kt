@@ -89,6 +89,49 @@ class NotesRepositoryTest {
     }
 
     @Test
+    fun legacyAlarmIdMapFollowsTimerWhenItsIdCollidesDuringMigration() {
+        val context = RuntimeEnvironment.getApplication()
+        val recordPreferences = context.getSharedPreferences(
+            "notes_repository_timer_id_collision_test", Context.MODE_PRIVATE
+        )
+        val legacyPreferences = context.getSharedPreferences(
+            "kitchen_timers_id_collision_test", Context.MODE_PRIVATE
+        )
+        recordPreferences.edit().clear().commit()
+        legacyPreferences.edit().clear().commit()
+
+        val legacyId = 1_700_000_000_456L
+        val repository = NotesRepository(recordPreferences)
+        repository.flushSnapshot(PersistenceSnapshot(
+            notes = listOf(Note(
+                id = legacyId,
+                title = "",
+                blocks = listOf(NoteBlock("Existing record")),
+                updated = legacyId
+            )),
+            collections = emptyList(),
+            archived = emptyList(),
+            trash = emptyList()
+        ))
+        KitchenTimerRepository(legacyPreferences).saveTimers(listOf(
+            KitchenTimer(id = legacyId, title = "Старый таймер", durationSeconds = 90L)
+        ))
+
+        repository.migrateLegacyKitchenTimers(legacyPreferences)
+
+        val migrated = HomeTimelineOperations.records(repository.loadSnapshot())
+            .single { it.type == RecordType.TIMER }
+        assertTrue(migrated.id != legacyId)
+        assertEquals(legacyId, migrated.created)
+        val mapping = org.json.JSONObject(
+            recordPreferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, "{}")
+        )
+        assertEquals(migrated.id, mapping.getLong(legacyId.toString()))
+        assertEquals("Existing record", repository.loadSnapshot().notes
+            .single { it.id == legacyId }.blocks.single().text)
+    }
+
+    @Test
     fun firstLaunchCreatesOneDefaultCanonicalTimer() {
         val context = RuntimeEnvironment.getApplication()
         val recordPreferences = context.getSharedPreferences(
