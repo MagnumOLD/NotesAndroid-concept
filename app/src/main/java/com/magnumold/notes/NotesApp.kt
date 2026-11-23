@@ -446,7 +446,7 @@ internal fun NotesApp(
                             } else navigation.openRecord(id)
                         },
                         onArchiveSelected = { ids ->
-                            val recordIds = ids.filter { it > 0L }.toSet()
+                            val recordIds = ids.toSet()
                             val selectedRecords = activeNotes.filter { it.id in recordIds }
                             closeActiveSessionsForRemoved(selectedRecords)
                             selectedRecords.filter { it.type == RecordType.TIMER }
