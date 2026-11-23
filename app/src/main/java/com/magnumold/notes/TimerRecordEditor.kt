@@ -53,20 +53,14 @@ internal fun TimerRecordEditor(
     var now by remember(note.id) { mutableLongStateOf(System.currentTimeMillis()) }
     var durationInput by remember(note.id) { mutableStateOf(note.timerDurationSeconds.toString()) }
     val running = note.timerEndsAtMillis != null
-    val remaining = if (running) TimerOperations.remainingSeconds(note.timerEndsAtMillis!!, now)
-    else note.timerRemainingSeconds ?: note.timerDurationSeconds
+    val remaining = RecordTimerOperations.remainingSeconds(note, now)
 
     LaunchedEffect(note.timerEndsAtMillis) {
         val end = note.timerEndsAtMillis ?: return@LaunchedEffect
         while (true) {
             now = System.currentTimeMillis()
             if (TimerOperations.remainingSeconds(end, now) <= 0L) {
-                latestOnChange(latestNote.copy(
-                    timerEndsAtMillis = null,
-                    timerRemainingSeconds = 0L,
-                    timerAlertStartedAtMillis = System.currentTimeMillis(),
-                    status = RecordStatus.COMPLETED
-                ))
+                latestOnChange(RecordTimerOperations.reconcile(latestNote, System.currentTimeMillis()))
                 break
             }
             delay(1_000L)
@@ -165,14 +159,10 @@ internal fun TimerRecordEditor(
                     onClick = {
                         val duration = durationInput.toLongOrNull()?.let { TimerOperations.normalizeDuration(it) }
                             ?: note.timerDurationSeconds
-                        val left = TimerOperations.durationToStart(note.timerRemainingSeconds, duration)
                         val start = System.currentTimeMillis()
-                        onChange(note.copy(
-                            timerDurationSeconds = duration,
-                            timerRemainingSeconds = null,
-                            timerEndsAtMillis = TimerOperations.startAt(start, left),
-                            timerAlertStartedAtMillis = null,
-                            status = RecordStatus.IN_PROGRESS
+                        onChange(RecordTimerOperations.start(
+                            note.copy(timerDurationSeconds = duration),
+                            start
                         ))
                         now = start
                     },
@@ -182,26 +172,14 @@ internal fun TimerRecordEditor(
                     Button(
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            val now = System.currentTimeMillis()
-                            val left = TimerOperations.remainingSeconds(note.timerEndsAtMillis!!, now)
-                            onChange(note.copy(
-                                timerEndsAtMillis = null,
-                                timerRemainingSeconds = left,
-                                timerAlertStartedAtMillis = if (left == 0L) now else null,
-                                status = if (left == 0L) RecordStatus.COMPLETED else RecordStatus.PAUSED
-                            ))
+                            onChange(RecordTimerOperations.pause(note, System.currentTimeMillis()))
                         }
                     ) { Text("Пауза") }
                 } else {
                     TextButton(
                         modifier = Modifier.weight(1f),
                         onClick = {
-                            onChange(note.copy(
-                                timerEndsAtMillis = null,
-                                timerRemainingSeconds = null,
-                                timerAlertStartedAtMillis = null,
-                                status = RecordStatus.WAITING
-                            ))
+                            onChange(RecordTimerOperations.reset(note))
                             durationInput = note.timerDurationSeconds.toString()
                         }
                     ) { Text("Сбросить") }
