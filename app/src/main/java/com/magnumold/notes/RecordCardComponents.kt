@@ -434,6 +434,7 @@ internal fun NoteRow(
     onQuickAction: () -> Unit = {},
     onResetAction: () -> Unit = {},
     onDeleteRequest: () -> Unit = {},
+    showTimerDragHandle: Boolean = true,
     showSecondaryPreview: Boolean = true,
     previewFields: Set<String> = CardPreviewField.defaults,
     onMeasuredHeight: (Int) -> Unit = {}
@@ -543,7 +544,8 @@ internal fun NoteRow(
                 onLongPress = onLongPress,
                 onQuickAction = onQuickAction,
                 onResetAction = onResetAction,
-                onDeleteRequest = onDeleteRequest
+                onDeleteRequest = onDeleteRequest,
+                showDragHandle = showTimerDragHandle
             )
         } else {
         Row(
