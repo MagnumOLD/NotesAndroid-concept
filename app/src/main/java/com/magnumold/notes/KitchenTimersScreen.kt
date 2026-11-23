@@ -86,7 +86,8 @@ internal fun KitchenTimersScreen(
     onSettingsChange: (KitchenTimerSettings) -> Unit,
     onRefresh: () -> Unit,
     initialEditingTimerId: Long? = null,
-    onInitialEditConsumed: () -> Unit = {}
+    onInitialEditConsumed: () -> Unit = {},
+    onEditorExit: () -> Unit = {}
 ) {
     var nowMillis by remember { mutableLongStateOf(System.currentTimeMillis()) }
     var editingTimer by remember { mutableStateOf<KitchenTimer?>(null) }
@@ -132,18 +133,23 @@ internal fun KitchenTimersScreen(
         onInitialEditConsumed()
     }
 
+    fun closeEditor() {
+        editingTimer = null
+        editingIsNew = false
+        onEditorExit()
+    }
+
     if (editingTimer != null) {
         KitchenTimerEditScreen(
             timer = editingTimer!!,
             defaultSoundUri = settings.defaultSoundUri,
             topBarColor = topBarColor,
-            onBack = { editingTimer = null; editingIsNew = false },
+            onBack = ::closeEditor,
             onSave = { updated ->
                 val next = if (editingIsNew) timers + updated
                     else timers.map { if (it.id == updated.id) updated else it }
                 onTimersChange(next)
-                editingTimer = null
-                editingIsNew = false
+                closeEditor()
             }
         )
         return
