@@ -788,8 +788,8 @@ internal fun NotesHome(
     }
 
     if (showDeleteConfirmation) {
-        AlertDialog(onDismissRequest = { showDeleteConfirmation = false }, title = { Text("Удалить заметки?") },
-            text = { Text("Будет удалено заметок: ${selectedNoteIds.size}.") },
+        AlertDialog(onDismissRequest = { showDeleteConfirmation = false }, title = { Text("Удалить выбранное?") },
+            text = { Text("Будет удалено элементов: ${selectedNoteIds.size}.") },
             confirmButton = { TextButton(onClick = { onDeleteSelected(selectedNoteIds); selectedNoteIds = emptySet(); showDeleteConfirmation = false }) { Text("Удалить") } },
             dismissButton = { TextButton(onClick = { showDeleteConfirmation = false }) { Text("Отмена") } })
     }
