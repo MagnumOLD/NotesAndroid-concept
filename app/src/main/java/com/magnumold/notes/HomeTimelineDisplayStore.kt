@@ -11,13 +11,24 @@ import org.json.JSONArray
 internal class HomeTimelineDisplayStore(private val preferences: SharedPreferences) {
     fun loadShowDateHeaders(): Boolean = preferences.getBoolean(KEY_SHOW_DATE_HEADERS, true)
 
-    fun loadDateHeaderTextSize(): Int =
-        preferences.getInt(KEY_DATE_HEADER_TEXT_SIZE, DEFAULT_DATE_HEADER_TEXT_SIZE)
-            .takeIf { it == 12 || it == 14 } ?: DEFAULT_DATE_HEADER_TEXT_SIZE
+    fun loadDateHeaderTextSize(): Int {
+        val stored = preferences.getInt(KEY_DATE_HEADER_TEXT_SIZE, DEFAULT_DATE_HEADER_TEXT_SIZE)
+        if (preferences.getBoolean(KEY_DATE_HEADER_TEXT_SIZE_USER_SET, false)) {
+            return stored.takeIf { it == 12 || it == 14 } ?: DEFAULT_DATE_HEADER_TEXT_SIZE
+        }
+        // Older versions wrote 14sp on every launch, even when the user never
+        // changed the setting. Treat that unmarked value as the former default.
+        if (stored == 14) {
+            preferences.edit().putInt(KEY_DATE_HEADER_TEXT_SIZE, DEFAULT_DATE_HEADER_TEXT_SIZE).apply()
+            return DEFAULT_DATE_HEADER_TEXT_SIZE
+        }
+        return stored.takeIf { it == 12 } ?: DEFAULT_DATE_HEADER_TEXT_SIZE
+    }
 
     fun saveDateHeaderTextSize(sizeSp: Int) {
         preferences.edit()
-            .putInt(KEY_DATE_HEADER_TEXT_SIZE, if (sizeSp == 12) 12 else DEFAULT_DATE_HEADER_TEXT_SIZE)
+            .putInt(KEY_DATE_HEADER_TEXT_SIZE, if (sizeSp == 14) 14 else 12)
+            .putBoolean(KEY_DATE_HEADER_TEXT_SIZE_USER_SET, true)
             .apply()
     }
 
@@ -50,6 +61,7 @@ internal class HomeTimelineDisplayStore(private val preferences: SharedPreferenc
     private companion object {
         const val KEY_SHOW_DATE_HEADERS = "show_date_headers"
         const val KEY_DATE_HEADER_TEXT_SIZE = "date_header_text_size"
+        const val KEY_DATE_HEADER_TEXT_SIZE_USER_SET = "date_header_text_size_user_set"
         const val DEFAULT_DATE_HEADER_TEXT_SIZE = 12
         const val KEY_MANUAL_ORDER = "manual_order_ids"
     }
