@@ -12,13 +12,13 @@ import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -36,8 +36,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -132,7 +130,6 @@ internal fun KitchenTimersScreen(
                 top = AppSpacing.md,
                 bottom = AppSpacing.xl
             ),
-            verticalArrangement = Arrangement.spacedBy(AppSpacing.md)
         ) {
             items(timers, key = { it.id }) { timer ->
                 KitchenTimerCard(
@@ -166,7 +163,7 @@ internal fun KitchenTimersScreen(
                         )
                         onTimersChange(timers + KitchenTimerOperations.create(nextId))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().padding(top = AppSpacing.md),
                     shape = RoundedCornerShape(14.dp)
                 ) {
                     Icon(Icons.Outlined.Add, contentDescription = null)
@@ -217,14 +214,14 @@ private fun KitchenTimerCard(
         KitchenTimerStatus.PAUSED -> "На паузе"
         KitchenTimerStatus.FINISHED -> "Время вышло"
     }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    RecordCardSurface(
+        background = MaterialTheme.colorScheme.background,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(AppSpacing.md),
+            modifier = Modifier.fillMaxWidth()
+                .heightIn(min = CardDimensions.contentHeight)
+                .padding(horizontal = AppSpacing.screenHorizontal, vertical = AppSpacing.md),
             verticalArrangement = Arrangement.spacedBy(AppSpacing.xs)
         ) {
             Row(
