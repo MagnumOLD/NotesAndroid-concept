@@ -47,7 +47,7 @@ internal class KitchenTimerReceiver : BroadcastReceiver() {
         val preferences = context.getSharedPreferences(NotesRepository.PREFERENCES_NAME, Context.MODE_PRIVATE)
         val mappedId = runCatching {
             preferences.getString(NotesRepository.KEY_KITCHEN_TIMER_LEGACY_ID_MAP, null)
-                ?.let(::org.json.JSONObject)
+                ?.let { org.json.JSONObject(it) }
                 ?.optLong(timerId.toString(), 0L)
         }.getOrNull()?.takeIf { it > 0L } ?: return
         val repository = NotesRepository(preferences)
