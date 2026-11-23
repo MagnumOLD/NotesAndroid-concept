@@ -70,16 +70,11 @@ internal fun TimerRecordEditor(
     AppPageScaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Surface(color = topBarColor, contentColor = noteTextColor(topBarColor)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .windowInsetsPadding(androidx.compose.foundation.layout.WindowInsets.statusBars)
-                        .padding(horizontal = AppSpacing.screenHorizontal, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Таймер", style = AppTypography.screenTitleStyle(), color = noteTextColor(topBarColor))
-                }
-            }
+            AppEditorTopBar(
+                title = "Таймер",
+                backgroundColor = topBarColor,
+                actions = {}
+            )
         }
     ) { padding ->
         Column(
