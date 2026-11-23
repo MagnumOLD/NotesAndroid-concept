@@ -292,6 +292,8 @@ private fun Note.sameRecordContent(other: Note): Boolean =
         timerDurationSeconds == other.timerDurationSeconds &&
         timerEndsAtMillis == other.timerEndsAtMillis &&
         timerRemainingSeconds == other.timerRemainingSeconds &&
+        timerSoundUri == other.timerSoundUri &&
+        timerAlertStartedAtMillis == other.timerAlertStartedAtMillis &&
         nutritionItems == other.nutritionItems &&
         nutritionGrams == other.nutritionGrams && nutritionCalories == other.nutritionCalories &&
         nutritionProtein == other.nutritionProtein && nutritionFat == other.nutritionFat && nutritionCarbs == other.nutritionCarbs &&
