@@ -138,9 +138,7 @@ internal class KitchenTimerAlertService : Service() {
         )
         val records = HomeTimelineOperations.records(repository.loadSnapshot())
             .filter { it.type == RecordType.TIMER && it.timerAlertStartedAtMillis != null }
-        val settings = KitchenTimerRepository(
-            getSharedPreferences("kitchen_timers", Context.MODE_PRIVATE)
-        ).loadSettings()
+        val settings = repository.loadSnapshot().timerSettings
         val now = System.currentTimeMillis()
         records.filter { it.status == RecordStatus.COMPLETED }.forEach { record ->
             val startedAt = record.timerAlertStartedAtMillis ?: return@forEach
