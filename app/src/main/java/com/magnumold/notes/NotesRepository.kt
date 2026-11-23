@@ -86,8 +86,8 @@ internal class NotesRepository(private val preferences: SharedPreferences) {
             .putBoolean(KEY_KITCHEN_TIMER_MIGRATION, true)
             .commit()) { "Не удалось перенести таймеры в основное хранилище" }
 
-        // Settings are retained in the old preferences for the settings UI.
-        // Only the duplicate timer records and their ID counter are removed.
+        // Timer settings were committed with the migrated records above.
+        // Remove the legacy copy only after that transaction succeeds.
         legacyPreferences.edit()
             .remove("kitchen_timers_v1")
             .remove("kitchen_timer_next_id")
