@@ -502,6 +502,18 @@ internal fun NotesApp(
                             else recordsViewModel.updateActiveRecord(activeCollectionId, updated)
                             if (record.type == RecordType.TIMER) recordTimerScheduler.sync(updated)
                         },
+                        onResetTimer = { record ->
+                            val now = System.currentTimeMillis()
+                            val reset = record.copy(
+                                timerEndsAtMillis = null,
+                                timerRemainingSeconds = record.timerDurationSeconds,
+                                status = RecordStatus.WAITING,
+                                updated = now
+                            )
+                            if (homeTimelineMode) recordsViewModel.updateHomeRecord(reset)
+                            else recordsViewModel.updateActiveRecord(activeCollectionId, reset)
+                            recordTimerScheduler.sync(reset)
+                        },
                         onCreate = { requestedType ->
                             val type = navigation.activeModule.recordType ?: requestedType
                             val now = System.currentTimeMillis()
